@@ -1,26 +1,12 @@
-use std::collections::HashMap;
-use std::fs::read;
-use std::sync::mpsc::{channel, Sender};
 use bytes::BytesMut;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::net::tcp::{ReadHalf, WriteHalf};
-use tracing::{debug, error, info};
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::Receiver;
-use tracing::field::debug;
-use uuid::Uuid;
+use tokio::net::TcpStream;
+use tracing::{debug, error};
 
-type Error = Box<dyn std::error::Error + Sync + Send>;
-type Result<T> = std::result::Result<T, Error>;
+use crate::{Result};
 
-enum Message {
-    Connected,
-    DataBytes(BytesMut),
-    Disconnected,
-}
-
-struct DuplexTcpStream<'a> {
+pub struct DuplexTcpStream<'a> {
     left: &'a mut TcpStream,
     right: &'a mut TcpStream,
     buffer_size: usize,
@@ -53,8 +39,6 @@ impl<'a> DuplexTcpStream<'a> {
         };
     }
 
-    /// dsadsa
-    /// sdadsa
     async fn start_streaming(buffer_size: usize, reader: &mut ReadHalf<'a>, writer: &mut WriteHalf<'a>) -> Result<()> {
         let mut buffer = BytesMut::with_capacity(buffer_size);
 
@@ -90,61 +74,4 @@ impl<'a> DuplexTcpStream<'a> {
             }
         }
     }
-}
-
-
-async fn handle_socket(tcp_stream: &mut TcpStream) -> Result<()> {
-    let mut target_stream = match TcpStream::connect("45.77.198.191:19132").await {
-        Ok(stream) => stream,
-        Err(err) => {
-            error!("Failed when trying to connect to destination {}", err);
-            return Ok(());
-        }
-    };
-
-    let mut stream_duplex = DuplexTcpStream::join(tcp_stream, &mut target_stream, None);
-    match stream_duplex.start().await {
-        Ok(_) => info!("Successfully streamed data."),
-        Err(_) => {}
-    };
-
-    Ok(())
-}
-
-async fn start_server() -> Result<()> {
-    let listener = TcpListener::bind("127.0.0.1:3333").await?;
-    info!("server running on port 3333");
-    loop {
-        let (mut stream, _) = listener.accept().await?;
-        tokio::spawn(async move {
-            let _ = handle_socket(&mut stream).await;
-        });
-    }
-}
-
-async fn start_udp_server() -> Result<()> {
-    let listener = UdpSocket::bind("127.0.0.1:3337").await?;
-    info!("server running in 3337");
-
-    let mut buffer = BytesMut::with_capacity(1024 * 8);
-    let (mut sender, mut receiver) = mpsc::channel::<BytesMut>(100);
-
-    tokio::
-
-    loop {
-        let (bytes_read, target_addr) = listener.recv_from(&mut buffer).await?;
-        debug!("received {} bytes from {}", bytes_read, target_addr);
-        if 0 == bytes_read {
-            return Ok(());
-        }
-
-        let _ = listener.send_to(&buffer[..bytes_read], &target_addr).await?;
-        buffer.truncate(bytes_read);
-    }
-}
-
-#[tokio::main]
-async fn main() {
-    tracing_subscriber::fmt::init();
-    let _ = start_udp_server().await;
 }
