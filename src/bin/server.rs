@@ -12,7 +12,7 @@ use tracing::field::debug;
 use uuid::Uuid;
 use clap::Parser;
 
-use reverse_proxy::{Result, DuplexTcpStream, AppArguments, Server};
+use tcproxy::{Result, DuplexTcpStream, AppArguments, Server};
 
 enum Message {
     Connected,
@@ -38,24 +38,16 @@ async fn handle_socket(tcp_stream: &mut TcpStream) -> Result<()> {
     Ok(())
 }
 
-async fn start_server() -> Result<()> {
-    let listener = TcpListener::bind("127.0.0.1:*").await?;
-    info!("server running on port 3333");
-    loop {
-        let (mut stream, _) = listener.accept().await?;
-        tokio::spawn(async move {
-            let _ = handle_socket(&mut stream).await;
-        });
-    }
-}
-
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let args = AppArguments::parse();
-    let server = Server::new(args);
+    Server::new(args)
+        .listen()
+        .await?;
 
-    let _ = start_server().await;
+    info!("server stopped");
+    Ok(())
 }

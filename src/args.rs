@@ -1,7 +1,7 @@
 use std::net::{IpAddr, Ipv4Addr};
 use std::str::FromStr;
 use clap::Parser;
-use tracing::error;
+use tracing::{error, info};
 
 use crate::Result;
 
@@ -32,6 +32,16 @@ impl AppArguments {
             },
         }
     }
+
+    pub fn parse_port_range(&self) -> Result<(u16, u16)> {
+        info!("{}", self.port_range);
+
+        let groups: Vec<&str> = self.port_range.split(':').collect();
+        let initial_port = groups[0].to_owned().parse::<u16>()?;
+        let final_port = groups[1].to_owned().parse::<u16>()?;
+
+        Ok((initial_port, final_port))
+    }
 }
 
 
@@ -41,12 +51,12 @@ fn parse_port_range(s: &str) -> Result<String> {
         return Err(format!("Invalid port range: {}", s).into());
     }
 
-    let initial_port = groups[0].to_owned().parse::<i32>();
-    let final_port = groups[1].to_owned().parse::<i32>();
+    let initial_port = groups[0].to_owned().parse::<u16>();
+    let final_port = groups[1].to_owned().parse::<u16>();
 
     if !initial_port.is_ok() || !final_port.is_ok() {
         return Err(format!("Invalid por values.. {}", s).into());
     }
 
-    Ok(String::from("Test"))
+    Ok(String::from(s))
 }

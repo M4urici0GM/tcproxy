@@ -2,6 +2,7 @@ mod duplex_stream;
 mod server;
 mod app;
 mod args;
+pub mod codec;
 
 pub use duplex_stream::DuplexTcpStream;
 pub use args::AppArguments;
