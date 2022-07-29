@@ -7,8 +7,6 @@ use uuid::Uuid;
 
 use crate::codec::TcpFrame;
 
-use crate::Error;
-
 pub struct TcpFrameCodec;
 
 impl Encoder<TcpFrame> for TcpFrameCodec {

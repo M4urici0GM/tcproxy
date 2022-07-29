@@ -1,4 +1,4 @@
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::Ipv4Addr;
 use std::str::FromStr;
 use clap::Parser;
 use tracing::{error, info};
@@ -9,7 +9,7 @@ use crate::Result;
 #[clap(author, version, about, long_about = None)]
 pub struct AppArguments {
     #[clap(short, long, value_parser, default_value = "8080")]
-    port: i32,
+    port: u16,
 
     #[clap(short, long, value_parser, default_value = "0.0.0.0")]
      ip: String,
@@ -19,7 +19,7 @@ pub struct AppArguments {
 }
 
 impl AppArguments {
-    pub fn port(&self) -> i32 { self.port }
+    pub fn port(&self) -> u16 { self.port }
     pub fn ip(&self) -> &str { &self.ip }
     pub fn port_range(&self) -> &str { &self.port_range }
 
@@ -54,7 +54,7 @@ fn parse_port_range(s: &str) -> Result<String> {
     let initial_port = groups[0].to_owned().parse::<u16>();
     let final_port = groups[1].to_owned().parse::<u16>();
 
-    if !initial_port.is_ok() || !final_port.is_ok() {
+    if initial_port.is_err() || final_port.is_err() {
         return Err(format!("Invalid por values.. {}", s).into());
     }
 
