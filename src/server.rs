@@ -1,11 +1,11 @@
 use std::future::Future;
 use std::sync::Arc;
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, debug};
 
-use crate::{AppArguments, Result};
-use crate::proxy::ProxyClient;
+use crate::{AppArguments, PortManager, Result};
+use crate::proxy::{ProxyClient};
 use crate::tcp::Listener;
 
 #[derive(Debug)]
@@ -31,13 +31,19 @@ impl Server {
         let port_range = self.args.parse_port_range()?;
         let listen_ip = self.args.parse_ip()?;
 
+        let port_manager = PortManager {
+            available_proxies: available_proxies.clone(),
+            initial_port: port_range.0,
+            final_port: port_range.1,
+        };
+
         while !cancellation_token.is_cancelled() {
             let (socket, addr) = self.server_listener.accept(&tcp_listener).await?;
-            let mut connection_handler = ProxyClient::new(socket, port_range, listen_ip, available_proxies.clone());
+            let connection_handler = ProxyClient::new(listen_ip, port_manager.clone());
 
             let cancellation_token = cancellation_token.child_token();
             tokio::spawn(async move {
-                match connection_handler.start_streaming(cancellation_token).await {
+                match connection_handler.start_streaming(socket, cancellation_token).await {
                     Ok(_) => {
                         debug!("Socket {} has been closed gracefully.", addr);
                     }
