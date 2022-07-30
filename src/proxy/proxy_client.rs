@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::{Arc};
 use bytes::BytesMut;
 use futures_util::StreamExt;
@@ -18,13 +18,15 @@ use crate::proxy::{ProxyClientStreamReader, ProxyClientStreamWriter};
 pub struct ProxyClient {
     pub(crate) listen_ip: Ipv4Addr,
     pub(crate) port_manager: PortManager,
+    pub(crate) remote_ip: SocketAddr,
 }
 
 impl ProxyClient {
-    pub fn new(listen_ip: Ipv4Addr, port_manager: PortManager) -> Self {
+    pub fn new(listen_ip: Ipv4Addr, remote_ip: SocketAddr, port_manager: PortManager) -> Self {
         Self {
             listen_ip,
             port_manager,
+            remote_ip,
         }
     }
 
@@ -42,11 +44,13 @@ impl ProxyClient {
             reader: transport_reader,
             connections: connections.clone(),
             port_manager: self.port_manager.clone(),
+            remote_ip: self.remote_ip,
         };
 
         let mut stream_writer = ProxyClientStreamWriter {
             proxy_client_receiver: receiver,
             writer: transport_writer,
+            remote_ip: self.remote_ip,
         };
 
         tokio::select! {

@@ -1,5 +1,5 @@
-use std::io;
-use std::io::ErrorKind;
+use std::{io};
+use std::io::{ErrorKind, Cursor, Read};
 use bytes::*;
 use tokio_util::codec::{Decoder, Encoder};
 use tracing::{debug, info};
@@ -26,6 +26,18 @@ impl Encoder<TcpFrame> for TcpFrameCodec {
                 dst.put_u128(connection_id.as_u128());
                 dst.put_u32(buffer.len() as u32);
                 dst.put_slice(&buffer[..]);
+            },
+            TcpFrame::ClientConnectedAck { port } => {
+                dst.put_u8(4);
+                dst.put_u16(port);
+            },
+            TcpFrame::ClientUnableToConnect { connection_id } => {
+                dst.put_u8(5);
+                dst.put_u128(connection_id.as_u128());
+            },
+            TcpFrame::LocalClientDisconnected { connection_id } => {
+                dst.put_u8(6);
+                dst.put_u128(connection_id.as_u128());
             }
         };
 
@@ -43,38 +55,58 @@ impl Decoder for TcpFrameCodec {
         }
 
         info!("Received new DataPacket {}", src.len());
+        let mut cursor = Cursor::new(&src[..]);
 
-        let packet_type = src.get(0);
-        let result = match packet_type.unwrap() {
+        let packet_type = cursor.get_u8();
+        let result = match packet_type {
             1 => {
-                src.advance(1);
                 Some(TcpFrame::ClientConnected)
             },
-            2 if src.len() >= (16 + 1) => {
-                let connection_id = Uuid::from_slice(&src[0..16]).unwrap();
-                src.advance(1);
+            2 if src.len() >= (16) => {
+                let connection_id_buf = cursor.get_u128();
+                let connection_id = Uuid::from_u128(connection_id_buf);
                 Some(TcpFrame::IncomingSocket { connection_id })
             },
-            3 if src.len() > (16 + 4 + 1) => {
-                let buff = &src[17..21];
-                let buffer_length = u32::from_be_bytes(buff.try_into().unwrap()) as usize;
-                if (16 + 4 + buffer_length) > src.len() {
+            3 if src.len() > (16 + 4) => {
+                let connection_id_buf = cursor.get_u128();
+                let buffer_size = cursor.get_u32() as usize;
+
+                if buffer_size > src.len() as usize - cursor.position() as usize {
+                    debug!("received less bytes than expected");
                     return Ok(None);
                 }
+                
+                let mut buffer = vec![0u8; buffer_size as usize];
+                let connection_id = Uuid::from_u128(connection_id_buf);
 
-                src.advance(1);
-                let header = src.split_to(20);
-                let connection_id = Uuid::from_slice(&header[0..16]).unwrap();
-                let buffer = src.split_to(buffer_length);
-
-                Some(TcpFrame::DataPacket { connection_id, buffer })
+                cursor.read_exact(&mut buffer)?;
+                Some(TcpFrame::DataPacket { connection_id, buffer: BytesMut::from(&buffer[..]) })
             }
+            4 if src.len() >= 2 => {
+                let port = cursor.get_u16();
+
+                Some(TcpFrame::ClientConnectedAck { port })
+            }
+            5 if src.len() >= 16 => {
+                let connection_id_buf = cursor.get_u128();
+                let connection_id = Uuid::from_u128(connection_id_buf);
+
+                Some(TcpFrame::LocalClientDisconnected { connection_id })
+            },
+            6 if src.len() >= 16 => {
+                let connection_id_buf = cursor.get_u128();
+                let connection_id = Uuid::from_u128(connection_id_buf);
+
+                Some(TcpFrame::LocalClientDisconnected { connection_id })
+            },
             value => {
                 debug!("Invalid Packet type received: {}. Closing Connection.", value);
                 return Err(io::Error::new(ErrorKind::InvalidData, "Invalid data received!"));
             }
         };
 
+
+        src.advance(cursor.position() as usize);
         Ok(result)
     }
 }

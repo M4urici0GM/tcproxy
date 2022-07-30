@@ -57,6 +57,8 @@ impl TcpConnection {
         available_connections.insert(self.connection_id, sender.clone());
         drop(available_connections);
 
+        let _ = self.host_sender
+            .send(TcpFrame::IncomingSocket { connection_id: self.connection_id }).await;
 
         let task1 = async move {
             while let Some(mut msg) = receiver.recv().await {

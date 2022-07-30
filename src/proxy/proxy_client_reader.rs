@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use bytes::BytesMut;
 use futures_util::stream::SplitStream;
@@ -19,6 +19,7 @@ use crate::proxy::ProxyServer;
 
 pub struct ProxyClientStreamReader {
     pub(crate) target_ip: Ipv4Addr,
+    pub(crate) remote_ip: SocketAddr,
     pub(crate) port_manager: PortManager,
     pub(crate) proxy_client_sender: Sender<TcpFrame>,
     pub(crate) connections: Arc<Mutex<HashMap<Uuid, Sender<BytesMut>>>>,
@@ -65,7 +66,14 @@ impl ProxyClientStreamReader {
                             return Ok(());
                         }
                     };
-                }
+                },
+                TcpFrame::LocalClientDisconnected { connection_id } => {
+                    debug!("connection {} ", connection_id);
+                    self.connections
+                        .lock()
+                        .await
+                        .remove(&connection_id);
+                },
                 TcpFrame::ClientConnected => {
                     let listen_ip = self.target_ip;
                     let port = self.port_manager.get_port().await?;
@@ -73,6 +81,17 @@ impl ProxyClientStreamReader {
                     let connections = self.connections.clone();
                     let host_sender = self.proxy_client_sender.clone();
                     let cancellation_token = cancellation_token.child_token();
+
+                    match host_sender.send(TcpFrame::ClientConnectedAck { port }).await {
+                        Ok(_) => {
+                            info!("Successfully send ACK package to {}", self.remote_ip);
+                        },
+                        Err(err) => {
+                            error!("Failed when sending ACK package to {}: {}", self.remote_ip, err);
+                            return Err("closing connection due invalid sender.".into());
+                        }
+                    };
+
 
                     tokio::spawn(async move {
                         let proxy_server = ProxyServer {

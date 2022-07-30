@@ -39,7 +39,7 @@ impl Server {
 
         while !cancellation_token.is_cancelled() {
             let (socket, addr) = self.server_listener.accept(&tcp_listener).await?;
-            let connection_handler = ProxyClient::new(listen_ip, port_manager.clone());
+            let connection_handler = ProxyClient::new(listen_ip, addr, port_manager.clone());
 
             let cancellation_token = cancellation_token.child_token();
             tokio::spawn(async move {
