@@ -118,19 +118,22 @@ impl LocalConnection {
 }
 
 
-async fn start_ping(sender: Sender<TcpFrame>) -> JoinHandle<()> {
+fn start_ping(sender: Sender<TcpFrame>) {
     tokio::spawn(async move {
         loop {
+            info!("Waiting for next ping to occur");
             time::sleep_until(Instant::now() + Duration::from_secs(10)).await;
             match sender.send(TcpFrame::Ping).await {
-                Ok(_) => {},
+                Ok(_) => {
+                    info!("Sent ping frame..");
+                },
                 Err(err) => {
                     error!("Failed to send ping. aborting. {}", err);
                     break;
                 }
             };
         }
-    })
+    });
 }
 
 
@@ -164,9 +167,7 @@ async fn main() -> Result<()> {
     });
 
 
-    let ping_task = start_ping(main_sender.clone());
-
-
+    start_ping(main_sender.clone());
     let foward_task = tokio::spawn(async move {
         loop {
             while let Some(msg) = transport_reader.next().await {
@@ -217,9 +218,6 @@ async fn main() -> Result<()> {
         },
         _ = foward_task => {
             debug!("Forward to server task finished.");
-        },
-        _ = ping_task => {
-            debug!("Ping task finished.");
         },
     };
 

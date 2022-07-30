@@ -105,6 +105,8 @@ impl Decoder for TcpFrameCodec {
 
                 Some(TcpFrame::LocalClientDisconnected { connection_id })
             },
+            7 => Some(TcpFrame::Ping),
+            8 => Some(TcpFrame::Pong),
             value => {
                 debug!("Invalid Packet type received: {}. Closing Connection.", value);
                 return Err(io::Error::new(ErrorKind::InvalidData, "Invalid data received!"));
