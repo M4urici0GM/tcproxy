@@ -2,6 +2,7 @@ use bytes::{BufMut, BytesMut};
 use futures_util::stream::SplitSink;
 use futures_util::{SinkExt, StreamExt};
 use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tcproxy::Result;
@@ -33,7 +34,7 @@ struct LocalConnection {
 }
 
 impl LocalConnection {
-    pub async fn read_from_local_connection(&mut self, reader: &mut Receiver<BytesMut>) -> Result<()> {
+    pub async fn read_from_local_connection(&mut self, reader: &mut Receiver<BytesMut>, cancellation_token: CancellationToken) -> Result<()> {
         let mut connection = match TcpStream::connect("127.0.0.1:80").await {
             Ok(stream) => stream,
             Err(err) => {
@@ -49,9 +50,10 @@ impl LocalConnection {
 
         let thread_sender = self.sender.clone();
         let connection_id = self.connection_id.clone();
+        let token_clone = cancellation_token.child_token();
         let task1 = async move {
             let mut buffer = BytesMut::with_capacity(1024 * 8);
-            loop {
+            while !token_clone.is_cancelled() {
                 let bytes_read = match stream_reader
                     .read_buf(&mut buffer)
                     .await
@@ -89,8 +91,15 @@ impl LocalConnection {
         };
 
         let connection_id = self.connection_id.clone();
+        let token_clone = cancellation_token.child_token();
         let task2 = async move {
-            while let Some(mut msg) = reader.recv().await {
+            while !token_clone.is_cancelled() {
+                let result = reader.recv().await;
+                if result == None {
+                    break;
+                }
+
+                let mut msg = result.unwrap();
                 let bytes_written =
                     match stream_writer.write_buf(&mut msg).await {
                         Ok(a) => a,
@@ -107,6 +116,10 @@ impl LocalConnection {
             _ = task1 => {},
             _ = task2 => {},
         };
+
+        if cancellation_token.is_cancelled() {
+            return Ok(());
+        }
 
         debug!("connection {} disconnected!", self.connection_id);
         let _ = self.sender
@@ -136,7 +149,6 @@ fn start_ping(sender: Sender<TcpFrame>) {
     });
 }
 
-
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
@@ -151,7 +163,7 @@ async fn main() -> Result<()> {
         }
     };
 
-    let connections: Arc<Mutex<HashMap<Uuid, Sender<BytesMut>>>> = Arc::new(Mutex::new(HashMap::new()));
+    let mut connections: HashMap<Uuid, (Sender<BytesMut>, CancellationToken)> = HashMap::new();
     let transport = Framed::new(tcp_connection, TcpFrameCodec);
     let (mut transport_writer, mut transport_reader) = transport.split();
     send_connected_frame(&mut transport_writer).await;
@@ -182,27 +194,39 @@ async fn main() -> Result<()> {
                             buffer,
                         } => {
                             info!("received new packet from {}", connection_id);
-                            let mutex_guard = connections.lock().await;
-                            if !mutex_guard.contains_key(&connection_id) {
+                            if !connections.contains_key(&connection_id) {
                                 debug!("connection {} not found!", connection_id);
                                 continue;
                             }
 
-                            let sender = mutex_guard.get(&connection_id).unwrap();
+                            let (sender, _) = connections.get(&connection_id).unwrap();
                             let _ = sender.send(buffer).await;
                         }
                         TcpFrame::IncomingSocket { connection_id } => {
                             debug!("new connection received!");
+                            let token = CancellationToken::new();
+                            let cancellation_token = token.child_token();
                             let (sender, mut reader) = mpsc::channel::<BytesMut>(100);
 
-                            let mut mutex_lock = connections.lock().await;
-                            mutex_lock.insert(connection_id, sender);
+                            connections.insert(connection_id, (sender, token));
 
                             let mut local_connection = LocalConnection { connection_id, sender: main_sender.clone() };
+                            let cancellation_token = cancellation_token.child_token();
                             tokio::spawn(async move {
-                                let _ = local_connection.read_from_local_connection(&mut reader).await;                                
+                                let _ = local_connection.read_from_local_connection(&mut reader, cancellation_token.child_token()).await;                                
                             });
                         },
+                        TcpFrame::RemoteSocketDisconnected { connection_id } => {
+                            let (_, cancellation_token) = match connections.remove(&connection_id) {
+                                Some(item) => item,
+                                None => {
+                                    debug!("connection not found {}", connection_id);
+                                    continue;
+                                }
+                            };
+                            
+                            cancellation_token.cancel();
+                        }
                         packet => {
                             debug!("invalid data packet received. {}", packet);
                         }

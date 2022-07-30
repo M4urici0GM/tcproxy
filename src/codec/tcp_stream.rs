@@ -10,6 +10,9 @@ pub enum TcpFrame {
     ClientConnectedAck {
         port: u16,
     },
+    RemoteSocketDisconnected {
+        connection_id: Uuid
+    },
     IncomingSocket {
         connection_id: Uuid
     },

@@ -44,6 +44,10 @@ impl Encoder<TcpFrame> for TcpFrameCodec {
             },
             TcpFrame::Pong => {
                 dst.put_u8(8);
+            },
+            TcpFrame::RemoteSocketDisconnected { connection_id } => {
+                dst.put_u8(9);
+                dst.put_u128(connection_id.as_u128());
             }
         };
 
@@ -107,10 +111,16 @@ impl Decoder for TcpFrameCodec {
             },
             7 => Some(TcpFrame::Ping),
             8 => Some(TcpFrame::Pong),
+            9 => {
+                let connection_id_buf = cursor.get_u128();
+                let connection_id = Uuid::from_u128(connection_id_buf);
+
+                Some(TcpFrame::RemoteSocketDisconnected { connection_id })
+            },
             value => {
                 debug!("Invalid Packet type received: {}. Closing Connection.", value);
                 return Err(io::Error::new(ErrorKind::InvalidData, "Invalid data received!"));
-            }
+            },
         };
 
 

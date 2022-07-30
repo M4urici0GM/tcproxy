@@ -15,7 +15,7 @@ pub struct ProxyServer {
     pub(crate) listen_ip: Ipv4Addr,
     pub(crate) port: u16,
     pub(crate) host_sender: Sender<TcpFrame>,
-    pub(crate)  available_connections: Arc<Mutex<HashMap<Uuid, Sender<BytesMut>>>>,
+    pub(crate) available_connections: Arc<Mutex<HashMap<Uuid, Sender<BytesMut>>>>,
 }
 
 impl ProxyServer {
@@ -30,15 +30,17 @@ impl ProxyServer {
 
             info!("received new socket in listener {}", Listener::create_socket_ip(self.listen_ip, self.port));
             tokio::spawn(async move {
+                let connection_id = Uuid::new_v4(); 
                 let mut incoming_tcp_connection = TcpConnection {
-                    host_sender,
+                    host_sender: host_sender.clone(),
                     available_connections,
                     connection,
                     _connection_addr: connection_addr,
-                    connection_id: Uuid::new_v4(),
+                    connection_id,
                 };
 
                 let _ = incoming_tcp_connection.handle_connection().await;
+                host_sender.send(TcpFrame::RemoteSocketDisconnected { connection_id }).await;
             });
         }
 
