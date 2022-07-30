@@ -38,6 +38,12 @@ impl Encoder<TcpFrame> for TcpFrameCodec {
             TcpFrame::LocalClientDisconnected { connection_id } => {
                 dst.put_u8(6);
                 dst.put_u128(connection_id.as_u128());
+            },
+            TcpFrame::Ping => {
+                dst.put_u8(7);
+            },
+            TcpFrame::Pong => {
+                dst.put_u8(8);
             }
         };
 

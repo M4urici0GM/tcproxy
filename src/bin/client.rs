@@ -1,13 +1,14 @@
 use bytes::{BufMut, BytesMut};
 use futures_util::stream::SplitSink;
 use futures_util::{SinkExt, StreamExt};
+use tokio::task::JoinHandle;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tcproxy::Result;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::{Sender, Receiver};
+use tokio::time::{self, Duration, Instant};
+use tokio::sync::mpsc::{self, Sender, Receiver};
 use tokio::sync::Mutex;
 use tokio_util::codec::Framed;
 use tracing::{debug, error, info};
@@ -117,10 +118,26 @@ impl LocalConnection {
 }
 
 
+async fn start_ping(sender: Sender<TcpFrame>) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        loop {
+            time::sleep_until(Instant::now() + Duration::from_secs(10)).await;
+            match sender.send(TcpFrame::Ping).await {
+                Ok(_) => {},
+                Err(err) => {
+                    error!("Failed to send ping. aborting. {}", err);
+                    break;
+                }
+            };
+        }
+    })
+}
+
+
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
-    let tcp_connection = match TcpStream::connect("127.0.0.1:8080").await {
+    let tcp_connection = match TcpStream::connect("144.217.14.8:8080").await {
         Ok(stream) => stream,
         Err(err) => {
             return Err(format!("Failed when connecting to server: {}", err).into());
@@ -139,6 +156,10 @@ async fn main() -> Result<()> {
             let _ = transport_writer.send(msg).await;
         }
     });
+
+
+    let ping_task = start_ping(main_sender.clone());
+
 
     let foward_task = tokio::spawn(async move {
         loop {
@@ -187,6 +208,7 @@ async fn main() -> Result<()> {
     tokio::select! {
         _ = receive_task => {},
         _ = foward_task => {},
+        _ = ping_task => {},
     };
 
 

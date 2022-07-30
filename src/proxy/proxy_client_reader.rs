@@ -52,7 +52,6 @@ impl ProxyClientStreamReader {
             match frame {
                 TcpFrame::DataPacket { buffer, connection_id } => {
                     let connections_lock = self.connections.lock().await;
-
                     if !connections_lock.contains_key(&connection_id) {
                         error!("connection id {} not found.", connection_id);
                         return Ok(());
@@ -73,6 +72,12 @@ impl ProxyClientStreamReader {
                         .lock()
                         .await
                         .remove(&connection_id);
+                },
+                TcpFrame::Ping => {
+                    match self.proxy_client_sender.send(TcpFrame::Pong).await {
+                        Ok(_) => info!("Sent Pong to client."),
+                        Err(err) => error!("Failed to send ping back to client. {}", err),
+                    }
                 },
                 TcpFrame::ClientConnected => {
                     let listen_ip = self.target_ip;

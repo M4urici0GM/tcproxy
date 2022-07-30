@@ -5,6 +5,8 @@ use uuid::Uuid;
 
 pub enum TcpFrame {
     ClientConnected,
+    Ping,
+    Pong,
     ClientConnectedAck {
         port: u16,
     },
@@ -31,6 +33,8 @@ impl Display for TcpFrame {
             TcpFrame::ClientUnableToConnect { connection_id } => format!("ClientUnableToConnect ({})", connection_id),
             TcpFrame::DataPacket { connection_id, buffer } => format!("DataPacket, {}, size: {}", connection_id, buffer.len()),
             TcpFrame::LocalClientDisconnected { connection_id } => format!("LocalClientDisconnected ({})", connection_id),
+            TcpFrame::Ping => format!("Ping"),
+            TcpFrame::Pong => format!("Pong"),
             _ => "Invalid Tcp Frame".to_string(),
         };
 
