@@ -138,8 +138,12 @@ async fn start_ping(sender: Sender<TcpFrame>) -> JoinHandle<()> {
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
     let tcp_connection = match TcpStream::connect("144.217.14.8:8080").await {
-        Ok(stream) => stream,
+        Ok(stream) => {
+            debug!("Connected to server..");
+            stream
+        },
         Err(err) => {
+            error!("Failed to connect to server. Check you network connection and try again.");
             return Err(format!("Failed when connecting to server: {}", err).into());
         }
     };
@@ -155,6 +159,8 @@ async fn main() -> Result<()> {
         while let Some(msg) = main_receiver.recv().await {
             let _ = transport_writer.send(msg).await;
         }
+
+        info!("Reached end of stream.");
     });
 
 
@@ -206,9 +212,15 @@ async fn main() -> Result<()> {
     });
 
     tokio::select! {
-        _ = receive_task => {},
-        _ = foward_task => {},
-        _ = ping_task => {},
+        _ = receive_task => {
+            debug!("Receive task finished.");
+        },
+        _ = foward_task => {
+            debug!("Forward to server task finished.");
+        },
+        _ = ping_task => {
+            debug!("Ping task finished.");
+        },
     };
 
 
