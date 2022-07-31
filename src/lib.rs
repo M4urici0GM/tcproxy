@@ -11,5 +11,5 @@ pub use args::AppArguments;
 pub use server::Server;
 pub use port_manager::PortManager;
 
-pub type Error = Box<dyn std::error::Error + Sync + Send>;
+pub type Error = Box<dyn std::error::Error + Sync + Send  + 'static>;
 pub type Result<T> = std::result::Result<T, Error>;

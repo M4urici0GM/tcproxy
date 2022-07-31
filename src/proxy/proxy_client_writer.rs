@@ -5,7 +5,7 @@ use tokio::net::TcpStream;
 use tokio::sync::mpsc::Receiver;
 use tokio_util::codec::Framed;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info};
+use tracing::{error, info, debug};
 use uuid::Uuid;
 
 use crate::Result;
@@ -27,8 +27,10 @@ impl ProxyClientStreamWriter {
 
             match self.writer.send(msg).await {
                 Ok(_) => {
+                    debug!("Send data packet to client..");
                 }
                 Err(err) => {
+                    error!("Failed to send packet to client.. {}", err);
                     return Err(err.into());
                 }
             };

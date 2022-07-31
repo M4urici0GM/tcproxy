@@ -7,7 +7,9 @@ use uuid::Uuid;
 
 use crate::codec::TcpFrame;
 
-pub struct TcpFrameCodec;
+pub struct TcpFrameCodec {
+    pub source: String,
+}
 
 impl Encoder<TcpFrame> for TcpFrameCodec {
     type Error = io::Error;
@@ -21,8 +23,14 @@ impl Encoder<TcpFrame> for TcpFrameCodec {
                 dst.put_u8(2);
                 dst.put_u128(connection_id.as_u128());
             }
-            TcpFrame::DataPacket { connection_id, buffer } => {
+            TcpFrame::DataPacketClient { connection_id, buffer } => {
                 dst.put_u8(3);
+                dst.put_u128(connection_id.as_u128());
+                dst.put_u32(buffer.len() as u32);
+                dst.put_slice(&buffer[..]);
+            },
+            TcpFrame::DataPacketHost { connection_id, buffer } => {
+                dst.put_u8(10);
                 dst.put_u128(connection_id.as_u128());
                 dst.put_u32(buffer.len() as u32);
                 dst.put_slice(&buffer[..]);
@@ -64,20 +72,32 @@ impl Decoder for TcpFrameCodec {
             return Ok(None);
         }
 
-        info!("Received new DataPacket {}", src.len());
         let mut cursor = Cursor::new(&src[..]);
-
         let packet_type = cursor.get_u8();
+        let remaining_size = src.len() as usize - cursor.position() as usize;
         let result = match packet_type {
-            1 => {
-                Some(TcpFrame::ClientConnected)
-            },
-            2 if src.len() >= (16) => {
+            1 => Some(TcpFrame::ClientConnected),
+            2 if remaining_size >= (16) => {
                 let connection_id_buf = cursor.get_u128();
                 let connection_id = Uuid::from_u128(connection_id_buf);
                 Some(TcpFrame::IncomingSocket { connection_id })
             },
-            3 if src.len() > (16 + 4) => {
+            3 if remaining_size >= (16 + 4) => {
+                let connection_id_buf = cursor.get_u128();
+                let buffer_size = cursor.get_u32() as usize;
+
+                if buffer_size > src.len() as usize - cursor.position() as usize {
+                    debug!("received less bytes than expected {}", buffer_size);
+                    return Ok(None);
+                }
+
+                let mut buffer = vec![0u8; buffer_size as usize];
+                let connection_id = Uuid::from_u128(connection_id_buf);
+
+                cursor.read_exact(&mut buffer)?;
+                Some(TcpFrame::DataPacketClient { connection_id, buffer: BytesMut::from(&buffer[..]) })
+            },
+            10 if remaining_size >= (16 + 4) => {
                 let connection_id_buf = cursor.get_u128();
                 let buffer_size = cursor.get_u32() as usize;
 
@@ -85,25 +105,25 @@ impl Decoder for TcpFrameCodec {
                     debug!("received less bytes than expected");
                     return Ok(None);
                 }
-                
+
                 let mut buffer = vec![0u8; buffer_size as usize];
                 let connection_id = Uuid::from_u128(connection_id_buf);
 
                 cursor.read_exact(&mut buffer)?;
-                Some(TcpFrame::DataPacket { connection_id, buffer: BytesMut::from(&buffer[..]) })
-            }
-            4 if src.len() >= 2 => {
+                Some(TcpFrame::DataPacketHost { connection_id, buffer: BytesMut::from(&buffer[..]) })
+            },
+            4 if remaining_size >= 2 => {
                 let port = cursor.get_u16();
 
                 Some(TcpFrame::ClientConnectedAck { port })
-            }
-            5 if src.len() >= 16 => {
+            },
+            5 if remaining_size >= 16 => {
                 let connection_id_buf = cursor.get_u128();
                 let connection_id = Uuid::from_u128(connection_id_buf);
 
                 Some(TcpFrame::LocalClientDisconnected { connection_id })
             },
-            6 if src.len() >= 16 => {
+            6 if remaining_size >= 16 => {
                 let connection_id_buf = cursor.get_u128();
                 let connection_id = Uuid::from_u128(connection_id_buf);
 
@@ -111,15 +131,16 @@ impl Decoder for TcpFrameCodec {
             },
             7 => Some(TcpFrame::Ping),
             8 => Some(TcpFrame::Pong),
-            9 => {
+            9 if remaining_size >= 16 => {
                 let connection_id_buf = cursor.get_u128();
                 let connection_id = Uuid::from_u128(connection_id_buf);
 
                 Some(TcpFrame::RemoteSocketDisconnected { connection_id })
             },
             value => {
-                debug!("Invalid Packet type received: {}. Closing Connection.", value);
-                return Err(io::Error::new(ErrorKind::InvalidData, "Invalid data received!"));
+                debug!("looks like data is wrong [{}] {:?}", src.len(), src.to_vec());
+
+                None
             },
         };
 

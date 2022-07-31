@@ -31,7 +31,7 @@ impl ProxyClient {
     }
 
     pub async fn start_streaming(&self, tcp_stream: TcpStream, cancellation_token: CancellationToken) -> Result<()> {
-        let transport = Framed::new(tcp_stream, TcpFrameCodec);
+        let transport = Framed::new(tcp_stream, TcpFrameCodec { source: "SERVER".to_string() });
         let (transport_writer, transport_reader) = transport.split();
 
         let connections: Arc<Mutex<HashMap<Uuid, Sender<BytesMut>>>> = Arc::new(Mutex::new(HashMap::new()));

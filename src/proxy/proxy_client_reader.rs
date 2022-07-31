@@ -50,10 +50,10 @@ impl ProxyClientStreamReader {
             let frame = self.receive_frame().await?;
 
             match frame {
-                TcpFrame::DataPacket { buffer, connection_id } => {
+                TcpFrame::DataPacketClient { buffer, connection_id } => {
                     let connections_lock = self.connections.lock().await;
                     if !connections_lock.contains_key(&connection_id) {
-                        error!("connection id {} not found.", connection_id);
+                        error!("connection id {} not found", connection_id);
                         return Ok(());
                     }
 
