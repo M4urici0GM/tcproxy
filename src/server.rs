@@ -1,8 +1,12 @@
+use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use std::sync::Mutex;
+use bytes::BytesMut;
+use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
-use tracing::{info, debug};
+use tracing::{info, debug, trace};
+use uuid::Uuid;
 
 use crate::{AppArguments, PortManager, Result};
 use crate::proxy::{ProxyClient};
@@ -12,6 +16,54 @@ use crate::tcp::Listener;
 pub struct Server {
     args: Arc<AppArguments>,
     server_listener: Listener,
+}
+
+#[derive(Debug)]
+pub struct ProxyClientState {
+    db: Arc<Shared>,
+}
+
+#[derive(Debug)]
+pub struct Shared {
+    connections: Mutex<HashMap<Uuid, Sender<BytesMut>>>,
+}
+
+impl ProxyClientState {
+    pub fn new() -> Self {
+        Self {
+            db: Arc::new(Shared {
+                connections: Mutex::new(HashMap::new()),
+            })
+        }
+    }
+
+    pub fn insert_connection(&self, connection_id: Uuid, sender: Sender<BytesMut>) {
+        let mut state = self.db.connections.lock().unwrap();
+        state.insert(connection_id, sender);
+        info!("{} connections..", state.len());
+    }
+
+    pub fn remove_connection(&self, connection_id: Uuid) {
+        let mut state = self.db.connections.lock().unwrap();
+        if !state.contains_key(&connection_id) {
+            trace!("connection {} not found in state", connection_id);
+            return;
+        }
+
+        info!("{} connections..", state.len());
+        state.remove(&connection_id);
+    }
+
+    pub fn get_connection(&self, connection_id: Uuid) -> Option<Sender<BytesMut>> {
+        let state = self.db.connections.lock().unwrap();
+        if !state.contains_key(&connection_id) {
+            trace!("connection {} not found in state", connection_id);
+            return None;
+        }
+
+        info!("{} connections..", state.len());
+        return Some(state.get(&connection_id).unwrap().clone());
+    }
 }
 
 impl Server {
@@ -37,19 +89,17 @@ impl Server {
             final_port: port_range.1,
         };
 
+        let proxy_state = Arc::new(ProxyClientState::new());
         while !cancellation_token.is_cancelled() {
             let (socket, addr) = self.server_listener.accept(&tcp_listener).await?;
-            let connection_handler = ProxyClient::new(listen_ip, addr, port_manager.clone());
 
             let cancellation_token = cancellation_token.child_token();
+            let proxy_client = ProxyClient::new(listen_ip, addr, port_manager.clone(), proxy_state.clone());
+
             tokio::spawn(async move {
-                match connection_handler.start_streaming(socket, cancellation_token).await {
-                    Ok(_) => {
-                        debug!("Socket {} has been closed gracefully.", addr);
-                    }
-                    Err(err) => {
-                        debug!("Socket {} has been disconnected with error.. {}", addr, err);
-                    }
+                match proxy_client.start_streaming(socket, cancellation_token).await {
+                    Ok(_) => debug!("Socket {} has been closed gracefully.", addr),
+                    Err(err) => debug!("Socket {} has been disconnected with error.. {}", addr, err)
                 };
             });
         }
