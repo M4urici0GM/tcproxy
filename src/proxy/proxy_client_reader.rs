@@ -107,7 +107,9 @@ impl ProxyClientStreamReader {
                         };
 
                         tokio::select! {
-                            _ = proxy_server.listen() => {},
+                            _ = proxy_server.listen() => {
+                                debug!("PROXY SERVER TASK FINISHED");
+                            },
                             _ = cancellation_token.cancelled() => {
                                 info!("client disconnected. closing server {}:{}...", listen_ip, port);
                             }

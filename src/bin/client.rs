@@ -2,8 +2,11 @@ use bytes::{BufMut, BytesMut};
 use futures_util::stream::SplitSink;
 use futures_util::{SinkExt, StreamExt};
 use tokio::task::JoinHandle;
+use tokio_stream::StreamMap;
+use tokio_util::codec::Framed;
 use tokio_util::sync::CancellationToken;
 use std::collections::HashMap;
+use std::pin::Pin;
 use std::sync::Arc;
 use tcproxy::Result;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -11,7 +14,7 @@ use tokio::net::TcpStream;
 use tokio::time::{self, Duration, Instant};
 use tokio::sync::mpsc::{self, Sender, Receiver};
 use tokio::sync::Mutex;
-use tokio_util::codec::Framed;
+use tokio_stream::Stream;
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
@@ -27,112 +30,6 @@ async fn send_connected_frame(writer: &mut SplitSink<Framed<TcpStream, TcpFrameC
         }
     };
 }
-
-struct LocalConnection {
-    connection_id: Uuid,
-    sender: Sender<TcpFrame>,
-}
-
-impl LocalConnection {
-    pub async fn read_from_local_connection(&mut self, reader: &mut Receiver<BytesMut>, cancellation_token: CancellationToken) -> Result<()> {
-        let mut connection = match TcpStream::connect("127.0.0.1:80").await {
-            Ok(stream) => stream,
-            Err(err) => {
-                debug!("Error when connecting to {}: {}. Aborting connection..", "127.0.0.1:80", err);
-                let _ = self.sender
-                    .send(TcpFrame::ClientUnableToConnect { connection_id: self.connection_id })
-                    .await;
-                return Ok(());
-            }
-        };
-
-        let (mut stream_reader, mut stream_writer) = connection.split();
-
-        let thread_sender = self.sender.clone();
-        let connection_id = self.connection_id.clone();
-        let token_clone = cancellation_token.child_token();
-        let task1 = async move {
-            let mut buffer = BytesMut::with_capacity(1024 * 8);
-            while !token_clone.is_cancelled() {
-                let bytes_read = match stream_reader
-                    .read_buf(&mut buffer)
-                    .await
-                {
-                    Ok(size) => size,
-                    Err(err) => {
-                        error!(
-                            "Failed when reading from connection {}: {}",
-                            connection_id,
-                            err
-                        );
-                        break;
-                    }
-                };
-
-                if 0 == bytes_read {
-                    debug!("reached end of stream");
-                    break;
-                }
-
-                buffer.truncate(bytes_read);
-                let tcp_frame = TcpFrame::DataPacketClient {
-                    connection_id,
-                    buffer: buffer.clone(),
-                };
-
-                match thread_sender.send(tcp_frame).await {
-                    Ok(_) => {}
-                    Err(err) => {
-                        debug!("failed when sending frame to main thread loop. connection {}: {}", connection_id, err);
-                        return;
-                    }
-                };
-            }
-            debug!("Received cancel signal.. aborting");
-        };
-
-        let connection_id = self.connection_id.clone();
-        let token_clone = cancellation_token.child_token();
-        let task2 = async move {
-            while !token_clone.is_cancelled() {
-                let result = reader.recv().await;
-                if result == None {
-                    break;
-                }
-
-                let mut msg = result.unwrap();
-                let bytes_written =
-                    match stream_writer.write_buf(&mut msg).await {
-                        Ok(a) => a,
-                        Err(err) => {
-                            debug!("Error when writing buffer to {}: {}", connection_id, err);
-                            break;
-                        }
-                    };
-                debug!("written {} bytes to target stream", bytes_written);
-            }
-
-            debug!("Received cancel signal.. aborting");
-        };
-
-        tokio::select! {
-            _ = task1 => {},
-            _ = task2 => {},
-        };
-
-
-        if cancellation_token.is_cancelled() {
-            return Ok(());
-        }
-        debug!("connection {} disconnected!", self.connection_id);
-        let _ = self.sender
-            .send(TcpFrame::LocalClientDisconnected { connection_id: self.connection_id })
-            .await;
-
-        Ok(())
-    }
-}
-
 
 fn start_ping(sender: Sender<TcpFrame>) {
     tokio::spawn(async move {
@@ -152,10 +49,11 @@ fn start_ping(sender: Sender<TcpFrame>) {
     });
 }
 
+
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
-    let tcp_connection = match TcpStream::connect("127.0.0.1:8080").await {
+    let tcp_connection = match TcpStream::connect("144.217.14.8:8080").await {
         Ok(stream) => {
             debug!("Connected to server..");
             stream
@@ -185,67 +83,161 @@ async fn main() -> Result<()> {
 
 
     start_ping(main_sender.clone());
-    tokio::spawn(async move {
-        loop {
-            while let Some(msg) = transport_reader.next().await {
-                if let Ok(..) = msg {
-                    let msg = msg.unwrap();
-                    debug!("received {}", msg);
-                    match msg {
-                        TcpFrame::ClientConnectedAck { port } => {
-                            debug!("Remote proxy listening in {}:{}", "127.0.0.1", port);
+
+    let mut stream_map = StreamMap::new();
+    while !token_clone.is_cancelled() {
+        tokio::select! {
+            Some((_, msg)) = stream_map.next() => {
+                debug!("AAAAAAAAAAAAA");
+                match  main_sender.send(msg).await {
+                    Ok(_) => {
+                        debug!("send frame to server.. ");
+                        cancellation_token.cancel();
+                        main_sender.closed().await;
+                    },
+                    Err(err) => {
+                        error!("failed to send frame to server. {}", err);
+                    }
+                };
+            },
+            msg = transport_reader.next() => {
+                debug!("BBBBBBBBBBBBBB");
+                let maybe_msg = match msg {
+                    Some(msg) => msg,
+                    None => {
+                        debug!("CCCCC");
+                        break;
+                    }
+                };
+
+                let msg_result = match maybe_msg {
+                    Ok(msg) => msg,
+                    Err(err) => {
+                        error!("error when receiving new message. {}", err);
+                        info!("Connection with server was shut down. closing..");
+                        cancellation_token.cancel();
+                        main_sender.closed().await;
+                        break;
+                    }
+                };
+
+                match msg_result {
+                    TcpFrame::ClientConnectedAck { port } => {
+                        debug!("Remote proxy listening in {}:{}", "127.0.0.1", port);
+                    }
+                    TcpFrame::DataPacketHost {
+                        connection_id,
+                        buffer,
+                    } => {
+                        info!("received new packet from {} CLIENT", connection_id);
+                        if !connections.contains_key(&connection_id) {
+                            debug!("connection {} not found!", connection_id);
+                            continue;
                         }
-                        TcpFrame::DataPacketHost {
-                            connection_id,
-                            buffer,
-                        } => {
-                            info!("received new packet from {} CLIENT", connection_id);
-                            if !connections.contains_key(&connection_id) {
-                                debug!("connection {} not found!", connection_id);
+
+                        let (sender, _) = connections.get(&connection_id).unwrap();
+                        let _ = sender.send(buffer).await;
+                    }
+                    TcpFrame::IncomingSocket { connection_id } => {
+                        debug!("new connection received!");
+                        let token = CancellationToken::new();
+                        let cancellation_token = token.child_token();
+                        let (sender, mut reader) = mpsc::channel::<BytesMut>(100);
+
+                        connections.insert(connection_id, (sender, token));
+
+                        let connection = match TcpStream::connect("127.0.0.1:80").await {
+                            Ok(stream) => stream,
+                            Err(err) => {
+                                debug!("Error when connecting to {}: {}. Aborting connection..", "127.0.0.1:80", err);
+                                let _ = main_sender
+                                    .send(TcpFrame::ClientUnableToConnect { connection_id })
+                                    .await;
+                                return Ok(());
+                            }
+                        };
+                    
+                        let (mut stream_reader, mut stream_writer) = connection.into_split();
+                    
+                        let token = cancellation_token.child_token();
+                        let socket_stream = Box::pin(async_stream::stream! {
+                            let mut buffer = BytesMut::with_capacity(1024 * 8);
+                            while !token.is_cancelled() {
+                                let bytes_read = match stream_reader.read_buf(&mut buffer).await {
+                                    Ok(size) => size,
+                                    Err(err) => {
+                                        error!(
+                                            "Failed when reading from connection {}: {}",
+                                            connection_id,
+                                            err
+                                        );
+                                        break;
+                                    }
+                                };
+                    
+                                debug!("read {} bytes from stream", bytes_read);
+                                if 0 == bytes_read {
+                                    debug!("reached end of stream");
+                                    break;
+                                }
+                    
+                                buffer.truncate(bytes_read);
+                                yield TcpFrame::DataPacketClient {
+                                    connection_id: connection_id,
+                                    buffer: buffer.clone(),
+                                };
+                            }
+                        });
+                
+                        stream_map.insert(connection_id, socket_stream);
+                        let sender = main_sender.clone();
+                        tokio::spawn(async move {
+                            while !cancellation_token.is_cancelled() {
+                                let result = reader.recv().await;
+                                if result == None {
+                                    debug!("test");
+                                    break;
+                                }
+                        
+                                let mut msg = result.unwrap();
+                                let bytes_written =
+                                    match stream_writer.write_buf(&mut msg).await {
+                                        Ok(a) => a,
+                                        Err(err) => {
+                                            debug!("Error when writing buffer to {}: {}", connection_id, err);
+                                            break;
+                                        }
+                                    };
+                        
+                                debug!("written {} bytes to target stream", bytes_written);
+                            }
+                        
+                            debug!("Received cancel signal.. aborting");
+                            debug!("connection {} disconnected!", connection_id);
+                            let _ = sender
+                                .send(TcpFrame::LocalClientDisconnected { connection_id: connection_id })
+                                .await;
+                        });
+                    },
+                    TcpFrame::RemoteSocketDisconnected { connection_id } => {
+                        let (_, cancellation_token) = match connections.remove(&connection_id) {
+                            Some(item) => item,
+                            None => {
+                                debug!("connection not found {}", connection_id);
                                 continue;
                             }
-
-                            let (sender, _) = connections.get(&connection_id).unwrap();
-                            let _ = sender.send(buffer).await;
-                        }
-                        TcpFrame::IncomingSocket { connection_id } => {
-                            debug!("new connection received!");
-                            let token = CancellationToken::new();
-                            let cancellation_token = token.child_token();
-                            let (sender, mut reader) = mpsc::channel::<BytesMut>(100);
-
-                            connections.insert(connection_id, (sender, token));
-
-                            let mut local_connection = LocalConnection { connection_id, sender: main_sender.clone() };
-                            tokio::spawn(async move {
-                                let _ = local_connection.read_from_local_connection(&mut reader, cancellation_token.child_token()).await;                                
-                            });
-                        },
-                        TcpFrame::RemoteSocketDisconnected { connection_id } => {
-                            let (_, cancellation_token) = match connections.remove(&connection_id) {
-                                Some(item) => item,
-                                None => {
-                                    debug!("connection not found {}", connection_id);
-                                    continue;
-                                }
-                            };
-                            
-                            cancellation_token.cancel();
-                        },
-                        TcpFrame::Pong => {},
-                        packet => {
-                            debug!("invalid data packet received. {}", packet);
-                        }
+                        };
+                        
+                        cancellation_token.cancel();
+                    },
+                    TcpFrame::Pong => {},
+                    packet => {
+                        debug!("invalid data packet received. {}", packet);
                     }
-                } else {
-                    info!("Connection with server was shut down. closing..");
-                    cancellation_token.cancel();
-                    main_sender.closed().await;
-                }
+                };
             }
         }
-    });
+    }
 
-    token_clone.cancelled().await;
     Ok(())
 }
