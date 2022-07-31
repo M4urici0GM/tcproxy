@@ -11,7 +11,7 @@ use tracing::{info, error, debug};
 
 use crate::Result;
 use crate::codec::TcpFrame;
-use crate::tcp::{Listener, TcpConnection};
+use crate::tcp::Listener;
 
 pub struct ProxyServer {
     pub(crate) listen_ip: Ipv4Addr,
@@ -26,7 +26,7 @@ impl ProxyServer {
         let tcp_socket = listener.bind().await.unwrap();
 
         loop {
-            let (mut connection, connection_addr) = tcp_socket.accept().await?;
+            let (mut connection, _) = tcp_socket.accept().await?;
             let host_sender = self.host_sender.clone();
             let available_connections = self.available_connections.clone();
 
@@ -92,16 +92,6 @@ impl ProxyServer {
 
                 info!("BBBBBBBBBBBBBBBBBBBBBBBBBBBB");
                 let _ = host_sender.send(TcpFrame::RemoteSocketDisconnected { connection_id }).await;
-                // let connection_id = connection_id.clone();
-                // let sender = host_sender.clone();
-                // let task2 = tokio::spawn(async move {
-                //
-                // });
-                //
-                // tokio::select! {
-                //     _ = task1 => {},
-                //     _ = task2 => {},
-                // };
             });
         }
 

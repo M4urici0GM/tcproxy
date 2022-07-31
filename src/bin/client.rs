@@ -92,20 +92,19 @@ async fn main() -> Result<()> {
                 match  main_sender.send(msg).await {
                     Ok(_) => {
                         debug!("send frame to server.. ");
-                        cancellation_token.cancel();
-                        main_sender.closed().await;
                     },
                     Err(err) => {
                         error!("failed to send frame to server. {}", err);
+                        cancellation_token.cancel();
+                        main_sender.closed().await;
                     }
                 };
             },
             msg = transport_reader.next() => {
-                debug!("BBBBBBBBBBBBBB");
+                debug!("received new frame from server.");
                 let maybe_msg = match msg {
                     Some(msg) => msg,
                     None => {
-                        debug!("CCCCC");
                         break;
                     }
                 };
@@ -230,7 +229,9 @@ async fn main() -> Result<()> {
                         
                         cancellation_token.cancel();
                     },
-                    TcpFrame::Pong => {},
+                    TcpFrame::Pong => {
+                        debug!("received pong.");
+                    },
                     packet => {
                         debug!("invalid data packet received. {}", packet);
                     }
@@ -239,5 +240,6 @@ async fn main() -> Result<()> {
         }
     }
 
+    debug!("KKKKKKKKKKKKKKKKKKKKKKK");
     Ok(())
 }
