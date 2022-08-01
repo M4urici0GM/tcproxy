@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::codec::TcpFrame;
 use crate::server::ProxyClientState;
-use crate::tcp::Listener;
+use crate::tcp::ListenerUtils;
 use crate::Result;
 
 pub struct ProxyServer {
@@ -21,7 +21,7 @@ pub struct ProxyServer {
 
 impl ProxyServer {
     pub async fn listen(&self) -> Result<()> {
-        let listener = Listener {
+        let listener = ListenerUtils {
             port: self.port,
             ip: self.listen_ip,
         };
@@ -40,7 +40,7 @@ impl ProxyServer {
 
             info!(
                 "received new socket in listener {}",
-                Listener::create_socket_ip(self.listen_ip, self.port)
+                ListenerUtils::create_socket_ip(self.listen_ip, self.port)
             );
             tokio::spawn(async move {
                 let mut rx = Box::pin(async_stream::stream! {

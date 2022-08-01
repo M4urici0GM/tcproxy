@@ -5,18 +5,18 @@ use tracing::{info, error};
 use crate::Result;
 
 #[derive(Debug)]
-pub struct Listener {
+pub struct ListenerUtils {
     pub(crate) ip: Ipv4Addr,
     pub(crate) port: u16,
 }
 
-impl Listener {
+impl ListenerUtils {
     pub fn create_socket_ip(ip: Ipv4Addr, port: u16) -> SocketAddrV4 {
         SocketAddrV4::new(ip, port)
     }
 
     pub async fn bind(&self) -> Result<TcpListener> {
-        let ip = Listener::create_socket_ip(self.ip, self.port);
+        let ip = ListenerUtils::create_socket_ip(self.ip, self.port);
         match TcpListener::bind(ip).await {
             Ok(listener) => {
                 info!("server running on port {}", self.port);

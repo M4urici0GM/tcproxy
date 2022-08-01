@@ -10,12 +10,12 @@ use uuid::Uuid;
 
 use crate::{AppArguments, PortManager, Result};
 use crate::proxy::{ProxyClient};
-use crate::tcp::Listener;
+use crate::tcp::ListenerUtils;
 
 #[derive(Debug)]
 pub struct Server {
     args: Arc<AppArguments>,
-    server_listener: Listener,
+    server_listener: ListenerUtils,
 }
 
 #[derive(Debug)]
@@ -73,7 +73,7 @@ impl Server {
 
         Self {
             args: Arc::new(args),
-            server_listener: Listener { ip, port },
+            server_listener: ListenerUtils { ip, port },
         }
     }
 
@@ -94,7 +94,7 @@ impl Server {
             let (socket, addr) = self.server_listener.accept(&tcp_listener).await?;
 
             let cancellation_token = cancellation_token.child_token();
-            let proxy_client = ProxyClient::new(listen_ip, addr, port_manager.clone(), proxy_state.clone());
+            let mut proxy_client = ProxyClient::new(listen_ip, addr, port_manager.clone(), proxy_state.clone());
 
             tokio::spawn(async move {
                 match proxy_client.start_streaming(socket, cancellation_token).await {
