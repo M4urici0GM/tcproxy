@@ -1,7 +1,7 @@
 use bytes::{Buf, Bytes, BytesMut};
 use std::collections::HashMap;
 use std::io::Cursor;
-use std::net::{Ipv4Addr, SocketAddr, TcpListener, Shutdown};
+use std::net::{Ipv4Addr, SocketAddr, TcpListener};
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -31,12 +31,6 @@ pub struct ProxyClient {
 struct FrameReader<'a> {
     buffer: BytesMut,
     reader: &'a mut OwnedReadHalf,
-}
-
-impl<'a> Drop for FrameReader<'a> {
-    fn drop(&mut self) {
-        self.buffer.truncate(0);
-    }
 }
 
 impl<'a> FrameReader<'a> {
@@ -294,7 +288,6 @@ impl ProxyClient {
                                         connection_id
                                     );
                                     connection_receiver.close();
-                                    drop(writer);
                                 });
                             }
 
@@ -331,7 +324,6 @@ impl ProxyClient {
                         let _ = connection_writer.flush().await;
                     },
                     _ = cancellation_token.cancelled() => {
-                        drop(client_reader);
                         break;
                     },
                 }
@@ -344,9 +336,9 @@ impl ProxyClient {
         tcp_stream: TcpStream,
         cancellation_token: CancellationToken,
     ) -> Result<()> {
+        let (connection_reader, connection_writer) = tcp_stream.into_split();
         let local_cancellation_token = CancellationToken::new();
 
-        let (connection_reader, connection_writer) = tcp_stream.into_split();
         let (client_sender, client_reader) = mpsc::channel::<TcpFrame>(1000);
         let task2 = ProxyClient::create_frame_reader(
             connection_reader,
