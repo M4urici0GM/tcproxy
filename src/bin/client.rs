@@ -188,21 +188,21 @@ impl LocalConnection {
 }
 
 fn start_ping(sender: Sender<TcpFrame>) {
-    tokio::spawn(async move {
-        loop {
-            info!("Waiting for next ping to occur");
-            time::sleep_until(Instant::now() + Duration::from_secs(10)).await;
-            match sender.send(TcpFrame::Ping).await {
-                Ok(_) => {
-                    info!("Sent ping frame..");
-                }
-                Err(err) => {
-                    error!("Failed to send ping. aborting. {}", err);
-                    break;
-                }
-            };
-        }
-    });
+    // tokio::spawn(async move {
+    //     loop {
+    //         info!("Waiting for next ping to occur");
+    //         time::sleep_until(Instant::now() + Duration::from_secs(10)).await;
+    //         match sender.send(TcpFrame::Ping).await {
+    //             Ok(_) => {
+    //                 info!("Sent ping frame..");
+    //             }
+    //             Err(err) => {
+    //                 error!("Failed to send ping. aborting. {}", err);
+    //                 break;
+    //             }
+    //         };
+    //     }
+    // });
 }
 
 #[tokio::main]

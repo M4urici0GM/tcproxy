@@ -1,6 +1,6 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use tokio::net::{TcpListener, TcpStream};
-use tracing::{info, error};
+use tracing::{info, error, debug};
 
 use crate::Result;
 
@@ -36,7 +36,7 @@ impl ListenerUtils {
         loop {
             match listener.accept().await {
                 Ok(result) => {
-                    info!("New socket {} connected.", result.1);
+                    debug!("New socket {} connected.", result.1);
                     return Ok(result);
                 },
                 Err(err) => {
