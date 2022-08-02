@@ -31,6 +31,7 @@ pub enum TcpFrame {
         connection_id: Uuid,
         buffer: BytesMut,
     },
+    PortLimitReached,
 }
 
 #[derive(Debug)]
@@ -46,6 +47,7 @@ impl TcpFrame {
             b'*' => Ok(()),
             b'-' => Ok(()),
             b'+' => Ok(()),
+            b':' => Ok(()),
             b'^' => {
                 let _ = get_u16(cursor)?;
                 Ok(())
@@ -121,7 +123,7 @@ impl TcpFrame {
                 let connection_id = Uuid::from_u128(connection_id_value);
                 Ok(TcpFrame::DataPacketClient { connection_id, buffer })
             },
-            b'!' => {
+            b':' => {
                 trace!("found DataPacketHost frame, buffer size: {}, cursor_pos: {}", cursor.get_ref().len(), cursor.position());
                 let connection_id_value = get_u128(cursor)?;
                 let buff_size = get_u32(cursor)?;
@@ -181,6 +183,9 @@ impl TcpFrame {
                 final_buff.put_u32(buffer.len() as u32);
                 final_buff.put_slice(&buffer[..]);
             },
+            TcpFrame::PortLimitReached => {
+                final_buff.put_u8(b'^');
+            }
         };
 
         final_buff
@@ -193,6 +198,7 @@ impl Display for TcpFrame {
             TcpFrame::ClientConnected => "ClientConnected".to_string(),
             TcpFrame::Ping => format!("Ping"),
             TcpFrame::Pong => format!("Pong"),
+            TcpFrame::PortLimitReached => format!("PortLimitReached"),
             TcpFrame::ClientConnectedAck { port } => format!("ClientConnectedACK ({})", port),
             TcpFrame::RemoteSocketDisconnected { connection_id } => format!("RemoteSocketDisconnected ({})", connection_id),
             TcpFrame::IncomingSocket { connection_id } => format!("IncomingSocket ({})", connection_id),

@@ -25,7 +25,7 @@ pub struct ProxyClientState {
 
 #[derive(Debug)]
 pub struct Shared {
-    connections: Mutex<HashMap<Uuid, Sender<BytesMut>>>,
+    connections: Mutex<HashMap<Uuid, (Sender<BytesMut>, CancellationToken)>>,
 }
 
 impl ProxyClientState {
@@ -37,31 +37,28 @@ impl ProxyClientState {
         }
     }
 
-    pub fn insert_connection(&self, connection_id: Uuid, sender: Sender<BytesMut>) {
+    pub fn insert_connection(&self, connection_id: Uuid, sender: Sender<BytesMut>, cancellation_token: CancellationToken) {
         let mut state = self.db.connections.lock().unwrap();
-        state.insert(connection_id, sender);
-        info!("{} connections..", state.len());
+        state.insert(connection_id, (sender, cancellation_token));
     }
 
-    pub fn remove_connection(&self, connection_id: Uuid) {
+    pub fn remove_connection(&self, connection_id: Uuid) -> Option<(Sender<BytesMut>, CancellationToken)> {
         let mut state = self.db.connections.lock().unwrap();
         if !state.contains_key(&connection_id) {
             trace!("connection {} not found in state", connection_id);
-            return;
+            return None;
         }
 
-        info!("{} connections..", state.len());
-        state.remove(&connection_id);
+        Some(state.remove(&connection_id).unwrap())
     }
 
-    pub fn get_connection(&self, connection_id: Uuid) -> Option<Sender<BytesMut>> {
+    pub fn get_connection(&self, connection_id: Uuid) -> Option<(Sender<BytesMut>, CancellationToken)> {
         let state = self.db.connections.lock().unwrap();
         if !state.contains_key(&connection_id) {
             trace!("connection {} not found in state", connection_id);
             return None;
         }
 
-        info!("{} connections..", state.len());
         return Some(state.get(&connection_id).unwrap().clone());
     }
 }
@@ -73,7 +70,7 @@ impl Server {
 
         Self {
             args: Arc::new(args),
-            server_listener: ListenerUtils { ip, port },
+            server_listener: ListenerUtils::new(ip, port),
         }
     }
 
@@ -89,10 +86,10 @@ impl Server {
             final_port: port_range.1,
         };
 
-        let proxy_state = Arc::new(ProxyClientState::new());
         while !cancellation_token.is_cancelled() {
             let (socket, addr) = self.server_listener.accept(&tcp_listener).await?;
 
+            let proxy_state = Arc::new(ProxyClientState::new());
             let cancellation_token = cancellation_token.child_token();
             let mut proxy_client = ProxyClient::new(listen_ip, addr, port_manager.clone(), proxy_state.clone());
 
@@ -116,10 +113,9 @@ impl Server {
             },
             _ = shutdown_signal => {
                 info!("server is being shut down.");
+                cancellation_token.cancel();
             }
         };
-
-        cancellation_token.cancel();
         Ok(())
     }
 }
