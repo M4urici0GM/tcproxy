@@ -91,6 +91,7 @@ impl TcpFrame {
             b'*' => Ok(TcpFrame::ClientConnected),
             b'-' => Ok(TcpFrame::Ping),
             b'+' => Ok(TcpFrame::Pong),
+            b':' => Ok(TcpFrame::PortLimitReached),
             b'^' => {
                 let port = get_u16(cursor)?;
                 Ok(TcpFrame::ClientConnectedAck { port })
@@ -123,7 +124,7 @@ impl TcpFrame {
                 let connection_id = Uuid::from_u128(connection_id_value);
                 Ok(TcpFrame::DataPacketClient { connection_id, buffer })
             },
-            b':' => {
+            b'!' => {
                 trace!("found DataPacketHost frame, buffer size: {}, cursor_pos: {}", cursor.get_ref().len(), cursor.position());
                 let connection_id_value = get_u128(cursor)?;
                 let buff_size = get_u32(cursor)?;
@@ -184,7 +185,7 @@ impl TcpFrame {
                 final_buff.put_slice(&buffer[..]);
             },
             TcpFrame::PortLimitReached => {
-                final_buff.put_u8(b'^');
+                final_buff.put_u8(b':');
             }
         };
 
