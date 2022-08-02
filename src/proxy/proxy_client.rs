@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio_stream::{StreamExt, StreamMap};
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, trace, info};
+use tracing::{debug, error, trace};
 use uuid::Uuid;
 
 use crate::codec::TcpFrame;
@@ -170,11 +170,8 @@ impl ProxyClient {
 
                         tokio::spawn(async move {
                             // TODO: send nack message to client if bind fails.
-                            let (tcp_listener, socket_addr) = match listener.bind().await {
-                                Ok(listener) => {
-                                    let socket_addr = listener.local_addr().unwrap();
-                                    (listener, socket_addr)
-                                },
+                            let tcp_listener = match listener.bind().await {
+                                Ok(listener) => listener,
                                 Err(err) => {
                                     error!(
                                         "failed to listen to {}:{} {}",
@@ -184,7 +181,7 @@ impl ProxyClient {
                                 }
                             };
 
-                            let server_task = tokio::spawn(async move {
+                            while !client_token.is_cancelled() {
                                 let (connection, connection_addr) = match listener.accept(&tcp_listener).await {
                                         Ok(connection) => connection,
                                         Err(err) => {
@@ -198,7 +195,7 @@ impl ProxyClient {
                                                 listener.listen_ip(),
                                                 err
                                             );
-                                            return;
+                                            break;
                                         }
                                     };
 
@@ -301,14 +298,9 @@ impl ProxyClient {
                                     );
                                     connection_receiver.close();
                                 });
-                            });
+                            }
 
-                            tokio::select! {
-                                _ = server_task => {},
-                                _ = client_token.cancelled() => {},
-                            };
-
-                            info!("closing proxy server listening at {}", socket_addr);
+                            debug!("closing proxy server listening at {}", listener.listen_ip());
                             port_manager.remove_port(target_port);
                         });
                     }
