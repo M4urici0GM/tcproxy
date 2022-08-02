@@ -33,6 +33,12 @@ struct FrameReader<'a> {
     reader: &'a mut OwnedReadHalf,
 }
 
+impl<'a> Drop for FrameReader<'a> {
+    fn drop(&mut self) {
+        self.buffer.truncate(0);
+    }
+}
+
 impl<'a> FrameReader<'a> {
     async fn parse_frame(&mut self) -> Result<Option<TcpFrame>> {
         let mut cursor = Cursor::new(&self.buffer[..]);
@@ -363,6 +369,8 @@ impl ProxyClient {
         };
 
         local_cancellation_token.cancel();
+        client_sender.closed().await;
+
         Ok(())
     }
 }

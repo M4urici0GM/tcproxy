@@ -143,6 +143,8 @@ impl LocalConnection {
                     }
                 };
             }
+
+            drop(stream_reader);
         });
 
         let connection_id = self.connection_id.clone();
@@ -166,6 +168,7 @@ impl LocalConnection {
                 let _ = stream_writer.flush().await;
                 debug!("written {} bytes to target stream", bytes_written);
             }
+            drop(stream_writer);
         });
 
         tokio::select! {
@@ -188,27 +191,27 @@ impl LocalConnection {
 }
 
 fn start_ping(sender: Sender<TcpFrame>) {
-    // tokio::spawn(async move {
-    //     loop {
-    //         info!("Waiting for next ping to occur");
-    //         time::sleep_until(Instant::now() + Duration::from_secs(10)).await;
-    //         match sender.send(TcpFrame::Ping).await {
-    //             Ok(_) => {
-    //                 info!("Sent ping frame..");
-    //             }
-    //             Err(err) => {
-    //                 error!("Failed to send ping. aborting. {}", err);
-    //                 break;
-    //             }
-    //         };
-    //     }
-    // });
+    tokio::spawn(async move {
+        loop {
+            info!("Waiting for next ping to occur");
+            time::sleep_until(Instant::now() + Duration::from_secs(10)).await;
+            match sender.send(TcpFrame::Ping).await {
+                Ok(_) => {
+                    info!("Sent ping frame..");
+                }
+                Err(err) => {
+                    error!("Failed to send ping. aborting. {}", err);
+                    break;
+                }
+            };
+        }
+    });
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
-    let tcp_connection = match TcpStream::connect("192.168.0.221:8080").await {
+    let tcp_connection = match TcpStream::connect("216.238.103.177:8080").await {
         Ok(stream) => {
             debug!("Connected to server..");
             stream
