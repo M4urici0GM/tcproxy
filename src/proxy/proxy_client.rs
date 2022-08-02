@@ -331,6 +331,7 @@ impl ProxyClient {
                         let _ = connection_writer.flush().await;
                     },
                     _ = cancellation_token.cancelled() => {
+                        drop(client_reader);
                         break;
                     },
                 }
