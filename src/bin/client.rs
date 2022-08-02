@@ -1,24 +1,27 @@
-use bytes::{BufMut, BytesMut, Buf};
+use bytes::{Buf, BufMut, BytesMut};
 use futures_util::stream::SplitSink;
 use futures_util::{SinkExt, StreamExt};
-use tokio::net::tcp::{OwnedWriteHalf, OwnedReadHalf};
-use tokio::task::JoinHandle;
-use tokio_util::sync::CancellationToken;
 use std::collections::HashMap;
+use std::io::Cursor;
 use tcproxy::Result;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
+use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::task::JoinHandle;
 use tokio::time::{self, Duration, Instant};
-use tokio::sync::mpsc::{self, Sender, Receiver};
 use tokio_util::codec::Framed;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, trace};
 use uuid::Uuid;
-use std::io::Cursor;
 
-use tcproxy::codec::{TcpFrame, FrameError};
+use tcproxy::codec::{FrameError, TcpFrame};
 
 async fn send_connected_frame(writer: &mut OwnedWriteHalf) {
-    match writer.write_buf(&mut TcpFrame::ClientConnected.to_buffer()).await {
+    match writer
+        .write_buf(&mut TcpFrame::ClientConnected.to_buffer())
+        .await
+    {
         Ok(_) => {
             info!("send initial frame to server..");
         }
@@ -76,37 +79,43 @@ impl<'a> FrameReader<'a> {
 }
 
 impl LocalConnection {
-    pub async fn read_from_local_connection(&mut self, reader: &mut Receiver<BytesMut>, cancellation_token: CancellationToken) -> Result<()> {
-        let mut connection = match TcpStream::connect("127.0.0.1:80").await {
+    pub async fn read_from_local_connection(
+        &mut self,
+        mut reader: Receiver<BytesMut>,
+        cancellation_token: CancellationToken,
+    ) -> Result<()> {
+        let connection = match TcpStream::connect("127.0.0.1:3337").await {
             Ok(stream) => stream,
             Err(err) => {
-                debug!("Error when connecting to {}: {}. Aborting connection..", "127.0.0.1:80", err);
-                let _ = self.sender
-                    .send(TcpFrame::ClientUnableToConnect { connection_id: self.connection_id })
+                debug!(
+                    "Error when connecting to {}: {}. Aborting connection..",
+                    "127.0.0.1:80", err
+                );
+                let _ = self
+                    .sender
+                    .send(TcpFrame::ClientUnableToConnect {
+                        connection_id: self.connection_id,
+                    })
                     .await;
 
                 return Ok(());
             }
         };
 
-        let (mut stream_reader, mut stream_writer) = connection.split();
+        let (mut stream_reader, mut stream_writer) = connection.into_split();
 
         let thread_sender = self.sender.clone();
         let connection_id = self.connection_id.clone();
         let token_clone = cancellation_token.child_token();
-        let task1 = async move {
+        let task1 = tokio::spawn(async move {
             let mut buffer = BytesMut::with_capacity(1024 * 8);
             while !token_clone.is_cancelled() {
-                let bytes_read = match stream_reader
-                    .read_buf(&mut buffer)
-                    .await
-                {
+                let bytes_read = match stream_reader.read_buf(&mut buffer).await {
                     Ok(size) => size,
                     Err(err) => {
                         error!(
                             "Failed when reading from connection {}: {}",
-                            connection_id,
-                            err
+                            connection_id, err
                         );
                         break;
                     }
@@ -126,16 +135,19 @@ impl LocalConnection {
                 match thread_sender.send(tcp_frame).await {
                     Ok(_) => {}
                     Err(err) => {
-                        debug!("failed when sending frame to main thread loop. connection {}: {}", connection_id, err);
+                        debug!(
+                            "failed when sending frame to main thread loop. connection {}: {}",
+                            connection_id, err
+                        );
                         return;
                     }
                 };
             }
-        };
+        });
 
         let connection_id = self.connection_id.clone();
         let token_clone = cancellation_token.child_token();
-        let task2 = async move {
+        let task2 = tokio::spawn(async move {
             while !token_clone.is_cancelled() {
                 let result = reader.recv().await;
                 if result == None {
@@ -143,17 +155,18 @@ impl LocalConnection {
                 }
 
                 let mut msg = result.unwrap();
-                let bytes_written =
-                    match stream_writer.write_buf(&mut msg).await {
-                        Ok(a) => a,
-                        Err(err) => {
-                            debug!("Error when writing buffer to {}: {}", connection_id, err);
-                            break;
-                        }
-                    };
+                let bytes_written = match stream_writer.write_buf(&mut msg).await {
+                    Ok(a) => a,
+                    Err(err) => {
+                        debug!("Error when writing buffer to {}: {}", connection_id, err);
+                        break;
+                    }
+                };
+
+                let _ = stream_writer.flush().await;
                 debug!("written {} bytes to target stream", bytes_written);
             }
-        };
+        });
 
         tokio::select! {
             _ = task1 => {},
@@ -165,14 +178,14 @@ impl LocalConnection {
         }
 
         debug!("connection {} disconnected!", self.connection_id);
-        let _ = self.sender
+        let _ = self
+            .sender
             .send(TcpFrame::LocalClientDisconnected { connection_id: self.connection_id })
             .await;
 
         Ok(())
     }
 }
-
 
 fn start_ping(sender: Sender<TcpFrame>) {
     tokio::spawn(async move {
@@ -182,7 +195,7 @@ fn start_ping(sender: Sender<TcpFrame>) {
             match sender.send(TcpFrame::Ping).await {
                 Ok(_) => {
                     info!("Sent ping frame..");
-                },
+                }
                 Err(err) => {
                     error!("Failed to send ping. aborting. {}", err);
                     break;
@@ -199,7 +212,7 @@ async fn main() -> Result<()> {
         Ok(stream) => {
             debug!("Connected to server..");
             stream
-        },
+        }
         Err(err) => {
             error!("Failed to connect to server. Check you network connection and try again.");
             return Err(format!("Failed when connecting to server: {}", err).into());
@@ -219,7 +232,6 @@ async fn main() -> Result<()> {
 
         info!("Reached end of stream.");
     });
-
 
     start_ping(main_sender.clone());
     let foward_task = tokio::spawn(async move {
@@ -248,13 +260,13 @@ async fn main() -> Result<()> {
             debug!("received new frame from server: {}", msg);
             match msg {
                 TcpFrame::ClientConnectedAck { port } => {
-                    debug!("Remote proxy listening in {}:{}", "127.0.0.1", port);
+                    info!("Remote proxy listening in {}:{}", "127.0.0.1", port);
                 }
                 TcpFrame::DataPacketHost {
                     connection_id,
                     buffer,
                 } => {
-                    info!("received new packet from {}", connection_id);
+                    debug!("received new packet from {}", connection_id);
                     if !connections.contains_key(&connection_id) {
                         debug!("connection {} not found!", connection_id);
                         continue;
@@ -267,16 +279,21 @@ async fn main() -> Result<()> {
                     debug!("new connection received!");
                     let token = CancellationToken::new();
                     let cancellation_token = token.child_token();
-                    let (sender, mut reader) = mpsc::channel::<BytesMut>(100);
+                    let (sender, reader) = mpsc::channel::<BytesMut>(100);
 
                     connections.insert(connection_id, (sender, token));
 
-                    let mut local_connection = LocalConnection { connection_id, sender: main_sender.clone() };
+                    let mut local_connection = LocalConnection {
+                        connection_id,
+                        sender: main_sender.clone(),
+                    };
                     let cancellation_token = cancellation_token.child_token();
                     tokio::spawn(async move {
-                        let _ = local_connection.read_from_local_connection(&mut reader, cancellation_token.child_token()).await;                                
+                        let _ = local_connection
+                            .read_from_local_connection(reader, cancellation_token.child_token())
+                            .await;
                     });
-                },
+                }
                 TcpFrame::RemoteSocketDisconnected { connection_id } => {
                     let (_, cancellation_token) = match connections.remove(&connection_id) {
                         Some(item) => item,
@@ -285,7 +302,7 @@ async fn main() -> Result<()> {
                             continue;
                         }
                     };
-                    
+
                     cancellation_token.cancel();
                 }
                 packet => {
@@ -303,7 +320,6 @@ async fn main() -> Result<()> {
             debug!("Forward to server task finished. {:?}", res);
         },
     };
-
 
     Ok(())
 }
