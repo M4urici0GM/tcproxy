@@ -23,17 +23,23 @@ use crate::{PortManager, Result};
 #[derive(Debug)]
 pub struct ProxyClient {
     pub(crate) listen_ip: Ipv4Addr,
-    pub(crate) remote_ip: SocketAddr,
     pub(crate) state: Arc<ProxyClientState>,
     pub(crate) port_manager: Arc<PortManager>,
 }
 
-struct FrameReader<'a> {
+struct FrameReader {
     buffer: BytesMut,
-    reader: &'a mut OwnedReadHalf,
+    reader: OwnedReadHalf,
 }
 
-impl<'a> FrameReader<'a> {
+impl Drop for FrameReader {
+    fn drop(&mut self) {
+        self.buffer.clear();
+        self.buffer.truncate(0);
+    }
+}
+
+impl FrameReader {
     async fn parse_frame(&mut self) -> Result<Option<TcpFrame>> {
         let mut cursor = Cursor::new(&self.buffer[..]);
         match TcpFrame::check(&mut cursor) {
@@ -79,14 +85,13 @@ impl ProxyClient {
     ) -> Self {
         Self {
             listen_ip,
-            remote_ip,
             state,
             port_manager: Arc::new(port_manager),
         }
     }
 
     fn create_frame_reader(
-        mut connection_reader: OwnedReadHalf,
+        connection_reader: OwnedReadHalf,
         target_ip: Ipv4Addr,
         client_sender: Sender<TcpFrame>,
         port_manager: Arc<PortManager>,
@@ -95,10 +100,10 @@ impl ProxyClient {
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
             let mut frame_reader = FrameReader {
-                reader: &mut connection_reader,
+                reader: connection_reader,
                 buffer: BytesMut::with_capacity(1024 * 8),
             };
-
+ 
             while !cancellation_token.is_cancelled() {
                 let maybe_frame = match frame_reader.receive_frame().await {
                     Ok(frame) => frame,
@@ -324,6 +329,7 @@ impl ProxyClient {
                         let _ = connection_writer.flush().await;
                     },
                     _ = cancellation_token.cancelled() => {
+                        drop(connection_writer);
                         break;
                     },
                 }
