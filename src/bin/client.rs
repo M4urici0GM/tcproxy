@@ -84,7 +84,7 @@ impl LocalConnection {
         mut reader: Receiver<BytesMut>,
         cancellation_token: CancellationToken,
     ) -> Result<()> {
-        let connection = match TcpStream::connect("127.0.0.1:3337").await {
+        let connection = match TcpStream::connect("192.168.0.221:3337").await {
             Ok(stream) => stream,
             Err(err) => {
                 debug!(
@@ -164,6 +164,8 @@ impl LocalConnection {
                 let _ = stream_writer.flush().await;
                 debug!("written {} bytes to target stream", bytes_written);
             }
+
+            reader.close();
         });
 
         tokio::select! {
@@ -177,11 +179,6 @@ impl LocalConnection {
         }
 
         debug!("connection {} disconnected!", self.connection_id);
-        let _ = self
-            .sender
-            .send(TcpFrame::LocalClientDisconnected { connection_id: self.connection_id })
-            .await;
-
         Ok(())
     }
 }
@@ -207,7 +204,7 @@ fn start_ping(sender: Sender<TcpFrame>) -> JoinHandle<()> {
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
-    let tcp_connection = match TcpStream::connect("216.238.103.177:8080").await {
+    let tcp_connection = match TcpStream::connect("35.199.70.46:8080").await {
         Ok(stream) => {
             debug!("Connected to server..");
             stream
@@ -222,7 +219,7 @@ async fn main() -> Result<()> {
     let (mut reader, mut writer) = tcp_connection.into_split();
     send_connected_frame(&mut writer).await;
 
-    let (main_sender, mut main_receiver) = mpsc::channel::<TcpFrame>(100);
+    let (main_sender, mut main_receiver) = mpsc::channel::<TcpFrame>(10000);
 
     let receive_task = tokio::spawn(async move {
         while let Some(msg) = main_receiver.recv().await {
@@ -284,7 +281,7 @@ async fn main() -> Result<()> {
                     debug!("new connection received!");
                     let token = CancellationToken::new();
                     let cancellation_token = token.child_token();
-                    let (sender, reader) = mpsc::channel::<BytesMut>(100);
+                    let (sender, reader) = mpsc::channel::<BytesMut>(1000);
 
                     connections.insert(connection_id, (sender, token));
 
@@ -294,9 +291,15 @@ async fn main() -> Result<()> {
                     };
 
                     let cancellation_token = cancellation_token.child_token();
+                    let sender = main_sender.clone();
                     tokio::spawn(async move {
                         let _ = local_connection
                             .read_from_local_connection(reader, cancellation_token.child_token())
+                            .await;
+
+                        debug!("Local connection socket finis`hed.");
+                        let _ = sender
+                            .send(TcpFrame::LocalClientDisconnected { connection_id })
                             .await;
                     });
                 }
@@ -311,6 +314,8 @@ async fn main() -> Result<()> {
 
                     cancellation_token.cancel();
                     drop(sender);
+
+
                 }
                 packet => {
                     debug!("invalid data packet received. {}", packet);
@@ -323,9 +328,7 @@ async fn main() -> Result<()> {
         _ = receive_task => {
             debug!("Receive task finished.");
         },
-        _ = ping_task => {
-            debug!("Ping task finished.");
-        },
+ 
         res = foward_task => {
             debug!("Forward to server task finished. {:?}", res);
         },

@@ -16,6 +16,7 @@ use tokio_stream::{StreamExt, StreamMap};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, trace};
 use uuid::Uuid;
+use tokio::sync::Semaphore;
 
 use crate::codec::TcpFrame;
 use crate::server::ProxyClientState;
@@ -193,8 +194,11 @@ impl ProxyClient {
                                 }
                             };
 
+
                             let proxy_listener_task = tokio::spawn(async move {
+                                let mut semaphore = Arc::new(Semaphore::new(120));
                                 loop {
+                                    let permit = semaphore.clone().acquire_owned().await.unwrap();
                                     let (connection, connection_addr) = match listener.accept(&tcp_listener).await {
                                         Ok(connection) => connection,
                                         Err(err) => {
@@ -286,6 +290,8 @@ impl ProxyClient {
         
                                                 let _ = writer.flush().await;
                                             }
+
+                                            connection_receiver.close();
                                         });
     
                                         tokio::select! {
@@ -293,6 +299,7 @@ impl ProxyClient {
                                             _ = writer_task => {},
                                         };
     
+                                        drop(permit);
                                         debug!("received none from connection {}, aborting", connection_id);
                                         let _ = client_sender.send(TcpFrame::RemoteSocketDisconnected { connection_id }).await;
                                     });
@@ -360,7 +367,7 @@ impl ProxyClient {
         let (connection_reader, connection_writer) = tcp_stream.into_split();
         let local_cancellation_token = CancellationToken::new();
 
-        let (client_sender, client_reader) = mpsc::channel::<TcpFrame>(1000);
+        let (client_sender, client_reader) = mpsc::channel::<TcpFrame>(10000);
         let task2 = ProxyClient::create_frame_reader(
             connection_reader,
             self.listen_ip,
