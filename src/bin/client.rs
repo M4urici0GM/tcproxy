@@ -106,10 +106,9 @@ impl LocalConnection {
 
         let thread_sender = self.sender.clone();
         let connection_id = self.connection_id.clone();
-        let token_clone = cancellation_token.child_token();
         let task1 = tokio::spawn(async move {
             let mut buffer = BytesMut::with_capacity(1024 * 8);
-            while !token_clone.is_cancelled() {
+            loop {
                 let bytes_read = match stream_reader.read_buf(&mut buffer).await {
                     Ok(size) => size,
                     Err(err) => {
@@ -143,14 +142,11 @@ impl LocalConnection {
                     }
                 };
             }
-
-            drop(stream_reader);
         });
 
         let connection_id = self.connection_id.clone();
-        let token_clone = cancellation_token.child_token();
         let task2 = tokio::spawn(async move {
-            while !token_clone.is_cancelled() {
+            loop {
                 let result = reader.recv().await;
                 if result == None {
                     break;
@@ -168,12 +164,12 @@ impl LocalConnection {
                 let _ = stream_writer.flush().await;
                 debug!("written {} bytes to target stream", bytes_written);
             }
-            drop(stream_writer);
         });
 
         tokio::select! {
             _ = task1 => {},
             _ = task2 => {},
+            _ = cancellation_token.cancelled() => {}
         };
 
         if cancellation_token.is_cancelled() {
@@ -190,7 +186,7 @@ impl LocalConnection {
     }
 }
 
-fn start_ping(sender: Sender<TcpFrame>) {
+fn start_ping(sender: Sender<TcpFrame>) -> JoinHandle<()> {
     tokio::spawn(async move {
         loop {
             info!("Waiting for next ping to occur");
@@ -205,7 +201,7 @@ fn start_ping(sender: Sender<TcpFrame>) {
                 }
             };
         }
-    });
+    })
 }
 
 #[tokio::main]
@@ -231,12 +227,13 @@ async fn main() -> Result<()> {
     let receive_task = tokio::spawn(async move {
         while let Some(msg) = main_receiver.recv().await {
             let _ = writer.write_buf(&mut msg.to_buffer()).await;
+            let _ = writer.flush().await;
         }
 
         info!("Reached end of stream.");
     });
 
-    start_ping(main_sender.clone());
+    let ping_task = start_ping(main_sender.clone());
     let foward_task = tokio::spawn(async move {
         let mut frame_reader = FrameReader {
             buffer: BytesMut::with_capacity(1024 * 8),
@@ -270,13 +267,18 @@ async fn main() -> Result<()> {
                     buffer,
                 } => {
                     debug!("received new packet from {}", connection_id);
-                    if !connections.contains_key(&connection_id) {
-                        debug!("connection {} not found!", connection_id);
-                        continue;
+                    match connections.get(&connection_id) {
+                        Some((sender, _)) => {
+                            let sender_clone = sender.clone();
+                            tokio::spawn(async move {
+                                let _ = sender_clone.send(buffer).await; 
+                            });
+                        },
+                        None => {
+                            debug!("connection {} not found!", connection_id);
+                            continue;
+                        }
                     }
-
-                    let (sender, _) = connections.get(&connection_id).unwrap();
-                    let _ = sender.send(buffer).await;
                 }
                 TcpFrame::IncomingSocket { connection_id } => {
                     debug!("new connection received!");
@@ -290,6 +292,7 @@ async fn main() -> Result<()> {
                         connection_id,
                         sender: main_sender.clone(),
                     };
+
                     let cancellation_token = cancellation_token.child_token();
                     tokio::spawn(async move {
                         let _ = local_connection
@@ -318,6 +321,9 @@ async fn main() -> Result<()> {
     tokio::select! {
         _ = receive_task => {
             debug!("Receive task finished.");
+        },
+        _ = ping_task => {
+            debug!("Ping task finished.");
         },
         res = foward_task => {
             debug!("Forward to server task finished. {:?}", res);

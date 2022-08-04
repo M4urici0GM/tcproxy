@@ -126,7 +126,9 @@ impl ProxyClient {
                     TcpFrame::Ping => {
                         debug!("sending pong to client.");
                         let client_sender = client_sender.clone();
-                        tokio::spawn(async move { let _ = client_sender.send(TcpFrame::Pong).await; });
+                        tokio::spawn(async move {
+                            let _ = client_sender.send(TcpFrame::Pong).await;
+                        });
                     }
                     TcpFrame::LocalClientDisconnected { connection_id } => {
                         debug!("connection {} disconnected from client", connection_id);
@@ -146,7 +148,7 @@ impl ProxyClient {
                             }
                         };
 
-                        tokio::spawn(async move { let _ = connection_sender.send(buffer).await; });
+                        let _ = connection_sender.send(buffer).await;
                     }
                     TcpFrame::ClientConnected => {
                         let target_port = match port_manager.get_port().await {
@@ -159,11 +161,9 @@ impl ProxyClient {
                         };
 
                         let client_sendera = client_sender.clone();
-                        tokio::spawn(async move { 
-                            let _ = client_sendera
-                                .send(TcpFrame::ClientConnectedAck { port: target_port })
-                                .await;
-                        });
+                        let _ = client_sendera
+                            .send(TcpFrame::ClientConnectedAck { port: target_port })
+                            .await;
 
                         let client_token = cancellation_token.child_token();
                         let listener = ListenerUtils::new(target_ip, target_port);
@@ -212,7 +212,8 @@ impl ProxyClient {
                                 let connection_cancellation_token = CancellationToken::new();
                                 let connection_token = connection_cancellation_token.child_token();
                                 let connection_id = Uuid::new_v4();
-                                let (connection_sender, mut connection_receiver) = mpsc::channel::<BytesMut>(100); 
+                                let (connection_sender, mut connection_receiver) =
+                                    mpsc::channel::<BytesMut>(100);
 
                                 state.insert_connection(
                                     connection_id,
@@ -228,45 +229,54 @@ impl ProxyClient {
                                 tokio::spawn(async move {
                                     let (mut reader, mut writer) = connection.into_split();
                                     tokio::spawn(async move {
-                                        while !connection_token.is_cancelled() {
-                                            let mut buffer = BytesMut::with_capacity(1024 * 8);
-                                            let bytes_read =
-                                                match reader.read_buf(&mut buffer).await {
-                                                    Ok(read) => read,
-                                                    Err(err) => {
-                                                        trace!(
+                                        let task = tokio::spawn(async move {
+                                            loop {
+                                                let mut buffer = BytesMut::with_capacity(1024 * 8);
+                                                let bytes_read =
+                                                    match reader.read_buf(&mut buffer).await {
+                                                        Ok(read) => read,
+                                                        Err(err) => {
+                                                            trace!(
                                                             "failed to read from connection {}: {}",
                                                             connection_id,
                                                             err
                                                         );
-                                                        break;
-                                                    }
-                                                };
+                                                            break;
+                                                        }
+                                                    };
 
-                                            if 0 == bytes_read {
-                                                trace!(
-                                                    "reached end of stream from connection {}",
-                                                    connection_id
-                                                );
-                                                break;
-                                            }
-
-                                            let buffer = BytesMut::from(&buffer[..bytes_read]);
-                                            let frame = TcpFrame::DataPacketHost {
-                                                connection_id,
-                                                buffer,
-                                            };
-                                            match client_sender.send(frame).await {
-                                                Ok(_) => {}
-                                                Err(err) => {
-                                                    error!(
-                                                        "failed to send frame to client. {}",
-                                                        err
+                                                if 0 == bytes_read {
+                                                    trace!(
+                                                        "reached end of stream from connection {}",
+                                                        connection_id
                                                     );
                                                     break;
                                                 }
+
+                                                let buffer = BytesMut::from(&buffer[..bytes_read]);
+                                                let frame = TcpFrame::DataPacketHost {
+                                                    connection_id,
+                                                    buffer,
+                                                };
+                                                match client_sender.send(frame).await {
+                                                    Ok(_) => {}
+                                                    Err(err) => {
+                                                        error!(
+                                                            "failed to send frame to client. {}",
+                                                            err
+                                                        );
+                                                        break;
+                                                    }
+                                                }
                                             }
-                                        }
+                                        });
+
+                                        tokio::select! {
+                                            _ = task => {},
+                                            _ = connection_token.cancelled() => {
+                                                debug!("connection {} disconnected.", connection_id);
+                                            },
+                                        };
 
                                         trace!("received stop signal.");
                                     });
