@@ -249,20 +249,14 @@ impl ProxyClient {
                                                     match reader.read_buf(&mut buffer).await {
                                                         Ok(read) => read,
                                                         Err(err) => {
-                                                            trace!(
-                                                            "failed to read from connection {}: {}",
-                                                            connection_id,
-                                                            err
-                                                        );
+                                                            trace!("failed to read from connection {}: {}",connection_id, err);
                                                             break;
                                                         }
                                                     };
 
                                                 if 0 == bytes_read {
-                                                    trace!(
-                                                        "reached end of stream from connection {}",
-                                                        connection_id
-                                                    );
+                                                    trace!("reached end of stream from connection {}", connection_id);
+                                                    drop(reader);
                                                     break;
                                                 }
 
@@ -317,6 +311,7 @@ impl ProxyClient {
                                     debug!("received none from connection {}, aborting", connection_id);
                                     connection_receiver.close();
                                     drop(notify_shutdown);
+                                    drop(writer);
                                 });
                             }
 
