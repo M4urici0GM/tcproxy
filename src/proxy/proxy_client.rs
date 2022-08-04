@@ -150,8 +150,7 @@ impl ProxyClient {
                         connection_id,
                         buffer,
                     } => {
-                        let (connection_sender, _) = match proxy_state.get_connection(connection_id)
-                        {
+                        let (connection_sender, _) = match proxy_state.get_connection(connection_id) {
                             Some(sender) => sender,
                             None => {
                                 continue;
@@ -159,6 +158,7 @@ impl ProxyClient {
                         };
 
                         let _ = connection_sender.send(buffer).await;
+                        drop(connection_sender);
                     }
                     TcpFrame::ClientConnected => {
                         let target_port = match port_manager.get_port().await {
@@ -169,11 +169,6 @@ impl ProxyClient {
                                 continue;
                             }
                         };
-
-                        let client_sendera = client_sender.clone();
-                        let _ = client_sendera
-                            .send(TcpFrame::ClientConnectedAck { port: target_port })
-                            .await;
 
                         let client_token = cancellation_token.child_token();
                         let listener = ListenerUtils::new(target_ip, target_port);
@@ -196,23 +191,22 @@ impl ProxyClient {
                             };
 
                             while !client_token.is_cancelled() {
-                                let (connection, connection_addr) =
-                                    match listener.accept(&tcp_listener).await {
-                                        Ok(connection) => connection,
-                                        Err(err) => {
-                                            error!(
-                                                "failed to accept socket. {}: {}",
-                                                listener.listen_ip(),
-                                                err
-                                            );
-                                            debug!(
-                                                "closing proxy listener {}: {}",
-                                                listener.listen_ip(),
-                                                err
-                                            );
-                                            break;
-                                        }
-                                    };
+                                let (connection, connection_addr) = match listener.accept(&tcp_listener).await {
+                                    Ok(connection) => connection,
+                                    Err(err) => {
+                                        error!(
+                                            "failed to accept socket. {}: {}",
+                                            listener.listen_ip(),
+                                            err
+                                        );
+                                        debug!(
+                                            "closing proxy listener {}: {}",
+                                            listener.listen_ip(),
+                                            err
+                                        );
+                                        break;
+                                    }
+                                };
 
                                 debug!(
                                     "received new connection on proxy {} from {}",
@@ -223,12 +217,7 @@ impl ProxyClient {
                                 let connection_id = Uuid::new_v4();
                                 let (connection_sender, mut connection_receiver) = mpsc::channel::<BytesMut>(100);
 
-                                state.insert_connection(
-                                    connection_id,
-                                    connection_sender.clone(),
-                                    CancellationToken::new(),
-                                );
-
+                                state.insert_connection(connection_id, connection_sender.clone(), CancellationToken::new());
                                 let _ = client_sender
                                     .send(TcpFrame::IncomingSocket { connection_id })
                                     .await;
@@ -241,12 +230,11 @@ impl ProxyClient {
 
 
                                     tokio::spawn(async move {
-                                        let task = tokio::spawn(async move {
-                                            loop {
-                                                debug!("AAAAAAAAAAAAAAAAAAAAAAA");
-                                                let mut buffer = BytesMut::with_capacity(1024 * 8);
-                                                let bytes_read =
-                                                    match reader.read_buf(&mut buffer).await {
+                                        let mut buffer = BytesMut::with_capacity(1024 * 8);
+                                        loop {
+                                            tokio::select! {
+                                                result = reader.read_buf(&mut buffer) => {
+                                                    let bytes_read = match result {
                                                         Ok(read) => read,
                                                         Err(err) => {
                                                             trace!("failed to read from connection {}: {}",connection_id, err);
@@ -254,36 +242,33 @@ impl ProxyClient {
                                                         }
                                                     };
 
-                                                if 0 == bytes_read {
-                                                    trace!("reached end of stream from connection {}", connection_id);
-                                                    drop(reader);
-                                                    break;
-                                                }
-
-                                                let buffer = BytesMut::from(&buffer[..bytes_read]);
-                                                let frame = TcpFrame::DataPacketHost {
-                                                    connection_id,
-                                                    buffer,
-                                                };
-                                                match client_sender.send(frame).await {
-                                                    Ok(_) => {}
-                                                    Err(err) => {
-                                                        error!(
-                                                            "failed to send frame to client. {}",
-                                                            err
-                                                        );
+                                                    if 0 == bytes_read {
+                                                        trace!("reached end of stream from connection {}", connection_id);
+                                                        drop(reader);
                                                         break;
                                                     }
-                                                }
-                                            }
-                                        });
-
-                                        tokio::select! {
-                                            _ = task => {},
-                                            _ = receiver_notifier.recv() => {
-                                                debug!("connection {} disconnected.", connection_id);
-                                            },
-                                        };
+    
+                                                    let buffer = BytesMut::from(&buffer[..bytes_read]);
+                                                    let frame = TcpFrame::DataPacketHost {
+                                                        connection_id,
+                                                        buffer,
+                                                    };
+                                                    match client_sender.send(frame).await {
+                                                        Ok(_) => {}
+                                                        Err(err) => {
+                                                            error!(
+                                                                "failed to send frame to client. {}",
+                                                                err
+                                                            );
+                                                            break;
+                                                        }
+                                                    }
+                                                },
+                                                _ = receiver_notifier.recv() => {
+                                                    debug!("connection {} disconnected.", connection_id);
+                                                },
+                                            };
+                                        }
 
                                         trace!("received stop signal.");
                                     });
@@ -307,7 +292,6 @@ impl ProxyClient {
                                         let _ = writer.flush().await;
                                     }
 
-                                    let _ = writer.flush().await;
                                     debug!("received none from connection {}, aborting", connection_id);
                                     connection_receiver.close();
                                     drop(notify_shutdown);

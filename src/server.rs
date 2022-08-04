@@ -54,12 +54,13 @@ impl ProxyClientState {
 
     pub fn get_connection(&self, connection_id: Uuid) -> Option<(Sender<BytesMut>, CancellationToken)> {
         let state = self.db.connections.lock().unwrap();
-        if !state.contains_key(&connection_id) {
-            trace!("connection {} not found in state", connection_id);
-            return None;
+        match state.get(&connection_id) {
+            Some(item) => Some(item.clone()),
+            None => {
+                trace!("connection {} not found in state", connection_id);
+                return None;
+            }
         }
-
-        return Some(state.get(&connection_id).unwrap().clone());
     }
 }
 
