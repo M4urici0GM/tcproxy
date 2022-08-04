@@ -1,29 +1,31 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use tokio::net::{TcpListener, TcpStream};
-use tracing::{info, error};
+use tracing::{info, error, debug};
 
 use crate::Result;
 
 #[derive(Debug)]
-pub struct Listener {
-    pub(crate) ip: Ipv4Addr,
-    pub(crate) port: u16,
+pub struct ListenerUtils {
+    pub(crate) socket_addr: SocketAddrV4,
 }
 
-impl Listener {
-    pub fn create_socket_ip(ip: Ipv4Addr, port: u16) -> SocketAddrV4 {
-        SocketAddrV4::new(ip, port)
+impl ListenerUtils {
+    pub fn new(ip: Ipv4Addr, port: u16) -> Self {
+        Self { socket_addr: SocketAddrV4::new(ip, port) }
+    }
+
+    pub fn listen_ip(&self) -> SocketAddrV4 {
+        self.socket_addr
     }
 
     pub async fn bind(&self) -> Result<TcpListener> {
-        let ip = Listener::create_socket_ip(self.ip, self.port);
-        match TcpListener::bind(ip).await {
+        match TcpListener::bind(self.socket_addr).await {
             Ok(listener) => {
-                info!("server running on port {}", self.port);
+                info!("server running on {}", self.socket_addr);
                 Ok(listener)
             }
             Err(err) => {
-                error!("Failed when binding to {}", ip);
+                error!("Failed when binding to {}", self.socket_addr);
                 return Err(err.into());
             }
         }
@@ -32,19 +34,21 @@ impl Listener {
     pub async fn accept(&self, listener: &TcpListener) -> Result<(TcpStream, SocketAddr)> {
         let mut backoff = 1;
         loop {
-            let result = listener.accept().await;
-            if let Ok(result) = result {
-                info!("New socket {} connected.", result.1);
-                return Ok(result);
-            }
-
-            if backoff > 64 {
-                let err = result.err().unwrap();
-                error!("Failed to accept new socket. aborting.. {}", err);
-                return Err(err.into());
-            }
-
-            backoff *= 2;
+            match listener.accept().await {
+                Ok(result) => {
+                    debug!("New socket {} connected.", result.1);
+                    return Ok(result);
+                },
+                Err(err) => {
+                    error!("Failed to accept new socket. retrying.. {}", err);
+                    if backoff > 64 {
+                        error!("Failed to accept new socket. aborting.. {}", err);
+                        return Err(err.into());
+                    }
+        
+                    backoff *= 2;
+                }
+            };
         }
     }
 }

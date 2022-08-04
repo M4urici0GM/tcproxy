@@ -1,123 +1,157 @@
-use std::collections::HashMap;
+use bytes::{Buf, BytesMut};
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
-use bytes::BytesMut;
-use futures_util::stream::SplitStream;
-use tokio::net::TcpStream;
+use tokio::net::tcp::OwnedReadHalf;
 use tokio::sync::mpsc::Sender;
-use tokio::sync::Mutex;
-use tokio_stream::StreamExt;
-use tokio_util::codec::Framed;
 use tokio_util::sync::CancellationToken;
-use uuid::Uuid;
-use tracing::{error, debug, info};
 
-use crate::Result;
-use crate::codec::{TcpFrame, TcpFrameCodec};
+use crate::codec::{TcpFrame};
 use crate::PortManager;
-use crate::proxy::ProxyServer;
+use crate::server::ProxyClientState;
 
 pub struct ProxyClientStreamReader {
     pub(crate) target_ip: Ipv4Addr,
     pub(crate) remote_ip: SocketAddr,
     pub(crate) port_manager: PortManager,
     pub(crate) proxy_client_sender: Sender<TcpFrame>,
-    pub(crate) connections: Arc<Mutex<HashMap<Uuid, Sender<BytesMut>>>>,
-    pub(crate) reader: SplitStream<Framed<TcpStream, TcpFrameCodec>>,
+    pub(crate) connections: Arc<ProxyClientState>,
+    pub(crate) reader: OwnedReadHalf,
+    pub(crate) buffer: BytesMut,
+    pub(crate) cancellation_token: CancellationToken,
 }
 
-impl ProxyClientStreamReader {
-    async fn receive_frame(&mut self) -> Result<TcpFrame> {
-        let received = self.reader.next().await;
-        if received.is_none() {
-            debug!("No frame received from client. Aborting.");
-            return Err("No frame received from client. aborting".into());
-        }
+// impl ProxyClientStreamReader {
+//     async fn parse_frame(&mut self) -> Result<Option<TcpFrame>> {
+//         let mut cursor = Cursor::new(&self.buffer[..]);
+//         match TcpFrame::check(&mut cursor) {
+//             Ok(_) => {
+//                 let position = cursor.position() as usize;
+//                 cursor.set_position(0);
 
-        let frame = match received.unwrap() {
-            Ok(frame) => frame,
-            Err(err) => {
-                error!("Error when parsing frame. {}", err);
-                return Err(err.into());
-            }
-        };
+//                 let frame = TcpFrame::parse(&mut cursor)?;
+//                 self.buffer.advance(position);
 
-        Ok(frame)
-    }
+//                 Ok(Some(frame))
+//             }
+//             Err(crate::codec::FrameError::Incomplete) => Ok(None),
+//             Err(err) => Err(err.into()),
+//         }
+//     }
 
-    pub async fn read_from_socket(&mut self, cancellation_token: CancellationToken) -> Result<()> {
-        while !cancellation_token.is_cancelled() {
-            let frame = self.receive_frame().await?;
+//     async fn receive_frame(&mut self) -> Result<Option<TcpFrame>> {
+//         loop {
+//             if let Some(frame) = self.parse_frame().await? {
+//                 return Ok(Some(frame));
+//             }
 
-            match frame {
-                TcpFrame::DataPacket { buffer, connection_id } => {
-                    let connections_lock = self.connections.lock().await;
-                    if !connections_lock.contains_key(&connection_id) {
-                        error!("connection id {} not found.", connection_id);
-                        return Ok(());
-                    }
+//             if 0 == self.reader.read_buf(&mut self.buffer).await? {
+//                 if self.buffer.is_empty() {
+//                     debug!("received 0 bytes from client, and buffer is empty.");
+//                     return Ok(None);
+//                 }
 
-                    let connection_sender = connections_lock.get(&connection_id).unwrap();
-                    match connection_sender.send(buffer).await {
-                        Ok(_) => {}
-                        Err(err) => {
-                            error!("failed when sending data to connection {}: {}", connection_id, err);
-                            return Ok(());
-                        }
-                    };
-                },
-                TcpFrame::LocalClientDisconnected { connection_id } => {
-                    debug!("connection {} ", connection_id);
-                    self.connections
-                        .lock()
-                        .await
-                        .remove(&connection_id);
-                },
-                TcpFrame::Ping => {
-                    match self.proxy_client_sender.send(TcpFrame::Pong).await {
-                        Ok(_) => info!("Sent Pong to client."),
-                        Err(err) => error!("Failed to send ping back to client. {}", err),
-                    }
-                },
-                TcpFrame::ClientConnected => {
-                    let listen_ip = self.target_ip;
-                    let port = self.port_manager.get_port().await?;
+//                 return Err("connection reset by peer.".into());
+//             }
+//         }
+//     }
 
-                    let connections = self.connections.clone();
-                    let host_sender = self.proxy_client_sender.clone();
-                    let cancellation_token = cancellation_token.child_token();
+//     async fn handle_frame(&mut self) -> Result<()> {
+//         loop {
+//             let frame = match self.receive_frame().await? {
+//                 Some(f) => f,
+//                 None => {
+//                     debug!("received none from client.");
+//                     return Ok(());
+//                 },
+//             };
 
-                    match host_sender.send(TcpFrame::ClientConnectedAck { port }).await {
-                        Ok(_) => {
-                            info!("Successfully send ACK package to {}", self.remote_ip);
-                        },
-                        Err(err) => {
-                            error!("Failed when sending ACK package to {}: {}", self.remote_ip, err);
-                            return Err("closing connection due invalid sender.".into());
-                        }
-                    };
+//             match frame {
+//                 TcpFrame::DataPacketClient {
+//                     buffer,
+//                     connection_id,
+//                 } => {
+//                     let connection_sender = match self.connections.get_connection(connection_id) {
+//                         Some(c) => c.clone(),
+//                         None => {
+//                             continue;
+//                         }
+//                     };
 
+//                     match connection_sender.send(buffer).await {
+//                         Ok(_) => {}
+//                         Err(err) => {
+//                             error!(
+//                                 "failed when sending data to connection {}: {}",
+//                                 connection_id, err
+//                             );
+//                             return Ok(());
+//                         }
+//                     };
+//                 }
+//                 TcpFrame::LocalClientDisconnected { connection_id } => {
+//                     debug!("connection {} was disconnected", connection_id);
+//                     self.connections.remove_connection(connection_id);                    
+//                 },
+//                 TcpFrame::Ping => match self.proxy_client_sender.send(TcpFrame::Pong).await {
+//                     Ok(_) => debug!("Sent Pong to client."),
+//                     Err(err) => error!("Failed to send ping back to client. {}", err),
+//                 },
+//                 TcpFrame::ClientConnected => {
+//                     let listen_ip = self.target_ip;
+//                     let port = self.port_manager.get_port().await?;
 
-                    tokio::spawn(async move {
-                        let proxy_server = ProxyServer {
-                            host_sender,
-                            available_connections: connections,
-                            listen_ip,
-                            port,
-                        };
+//                     let host_sender = self.proxy_client_sender.clone();
+//                     let cancellation_token = self.cancellation_token.child_token();
 
-                        tokio::select! {
-                            _ = proxy_server.listen() => {},
-                            _ = cancellation_token.cancelled() => {
-                                info!("client disconnected. closing server {}:{}...", listen_ip, port);
-                            }
-                        }
-                    });
-                }
-                _ => {}
-            }
-        };
+//                     match host_sender
+//                         .send(TcpFrame::ClientConnectedAck { port })
+//                         .await
+//                     {
+//                         Ok(_) => {
+//                             info!("Successfully send ACK package to {}", self.remote_ip);
+//                         }
+//                         Err(err) => {
+//                             error!(
+//                                 "Failed when sending ACK package to {}: {}",
+//                                 self.remote_ip, err
+//                             );
+//                             return Err("closing connection due invalid sender.".into());
+//                         }
+//                     };
 
-        Ok(())
-    }
-}
+//                     debug!("spawning new proxy server..");
+//                     let state_clone = self.connections.clone();
+//                     tokio::spawn(async move {
+//                         let proxy_server = ProxyServer {
+//                             host_sender,
+//                             available_connections: state_clone,
+//                             listen_ip,
+//                             port,
+//                         };
+
+//                         tokio::select! {
+//                             _ = proxy_server.listen() => {
+//                                 debug!("PROXY SERVER TASK FINISHED");
+//                             },
+//                             _ = cancellation_token.cancelled() => {
+//                                 info!("received cancellation signal");
+//                                 info!("client disconnected. closing server {}:{}...", listen_ip, port);
+//                             }
+//                         }
+//                     });
+//                 }
+//                 _ => {}
+//             }
+//         }
+//     }
+
+//     pub async fn read_from_socket(&mut self) -> Result<()> {
+//         let token = self.cancellation_token.child_token();
+//         tokio::select! {
+//             _ = self.handle_frame() => {},
+//             _ = token.cancelled() => {},
+//         };
+
+//         Ok(())
+//     }
+// }
