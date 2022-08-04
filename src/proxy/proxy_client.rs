@@ -8,6 +8,7 @@ use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
+use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
@@ -234,15 +235,15 @@ impl ProxyClient {
 
                                 let client_sender = client_sender.clone();
                                 tokio::spawn(async move {
-                                    let cancellation_token = CancellationToken::new();
+                                    let (notify_shutdown, _) = broadcast::channel::<()>(1);
                                     let (mut reader, mut writer) = connection.into_split();
-                                    let test = cancellation_token.child_token();
-                                    tokio::spawn(async move {
-                                        let cancellation_token = test.child_token();
+                                    let mut receiver_notifier = notify_shutdown.subscribe();
 
+
+                                    tokio::spawn(async move {
                                         let task = tokio::spawn(async move {
                                             loop {
-                                                debug!("AAAAAAAAAAAAAAAAAAAAAAA {}", cancellation_token.is_cancelled());
+                                                debug!("AAAAAAAAAAAAAAAAAAAAAAA");
                                                 let mut buffer = BytesMut::with_capacity(1024 * 8);
                                                 let bytes_read =
                                                     match reader.read_buf(&mut buffer).await {
@@ -285,7 +286,7 @@ impl ProxyClient {
 
                                         tokio::select! {
                                             _ = task => {},
-                                            _ = test.cancelled() => {
+                                            _ = receiver_notifier.recv() => {
                                                 debug!("connection {} disconnected.", connection_id);
                                             },
                                         };
@@ -315,8 +316,7 @@ impl ProxyClient {
                                     let _ = writer.flush().await;
                                     debug!("received none from connection {}, aborting", connection_id);
                                     connection_receiver.close();
-                                    cancellation_token.cancel();
-                                    
+                                    drop(notify_shutdown);
                                 });
                             }
 
