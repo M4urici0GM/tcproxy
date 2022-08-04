@@ -109,48 +109,42 @@ impl LocalConnection {
         let token_clone = cancellation_token.child_token();
         let task1 = tokio::spawn(async move {
             let mut buffer = BytesMut::with_capacity(1024 * 8);
-
-            let task = async move {
-                loop {
-                    let bytes_read = match stream_reader.read_buf(&mut buffer).await {
-                        Ok(size) => size,
-                        Err(err) => {
-                            error!(
-                                "Failed when reading from connection {}: {}",
-                                connection_id, err
-                            );
-                            break;
-                        }
-                    };
-    
-                    if 0 == bytes_read {
-                        debug!("reached end of stream");
+            while !token_clone.is_cancelled() {
+                let bytes_read = match stream_reader.read_buf(&mut buffer).await {
+                    Ok(size) => size,
+                    Err(err) => {
+                        error!(
+                            "Failed when reading from connection {}: {}",
+                            connection_id, err
+                        );
                         break;
                     }
-    
-                    buffer.truncate(bytes_read);
-                    let tcp_frame = TcpFrame::DataPacketClient {
-                        connection_id,
-                        buffer: buffer.clone(),
-                    };
-    
-                    match thread_sender.send(tcp_frame).await {
-                        Ok(_) => {}
-                        Err(err) => {
-                            debug!(
-                                "failed when sending frame to main thread loop. connection {}: {}",
-                                connection_id, err
-                            );
-                            break;
-                        }
-                    };
-                }
-            };
+                };
 
-            tokio::select! {
-                _ = task => {},
-                _ = token_clone.cancelled() => {},
-            };
+                if 0 == bytes_read {
+                    debug!("reached end of stream");
+                    break;
+                }
+
+                buffer.truncate(bytes_read);
+                let tcp_frame = TcpFrame::DataPacketClient {
+                    connection_id,
+                    buffer: buffer.clone(),
+                };
+
+                match thread_sender.send(tcp_frame).await {
+                    Ok(_) => {}
+                    Err(err) => {
+                        debug!(
+                            "failed when sending frame to main thread loop. connection {}: {}",
+                            connection_id, err
+                        );
+                        return;
+                    }
+                };
+            }
+
+            drop(stream_reader);
         });
 
         let connection_id = self.connection_id.clone();
@@ -174,6 +168,7 @@ impl LocalConnection {
                 let _ = stream_writer.flush().await;
                 debug!("written {} bytes to target stream", bytes_written);
             }
+            drop(stream_writer);
         });
 
         tokio::select! {
