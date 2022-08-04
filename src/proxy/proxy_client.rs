@@ -218,8 +218,7 @@ impl ProxyClient {
                                     listener.listen_ip(),
                                     connection_addr
                                 );
-                                let connection_cancellation_token = CancellationToken::new();
-                                let connection_token = connection_cancellation_token.child_token();
+                             
                                 let connection_id = Uuid::new_v4();
                                 let (connection_sender, mut connection_receiver) = mpsc::channel::<BytesMut>(100);
 
@@ -235,8 +234,9 @@ impl ProxyClient {
 
                                 let client_sender = client_sender.clone();
                                 tokio::spawn(async move {
+                                    let cancellation_token = CancellationToken::new();
                                     let (mut reader, mut writer) = connection.into_split();
-                                    let test = connection_token.child_token();
+                                    let test = cancellation_token.child_token();
                                     tokio::spawn(async move {
                                         let task = tokio::spawn(async move {
                                             loop {
@@ -283,7 +283,7 @@ impl ProxyClient {
 
                                         tokio::select! {
                                             _ = task => {},
-                                            _ = connection_token.cancelled() => {
+                                            _ = cancellation_token.cancelled() => {
                                                 debug!("connection {} disconnected.", connection_id);
                                             },
                                         };
@@ -312,7 +312,6 @@ impl ProxyClient {
                                     let _ = writer.flush().await;
                                     debug!("received none from connection {}, aborting", connection_id);
                                     connection_receiver.close();
-                                    connection_cancellation_token.cancel();
                                 });
                             }
 
