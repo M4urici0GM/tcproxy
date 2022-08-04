@@ -146,8 +146,19 @@ impl ProxyClient {
 
                         debug!("removed connection {} from connection state", connection_id);
                     }
-                    TcpFrame::DataPacketClient { connection_id, buffer: _ } => {
-                        proxy_state.remove_connection(connection_id);
+                    TcpFrame::DataPacketClient {
+                        connection_id,
+                        buffer,
+                    } => {
+                        let (connection_sender, _) = match proxy_state.get_connection(connection_id) {
+                            Some(sender) => sender,
+                            None => {
+                                continue;
+                            }
+                        };
+
+                        let _ = connection_sender.send(buffer).await;
+                        drop(connection_sender);
                     }
                     TcpFrame::ClientConnected => {
                         let target_port = match port_manager.get_port().await {
