@@ -238,9 +238,11 @@ impl ProxyClient {
                                     let (mut reader, mut writer) = connection.into_split();
                                     let test = cancellation_token.child_token();
                                     tokio::spawn(async move {
+                                        let cancellation_token = test.child_token();
+
                                         let task = tokio::spawn(async move {
                                             loop {
-                                                debug!("AAAAAAAAAAAAAAAAAAAAAAA {}", test.is_cancelled());
+                                                debug!("AAAAAAAAAAAAAAAAAAAAAAA {}", cancellation_token.is_cancelled());
                                                 let mut buffer = BytesMut::with_capacity(1024 * 8);
                                                 let bytes_read =
                                                     match reader.read_buf(&mut buffer).await {
@@ -283,7 +285,7 @@ impl ProxyClient {
 
                                         tokio::select! {
                                             _ = task => {},
-                                            _ = cancellation_token.cancelled() => {
+                                            _ = test.cancelled() => {
                                                 debug!("connection {} disconnected.", connection_id);
                                             },
                                         };
@@ -309,9 +311,12 @@ impl ProxyClient {
 
                                         let _ = writer.flush().await;
                                     }
+
                                     let _ = writer.flush().await;
                                     debug!("received none from connection {}, aborting", connection_id);
                                     connection_receiver.close();
+                                    cancellation_token.cancel();
+                                    
                                 });
                             }
 
