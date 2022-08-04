@@ -301,7 +301,7 @@ async fn main() -> Result<()> {
                     });
                 }
                 TcpFrame::RemoteSocketDisconnected { connection_id } => {
-                    let (_, cancellation_token) = match connections.remove(&connection_id) {
+                    let (sender, cancellation_token) = match connections.remove(&connection_id) {
                         Some(item) => item,
                         None => {
                             debug!("connection not found {}", connection_id);
@@ -310,6 +310,7 @@ async fn main() -> Result<()> {
                     };
 
                     cancellation_token.cancel();
+                    drop(sender);
                 }
                 packet => {
                     debug!("invalid data packet received. {}", packet);

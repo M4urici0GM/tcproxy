@@ -229,6 +229,7 @@ impl ProxyClient {
                                     let client_sender = client_sender.clone();
                                     tokio::spawn(async move {
                                         let (mut reader, mut writer) = connection.into_split();
+                                        let aa = client_sender.clone();
                                         let reader_task = tokio::spawn(async move {
                                             let mut buffer = BytesMut::with_capacity(1024 * 8);
                                             loop {
@@ -251,7 +252,7 @@ impl ProxyClient {
                                                     connection_id,
                                                     buffer,
                                                 };
-                                                match client_sender.send(frame).await {
+                                                match aa.send(frame).await {
                                                     Ok(_) => {}
                                                     Err(err) => {
                                                         error!(
@@ -293,6 +294,7 @@ impl ProxyClient {
                                         };
     
                                         debug!("received none from connection {}, aborting", connection_id);
+                                        let _ = client_sender.send(TcpFrame::RemoteSocketDisconnected { connection_id }).await;
                                     });
                                 }
                             });
