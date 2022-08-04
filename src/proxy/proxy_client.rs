@@ -1,4 +1,5 @@
 use bytes::{Buf, Bytes, BytesMut};
+use tracing::log::warn;
 use std::collections::HashMap;
 use std::io::Cursor;
 use std::net::{Ipv4Addr, SocketAddr, TcpListener};
@@ -135,8 +136,11 @@ impl ProxyClient {
                         match proxy_state.remove_connection(connection_id) {
                             Some((_, token)) => {
                                 token.cancel();
+                                debug!("cancelled task for connection {}", connection_id);
                             },
-                            None => {},
+                            None => {
+                                warn!("connection {} not found on connection state.", connection_id);
+                            },
                         }
 
                         debug!("removed connection {} from connection state", connection_id);
