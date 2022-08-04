@@ -216,7 +216,6 @@ impl ProxyClient {
                                         .await;
     
                                     let client_sender = client_sender.clone();
-                                    let state = state.clone();
                                     tokio::spawn(async move {
                                         let (mut reader, mut writer) = connection.into_split();
                                         let reader_task = tokio::spawn(async move {
@@ -283,7 +282,6 @@ impl ProxyClient {
                                         };
     
                                         debug!("received none from connection {}, aborting", connection_id);
-                                        state.remove_connection(connection_id);
                                     });
                                 }
                             });
