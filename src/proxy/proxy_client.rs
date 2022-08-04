@@ -226,7 +226,7 @@ impl ProxyClient {
                                 state.insert_connection(
                                     connection_id,
                                     connection_sender.clone(),
-                                    connection_cancellation_token,
+                                    CancellationToken::new(),
                                 );
 
                                 let _ = client_sender
@@ -310,11 +310,9 @@ impl ProxyClient {
                                         let _ = writer.flush().await;
                                     }
                                     let _ = writer.flush().await;
-                                    debug!(
-                                        "received none from connection {}, aborting",
-                                        connection_id
-                                    );
+                                    debug!("received none from connection {}, aborting", connection_id);
                                     connection_receiver.close();
+                                    connection_cancellation_token.cancel();
                                 });
                             }
 
