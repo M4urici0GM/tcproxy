@@ -132,7 +132,12 @@ impl ProxyClient {
                     }
                     TcpFrame::LocalClientDisconnected { connection_id } => {
                         debug!("connection {} disconnected from client", connection_id);
-                        proxy_state.remove_connection(connection_id);
+                        match proxy_state.remove_connection(connection_id) {
+                            Some((_, token)) => {
+                                token.cancel();
+                            },
+                            None => {},
+                        }
 
                         debug!("removed connection {} from connection state", connection_id);
                     }
@@ -212,8 +217,7 @@ impl ProxyClient {
                                 let connection_cancellation_token = CancellationToken::new();
                                 let connection_token = connection_cancellation_token.child_token();
                                 let connection_id = Uuid::new_v4();
-                                let (connection_sender, mut connection_receiver) =
-                                    mpsc::channel::<BytesMut>(100);
+                                let (connection_sender, mut connection_receiver) = mpsc::channel::<BytesMut>(100);
 
                                 state.insert_connection(
                                     connection_id,
@@ -228,9 +232,11 @@ impl ProxyClient {
                                 let client_sender = client_sender.clone();
                                 tokio::spawn(async move {
                                     let (mut reader, mut writer) = connection.into_split();
+                                    let test = connection_token.child_token();
                                     tokio::spawn(async move {
                                         let task = tokio::spawn(async move {
                                             loop {
+                                                debug!("AAAAAAAAAAAAAAAAAAAAAAA {}", test.is_cancelled());
                                                 let mut buffer = BytesMut::with_capacity(1024 * 8);
                                                 let bytes_read =
                                                     match reader.read_buf(&mut buffer).await {
