@@ -179,8 +179,11 @@ impl ProxyClient {
 
                         tokio::spawn(async move {
                             // TODO: send nack message to client if bind fails.
-                            let tcp_listener = match listener.bind().await {
-                                Ok(listener) => listener,
+                            let (tcp_listener, addr) = match listener.bind().await {
+                                Ok(listener) => {
+                                    let addr = listener.local_addr().unwrap();
+                                    (listener, addr)
+                                },
                                 Err(err) => {
                                     error!(
                                         "failed to listen to {}:{} {}",
@@ -190,116 +193,118 @@ impl ProxyClient {
                                 }
                             };
 
-                            while !client_token.is_cancelled() {
-                                let (connection, connection_addr) = match listener.accept(&tcp_listener).await {
-                                    Ok(connection) => connection,
-                                    Err(err) => {
-                                        error!(
-                                            "failed to accept socket. {}: {}",
-                                            listener.listen_ip(),
-                                            err
-                                        );
-                                        debug!(
-                                            "closing proxy listener {}: {}",
-                                            listener.listen_ip(),
-                                            err
-                                        );
-                                        break;
-                                    }
-                                };
-
-                                debug!(
-                                    "received new connection on proxy {} from {}",
-                                    listener.listen_ip(),
-                                    connection_addr
-                                );
-                             
-                                let connection_id = Uuid::new_v4();
-                                let (connection_sender, mut connection_receiver) = mpsc::channel::<BytesMut>(100);
-
-                                state.insert_connection(connection_id, connection_sender.clone(), CancellationToken::new());
-                                let _ = client_sender
-                                    .send(TcpFrame::IncomingSocket { connection_id })
-                                    .await;
-
-                                let client_sender = client_sender.clone();
-                                tokio::spawn(async move {
-                                    let (notify_shutdown, _) = broadcast::channel::<()>(1);
-                                    let (mut reader, mut writer) = connection.into_split();
-                                    let mut receiver_notifier = notify_shutdown.subscribe();
-
-
+                            let proxy_listener_task = tokio::spawn(async move {
+                                loop {
+                                    let (connection, connection_addr) = match listener.accept(&tcp_listener).await {
+                                        Ok(connection) => connection,
+                                        Err(err) => {
+                                            error!(
+                                                "failed to accept socket. {}: {}",
+                                                listener.listen_ip(),
+                                                err
+                                            );
+                                            debug!(
+                                                "closing proxy listener {}: {}",
+                                                listener.listen_ip(),
+                                                err
+                                            );
+                                            break;
+                                        }
+                                    };
+    
+                                    debug!(
+                                        "received new connection on proxy {} from {}",
+                                        listener.listen_ip(),
+                                        connection_addr
+                                    );
+                                 
+                                    let connection_id = Uuid::new_v4();
+                                    let (connection_sender, mut connection_receiver) = mpsc::channel::<BytesMut>(100);
+    
+                                    state.insert_connection(connection_id, connection_sender.clone(), CancellationToken::new());
+                                    let _ = client_sender
+                                        .send(TcpFrame::IncomingSocket { connection_id })
+                                        .await;
+    
+                                    let client_sender = client_sender.clone();
                                     tokio::spawn(async move {
-                                        let mut buffer = BytesMut::with_capacity(1024 * 8);
-                                        loop {
-                                            tokio::select! {
-                                                result = reader.read_buf(&mut buffer) => {
-                                                    let bytes_read = match result {
-                                                        Ok(read) => read,
-                                                        Err(err) => {
-                                                            trace!("failed to read from connection {}: {}",connection_id, err);
-                                                            break;
-                                                        }
-                                                    };
-
-                                                    if 0 == bytes_read {
-                                                        trace!("reached end of stream from connection {}", connection_id);
-                                                        drop(reader);
+                                        let (notify_shutdown, _) = broadcast::channel::<()>(1);
+                                        let (mut reader, mut writer) = connection.into_split();
+                                        let reader_task = tokio::spawn(async move {
+                                            let mut buffer = BytesMut::with_capacity(1024 * 8);
+                                            loop {
+                                                let bytes_read = match reader.read_buf(&mut buffer).await {
+                                                    Ok(read) => read,
+                                                    Err(err) => {
+                                                        trace!("failed to read from connection {}: {}",connection_id, err);
                                                         break;
                                                     }
+                                                };
     
-                                                    let buffer = BytesMut::from(&buffer[..bytes_read]);
-                                                    let frame = TcpFrame::DataPacketHost {
-                                                        connection_id,
-                                                        buffer,
-                                                    };
-                                                    match client_sender.send(frame).await {
-                                                        Ok(_) => {}
-                                                        Err(err) => {
-                                                            error!(
-                                                                "failed to send frame to client. {}",
-                                                                err
-                                                            );
-                                                            break;
-                                                        }
+                                                if 0 == bytes_read {
+                                                    trace!("reached end of stream from connection {}", connection_id);
+                                                    drop(reader);
+                                                    break;
+                                                }
+    
+                                                let buffer = BytesMut::from(&buffer[..bytes_read]);
+                                                let frame = TcpFrame::DataPacketHost {
+                                                    connection_id,
+                                                    buffer,
+                                                };
+                                                match client_sender.send(frame).await {
+                                                    Ok(_) => {}
+                                                    Err(err) => {
+                                                        error!(
+                                                            "failed to send frame to client. {}",
+                                                            err
+                                                        );
+                                                        break;
                                                     }
-                                                },
-                                                _ = receiver_notifier.recv() => {
-                                                    debug!("connection {} disconnected.", connection_id);
-                                                },
-                                            };
-                                        }
-
-                                        trace!("received stop signal.");
-                                    });
-
-                                    while let Some(mut buffer) = connection_receiver.recv().await {
-                                        match writer.write_buf(&mut buffer).await {
-                                            Ok(written) => trace!(
-                                                "written {} bytes to {}",
-                                                written,
-                                                connection_addr
-                                            ),
-                                            Err(err) => {
-                                                error!(
-                                                    "failed to write into {}: {}",
-                                                    connection_addr, err
-                                                );
-                                                break;
+                                                }
                                             }
+    
+                                            trace!("received stop signal.");
+                                        });
+    
+                                        let writer_task = tokio::spawn(async move {
+                                            while let Some(mut buffer) = connection_receiver.recv().await {
+                                                match writer.write_buf(&mut buffer).await {
+                                                    Ok(written) => trace!(
+                                                        "written {} bytes to {}",
+                                                        written,
+                                                        connection_addr
+                                                    ),
+                                                    Err(err) => {
+                                                        error!(
+                                                            "failed to write into {}: {}",
+                                                            connection_addr, err
+                                                        );
+                                                        break;
+                                                    }
+                                                };
+        
+                                                let _ = writer.flush().await;
+                                            }
+                                        });
+    
+                                        tokio::select! {
+                                            _ = reader_task => {},
+                                            _ = writer_task => {},
                                         };
+    
+                                        debug!("received none from connection {}, aborting", connection_id);
+                                        drop(notify_shutdown);
+                                    });
+                                }
+                            });
 
-                                        let _ = writer.flush().await;
-                                    }
-
-                                    debug!("received none from connection {}, aborting", connection_id);
-                                    connection_receiver.close();
-                                    drop(notify_shutdown);
-                                    drop(writer);
-                                });
+                            tokio::select! {
+                                _ = proxy_listener_task => {},
+                                _ = client_token.cancelled() => {},
                             }
 
-                            debug!("closing proxy server listening at {}", listener.listen_ip());
+                            debug!("closing proxy server listening at {}",addr);
                             port_manager.remove_port(target_port);
                         });
                     }
