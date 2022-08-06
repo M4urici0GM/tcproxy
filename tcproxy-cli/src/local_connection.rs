@@ -27,7 +27,7 @@ impl LocalConnection {
     }
 
     async fn connect(&self) -> Result<TcpStream> {
-        match TcpStream::connect("192.168.0.221:3337").await {
+        match TcpStream::connect("192.168.0.221:22").await {
             Ok(stream) => Ok(stream),
             Err(err) => {
                 debug!(
@@ -65,6 +65,7 @@ impl LocalConnection {
                 let tcp_frame = TcpFrame::DataPacketClient {
                     connection_id,
                     buffer: buffer.clone(),
+                    buffer_size: bytes_read as u32,
                 };
 
                 sender.send(tcp_frame).await?;

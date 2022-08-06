@@ -30,7 +30,7 @@ impl IncomingSocketCommand {
 
 #[async_trait]
 impl Command for IncomingSocketCommand {
-    async fn handle(&self) -> Result<()> {
+    async fn handle(&mut self) -> Result<()> {
         debug!("new connection received!");
         let (connection_sender, reader) = mpsc::channel::<BytesMut>(1000);
         let token = CancellationToken::new();
@@ -48,9 +48,6 @@ impl Command for IncomingSocketCommand {
                 .await;
 
             debug!("Local connection socket finis`hed.");
-            let _ = sender
-                .send(TcpFrame::LocalClientDisconnected { connection_id })
-                .await;
         });
 
         Ok(())

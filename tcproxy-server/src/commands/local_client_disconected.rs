@@ -22,7 +22,7 @@ impl LocalClientDisconnectedCommand {
 
 #[async_trait]
 impl Command for LocalClientDisconnectedCommand {
-    async fn handle(&self)  -> Result<()> {
+    async fn handle(&mut self)  -> Result<()> {
       debug!("connection {} disconnected from client", self.connection_id);
       match self.proxy_state.connections.remove_connection(self.connection_id) {
           Some((_, token)) => {

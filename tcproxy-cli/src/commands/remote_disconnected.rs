@@ -24,7 +24,7 @@ impl RemoteDisconnectedCommand {
 
 #[async_trait]
 impl Command for RemoteDisconnectedCommand {
-    async fn handle(&self) -> Result<()> {
+    async fn handle(&mut self) -> Result<()> {
         let (sender, cancellation_token) = match self.state.remove_connection(self.connection_id) {
             Some(item) => item,
             None => {

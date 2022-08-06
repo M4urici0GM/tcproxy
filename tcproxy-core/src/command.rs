@@ -4,5 +4,5 @@ use crate::Result;
 
 #[async_trait]
 pub trait Command: Sync + Send {
-    async fn handle(&self) -> Result<()>;
+    async fn handle(&mut self) -> Result<()>;
 }

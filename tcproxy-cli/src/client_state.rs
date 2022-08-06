@@ -96,15 +96,16 @@ impl ClientState {
     pub fn get_connection(&self, id: Uuid) -> Option<(Sender<BytesMut>, CancellationToken)> {
         let lock = self.connections.lock().unwrap();
         match lock.get(&id) {
-            Some((sender, token)) => {
+            Some((sender, token)) => Some((sender.clone(), token.clone())),
+            None => {
                 debug!("connection {} not found", id);
-                Some((sender.clone(), token.clone()))
-            }
-            None => None,
+                None
+            },
         }
     }
 
     pub fn remove_connection(&self, id: Uuid) -> Option<(Sender<BytesMut>, CancellationToken)> {
+        debug!("removing connection {}", id);
         let mut lock = self.connections.lock().unwrap();
         if !lock.contains_key(&id) {
             return None;

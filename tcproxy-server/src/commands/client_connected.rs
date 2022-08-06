@@ -21,7 +21,7 @@ pub struct ClientConnectedCommand {
 
 #[async_trait]
 impl Command for ClientConnectedCommand {
-    async fn handle(&self) -> Result<()> {
+    async fn handle(&mut self) -> Result<()> {
         let target_port = match self.state.ports.get_port().await {
             Ok(port) => port,
             Err(err) => {
@@ -113,10 +113,11 @@ impl Command for ClientConnectedCommand {
                                     break;
                                 }
 
-                                let buffer = BytesMut::from(&buffer[..bytes_read]);
+                                let buffer = buffer.split();
                                 let frame = TcpFrame::DataPacketHost {
                                     connection_id,
                                     buffer,
+                                    buffer_size: bytes_read as u32,
                                 };
                                 match aa.send(frame).await {
                                     Ok(_) => {}
@@ -132,6 +133,7 @@ impl Command for ClientConnectedCommand {
 
                         let writer_task = tokio::spawn(async move {
                             while let Some(mut buffer) = connection_receiver.recv().await {
+                                let mut buffer = buffer.split();
                                 match writer.write_buf(&mut buffer).await {
                                     Ok(written) => {
                                         trace!("written {} bytes to {}", written, connection_addr)

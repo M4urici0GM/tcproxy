@@ -1,6 +1,6 @@
 use clap::Parser;
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 pub struct ClientArgs {
   #[clap(short, long, value_parser, default_value = "8080")]

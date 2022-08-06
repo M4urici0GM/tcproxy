@@ -48,7 +48,6 @@ impl ConsoleUpdater {
     }
 
     async fn start(&mut self) {
-        self.print_state();
         while let Some(_) = self.receiver.recv().await {
             if self.args.is_debug() {
                 continue;
@@ -111,7 +110,7 @@ impl App {
     }
 
     pub async fn connect(&self) -> Result<TcpStream> {
-        match TcpStream::connect("127.0.0.1:8080").await {
+        match TcpStream::connect("192.168.0.221:8080").await {
             Ok(stream) => {
                 debug!("Connected to server..");
                 Ok(stream)
@@ -127,6 +126,7 @@ impl App {
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = ClientArgs::parse();
+    println!("{:?}", args);
     App::new(args)
         .start()
         .await?;

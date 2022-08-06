@@ -43,9 +43,9 @@ impl TcpFrameReader {
           };
 
           debug!("received new frame from server: {}", msg);
-          let command: Box<dyn Command> = match msg {
-                  TcpFrame::DataPacketHost { connection_id, buffer} => {
-                    Box::new(DataPacketCommand::new(connection_id, buffer, &self.state))
+          let mut command: Box<dyn Command> = match msg {
+                  TcpFrame::DataPacketHost { connection_id, buffer, buffer_size} => {
+                    Box::new(DataPacketCommand::new(connection_id, buffer, buffer_size, &self.state))
                   },
                   TcpFrame::IncomingSocket { connection_id } => Box::new(
                       IncomingSocketCommand::new(connection_id, &self.sender, &self.state),

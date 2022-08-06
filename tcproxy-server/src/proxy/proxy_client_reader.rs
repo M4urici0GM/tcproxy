@@ -38,12 +38,12 @@ impl ProxyClientStreamReader {
             };
 
             debug!("received new frame from client {}", frame);
-            let command_handler: Box<dyn Command> = match frame {
+            let mut command_handler: Box<dyn Command> = match frame {
                 TcpFrame::Ping => Box::new(PingCommand::new(&self.sender)),
                 TcpFrame::LocalClientDisconnected { connection_id } => {
                     Box::new(LocalClientDisconnectedCommand::new(connection_id, &self.state))
                 }
-                TcpFrame::DataPacketClient { connection_id, buffer} => {
+                TcpFrame::DataPacketClient { connection_id, buffer, buffer_size: _ } => {
                     Box::new(DataPacketClientCommand::new(buffer, &connection_id, &&self.state))
                 },
                 TcpFrame::ClientConnected => {
