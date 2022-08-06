@@ -107,8 +107,8 @@ impl LocalConnection {
         let thread_sender = self.sender.clone();
         let connection_id = self.connection_id.clone();
         let task1 = tokio::spawn(async move {
-            let mut buffer = BytesMut::with_capacity(1024 * 8);
             loop {
+                let mut buffer = BytesMut::with_capacity(1024 * 8);
                 let bytes_read = match stream_reader.read_buf(&mut buffer).await {
                     Ok(size) => size,
                     Err(err) => {

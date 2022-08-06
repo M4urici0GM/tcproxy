@@ -53,8 +53,8 @@ impl LocalConnection {
         connection_id: Uuid,
     ) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
-            let mut buffer = BytesMut::with_capacity(1024 * 8);
             loop {
+                let mut buffer = BytesMut::with_capacity(1024 * 8);
                 let bytes_read = reader.read_buf(&mut buffer).await?;
                 if 0 == bytes_read {
                     debug!("reached end of stream");
@@ -112,8 +112,8 @@ impl LocalConnection {
         let task2 = LocalConnection::write_to_socket(stream_writer, reader);
 
         tokio::select! {
-            _ = task1 => {},
             _ = task2 => {},
+            _ = task1 => {},
             _ = cancellation_token.cancelled() => {}
         };
 

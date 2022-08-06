@@ -89,8 +89,8 @@ impl Command for ClientConnectedCommand {
                         let (mut reader, mut writer) = connection.into_split();
                         let aa = client_sender.clone();
                         let reader_task = tokio::spawn(async move {
-                            let mut buffer = BytesMut::with_capacity(1024 * 8);
                             loop {
+                                let mut buffer = BytesMut::with_capacity(1024 * 8);
                                 let bytes_read = match reader.read_buf(&mut buffer).await {
                                     Ok(read) => read,
                                     Err(err) => {
