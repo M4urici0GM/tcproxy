@@ -185,8 +185,8 @@ impl Display for TcpFrame {
             TcpFrame::RemoteSocketDisconnected { connection_id } => format!("RemoteSocketDisconnected ({})", connection_id),
             TcpFrame::IncomingSocket { connection_id } => format!("IncomingSocket ({})", connection_id),
             TcpFrame::ClientUnableToConnect { connection_id } => format!("ClientUnableToConnect ({})", connection_id),
-            TcpFrame::DataPacketClient { connection_id, buffer } => format!("DataPacketClient, {}, size: {}, {}", connection_id, buffer.len(), String::from_utf8(buffer.to_vec()).unwrap()),
-            TcpFrame::DataPacketHost { connection_id, buffer } => format!("DataPacketHost, {}, size: {}: {}", connection_id, buffer.len(), String::from_utf8(buffer.to_vec()).unwrap()),
+            TcpFrame::DataPacketClient { connection_id, buffer } => format!("DataPacketClient, {}, size: {}", connection_id, buffer.len()),
+            TcpFrame::DataPacketHost { connection_id, buffer } => format!("DataPacketHost, {}, size: {}", connection_id, buffer.len()),
             TcpFrame::LocalClientDisconnected { connection_id } => format!("LocalClientDisconnected ({})", connection_id),
         };
 

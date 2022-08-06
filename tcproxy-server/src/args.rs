@@ -12,7 +12,7 @@ pub struct AppArguments {
     port: u16,
 
     #[clap(short, long, value_parser, default_value = "0.0.0.0")]
-     ip: String,
+    ip: String,
 
     #[clap(short = 'D', long, value_parser = parse_port_range, default_value = "10000:25000")]
     port_range: String,

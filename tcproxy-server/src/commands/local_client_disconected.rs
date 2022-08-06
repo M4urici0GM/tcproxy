@@ -12,10 +12,10 @@ pub struct LocalClientDisconnectedCommand {
 }
 
 impl LocalClientDisconnectedCommand {
-  pub fn new(connection_id: Uuid, proxy_state: Arc<ProxyState>) -> Self {
+  pub fn new(connection_id: Uuid, proxy_state: &Arc<ProxyState>) -> Self {
     Self {
       connection_id,
-      proxy_state,
+      proxy_state: proxy_state.clone(),
     }
   }
 }

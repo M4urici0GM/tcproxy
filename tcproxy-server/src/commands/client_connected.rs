@@ -50,6 +50,8 @@ impl Command for ClientConnectedCommand {
                 }
             };
 
+            let _ = client_sender.send(TcpFrame::ClientConnectedAck { port: target_port }).await;
+
             let aaa = state.clone();
             let proxy_listener_task = tokio::spawn(async move {
                 let semaphore = Arc::new(Semaphore::new(120));

@@ -22,8 +22,8 @@ impl IncomingSocketCommand {
     pub fn new(id: Uuid, sender: &Sender<TcpFrame>, state: &Arc<ClientState>) -> Self {
         Self {
             connection_id: id,
-            client_sender: sender.clone(),
             state: state.clone(),
+            client_sender: sender.clone(),
         }
     }
 }
