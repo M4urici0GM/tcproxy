@@ -1,0 +1,17 @@
+[package]
+name = "tcproxy-cli"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bytes = "1.2.0"
+tracing = "0.1.35"
+async-trait = "0.1.57"
+tracing-subscriber = "0.3.15"
+uuid = { version = "1.1.2", features = ["v4"]}
+tokio-util = { version = "0.7.3", features = ["codec"]}
+tcproxy-core = { version = "0.1.0", path = "../tcproxy-core" }
+tokio = { version = "1.20.1", features = ["full", "tracing"] }
+
