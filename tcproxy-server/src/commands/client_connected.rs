@@ -73,12 +73,11 @@ impl Command for ClientConnectedCommand {
                     );
 
                     let connection_id = Uuid::new_v4();
-                    let (connection_sender, mut connection_receiver) =
-                        mpsc::channel::<BytesMut>(100);
+                    let (connection_sender, mut connection_receiver) = mpsc::channel::<BytesMut>(100);
 
                     aaa.connections.insert_connection(
                         connection_id,
-                        connection_sender.clone(),
+                        connection_sender,
                         CancellationToken::new(),
                     );
                     let _ = client_sender
@@ -113,7 +112,8 @@ impl Command for ClientConnectedCommand {
                                     break;
                                 }
 
-                                let buffer = buffer.split();
+                                buffer.truncate(bytes_read);
+                                let buffer = BytesMut::from(&buffer[..]);
                                 let frame = TcpFrame::DataPacketHost {
                                     connection_id,
                                     buffer,

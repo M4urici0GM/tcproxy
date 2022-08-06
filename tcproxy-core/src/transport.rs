@@ -61,6 +61,7 @@ impl TransportWriter {
   pub async fn send(&mut self, frame: TcpFrame) -> Result<()> {
       let mut buffer = frame.to_buffer();
       let bytes_written =  self.writer.write_buf(&mut buffer).await?;
+      let _ = self.writer.flush().await;
       trace!("written {} bytes to socket.", bytes_written);
 
       Ok(())

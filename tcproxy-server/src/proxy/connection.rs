@@ -44,11 +44,11 @@ impl Connection {
         };
 
         tokio::select! {
-            res = proxy_reader.start_reading(local_cancellation_token.clone()) => {
-                debug!("ProxyClientStreamWriter::start_reading task completed with {:?}", res);
-            },
             res = proxy_writer.start_writing() => {
                 debug!("ProxyClientStreamWriter::start_writing task completed with {:?}", res)
+            },
+            res = proxy_reader.start_reading(local_cancellation_token.clone()) => {
+                debug!("ProxyClientStreamWriter::start_reading task completed with {:?}", res);
             },
             _ = cancellation_token.cancelled() => {
                 debug!("received global stop signal..");

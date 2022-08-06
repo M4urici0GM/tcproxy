@@ -86,7 +86,7 @@ impl App {
 
         let console_task = ConsoleUpdater::new(console_receiver, &state, &self.args).spawn();
         let receive_task = TcpFrameWriter::new(receiver, writer).spawn();
-        let ping_task = PingSender::new(&sender, &state, Some(5)).spawn();
+        let ping_task = PingSender::new(&sender, &state, Some(100)).spawn();
         let foward_task = TcpFrameReader::new(&sender, &state, &console_sender, reader).spawn();
 
         tokio::select! {
