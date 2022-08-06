@@ -10,18 +10,20 @@ use tcproxy_cli::{ClientArgs, ClientState, PingSender, TcpFrameReader, TcpFrameW
 use tcproxy_core::{Result, TcpFrame, TcpFrameTransport};
 
 struct App {
-    args: ClientArgs,
+    args: Arc<ClientArgs>,
 }
 
 struct ConsoleUpdater {
     receiver: Receiver<i32>,
     state: Arc<ClientState>,
+    args: Arc<ClientArgs>
 }
 
 impl ConsoleUpdater {
-    pub fn new(receiver: Receiver<i32>, state: &Arc<ClientState>) -> Self {
+    pub fn new(receiver: Receiver<i32>, state: &Arc<ClientState>, args: &Arc<ClientArgs>) -> Self {
         Self {
             receiver,
+            args: args.clone(),
             state: state.clone(),
         }
     }
@@ -48,6 +50,10 @@ impl ConsoleUpdater {
     async fn start(&mut self) {
         self.print_state();
         while let Some(_) = self.receiver.recv().await {
+            if self.args.is_debug() {
+                continue;
+            }
+
             self.print_state();
         }
 
@@ -58,7 +64,7 @@ impl ConsoleUpdater {
 impl App {
     pub fn new(args: ClientArgs) -> Self {
         Self {
-            args,
+            args: Arc::new(args),
         }
     }
 
@@ -79,7 +85,7 @@ impl App {
         writer.send(TcpFrame::Ping).await?;
      
 
-        let console_task = ConsoleUpdater::new(console_receiver, &state).spawn();
+        let console_task = ConsoleUpdater::new(console_receiver, &state, &self.args).spawn();
         let receive_task = TcpFrameWriter::new(receiver, writer).spawn();
         let ping_task = PingSender::new(&sender, &state, Some(5)).spawn();
         let foward_task = TcpFrameReader::new(&sender, &state, &console_sender, reader).spawn();
