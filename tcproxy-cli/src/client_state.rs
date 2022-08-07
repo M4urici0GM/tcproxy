@@ -1,5 +1,5 @@
 use bytes::BytesMut;
-use chrono::{DateTime, Utc, Duration};
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::net::{SocketAddr, Ipv4Addr};
 use std::str::FromStr;

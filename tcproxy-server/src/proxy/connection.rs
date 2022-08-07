@@ -1,6 +1,7 @@
 use std::net::Ipv4Addr;
 use std::sync::Arc;
-use tcproxy_core::{Result, TcpFrame, TcpFrameTransport};
+use tcproxy_core::{Result, TcpFrame};
+use tcproxy_core::transport::TcpFrameTransport;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;

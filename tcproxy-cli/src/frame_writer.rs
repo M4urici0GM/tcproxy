@@ -1,8 +1,8 @@
 use tracing::info;
-use tcproxy_core::Result;
-use tcproxy_core::{TcpFrame, TransportWriter};
 use tokio::{sync::mpsc::Receiver, task::JoinHandle};
-
+use tcproxy_core::Result;
+use tcproxy_core::TcpFrame;
+use tcproxy_core::transport::TransportWriter;
 
 pub struct TcpFrameWriter {
   receiver: Receiver<TcpFrame>,

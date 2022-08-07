@@ -1,10 +1,11 @@
 use std::net::Ipv4Addr;
 use std::sync::Arc;
-
-use tcproxy_core::{TcpFrame, Result, Command, TransportReader};
 use tokio::{task::JoinHandle, sync::mpsc::Sender};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
+
+use tcproxy_core::transport::TransportReader;
+use tcproxy_core::{TcpFrame, Result, Command};
 
 use crate::ProxyState;
 use crate::commands::{DataPacketClientCommand, ClientConnectedCommand};

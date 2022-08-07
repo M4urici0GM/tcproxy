@@ -1,8 +1,9 @@
 use std::sync::Arc;
 use chrono::Utc;
-use tracing::{debug, info};
-use tcproxy_core::{TcpFrame, TransportReader, Result, Command};
+use tracing::debug;
+
 use tokio::{sync::mpsc::Sender, task::JoinHandle};
+use tcproxy_core::{TcpFrame, Result, Command, transport::TransportReader};
 
 use crate::{ClientState, DataPacketCommand, IncomingSocketCommand, RemoteDisconnectedCommand};
 

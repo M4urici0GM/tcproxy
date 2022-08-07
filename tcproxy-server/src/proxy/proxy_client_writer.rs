@@ -1,7 +1,9 @@
-use tcproxy_core::{TcpFrame, Result, TransportWriter};
 use tokio::sync::mpsc::Receiver;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
+
+use tcproxy_core::{TcpFrame, Result};
+use tcproxy_core::transport::TransportWriter;
 
 pub struct ProxyClientStreamWriter {
     pub(crate) receiver: Receiver<TcpFrame>,

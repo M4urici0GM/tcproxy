@@ -12,6 +12,7 @@ use tcproxy_core::Command;
 
 use crate::{LocalConnection, client_state::ClientState};
 
+/// issued when a remote socket connects to server.
 pub struct IncomingSocketCommand {
     connection_id: Uuid,
     client_sender: Sender<TcpFrame>,
@@ -48,6 +49,9 @@ impl Command for IncomingSocketCommand {
                 .await;
 
             debug!("Local connection socket finis`hed.");
+            let _ = sender
+                .send(TcpFrame::LocalClientDisconnected { connection_id })
+                .await;
         });
 
         Ok(())

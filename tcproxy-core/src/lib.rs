@@ -1,9 +1,9 @@
-mod transport;
 mod tcp_stream;
 mod frame_error;
 mod command;
 
-pub use transport::*;
+pub mod transport;
+
 pub use tcp_stream::*;
 pub use frame_error::*;
 pub use command::*;
