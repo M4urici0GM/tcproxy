@@ -2,7 +2,7 @@ use std::sync::Arc;
 use clap::Parser;
 use tokio::sync::mpsc::{self, Receiver};
 use tokio::task::JoinHandle;
-use tokio::{net::TcpStream, sync::mpsc::Sender};
+use tokio::net::TcpStream;
 use emoji_printer::print_emojis;
 use tracing::{debug, error};
 
@@ -87,7 +87,7 @@ impl App {
         let console_task = ConsoleUpdater::new(console_receiver, &state, &self.args).spawn();
         let receive_task = TcpFrameWriter::new(receiver, writer).spawn();
         let ping_task = PingSender::new(&sender, &state, Some(5)).spawn();
-        let foward_task = TcpFrameReader::new(&sender, &state, &console_sender, reader).spawn();
+        let foward_task = TcpFrameReader::new(&sender, &state, reader).spawn();
 
         tokio::select! {
             res = console_task => {

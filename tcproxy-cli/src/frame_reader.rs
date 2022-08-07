@@ -10,16 +10,14 @@ pub struct TcpFrameReader {
   sender: Sender<TcpFrame>,
   reader: TransportReader,
   state: Arc<ClientState>,
-  console_sender: Sender<i32>
 }
 
 impl TcpFrameReader {
-  pub fn new(sender: &Sender<TcpFrame>, state: &Arc<ClientState>, console_sender: &Sender<i32>, reader: TransportReader) -> Self {
+  pub fn new(sender: &Sender<TcpFrame>, state: &Arc<ClientState>, reader: TransportReader) -> Self {
       Self {
           sender: sender.clone(),
           state: state.clone(),
           reader,
-          console_sender: console_sender.clone(),
       }
   }
 
