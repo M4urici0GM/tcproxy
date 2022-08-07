@@ -27,12 +27,12 @@ impl LocalConnection {
     }
 
     async fn connect(&self) -> Result<TcpStream> {
-        match TcpStream::connect("127.0.0.1:3337").await {
+        match TcpStream::connect("192.168.0.221:22").await {
             Ok(stream) => Ok(stream),
             Err(err) => {
                 debug!(
                     "Error when connecting to {}: {}. Aborting connection..",
-                    "127.0.0.1:80", err
+                    "192.168.0.221:22", err
                 );
 
                 let _ = self

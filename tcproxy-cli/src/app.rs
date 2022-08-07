@@ -68,7 +68,7 @@ impl App {
   }
 
   pub async fn connect(&self) -> Result<TcpStream> {
-      match TcpStream::connect("192.168.0.221:8080").await {
+      match TcpStream::connect("127.0.0.1:8080").await {
           Ok(stream) => {
               debug!("Connected to server..");
               Ok(stream)
