@@ -27,7 +27,7 @@ impl LocalConnection {
     }
 
     async fn connect(&self) -> Result<TcpStream> {
-        match TcpStream::connect("192.168.0.221:3337").await {
+        match TcpStream::connect("127.0.0.1:3337").await {
             Ok(stream) => Ok(stream),
             Err(err) => {
                 debug!(
@@ -53,8 +53,8 @@ impl LocalConnection {
         connection_id: Uuid,
     ) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
-            let mut buffer = BytesMut::with_capacity(1024 * 8);
             loop {
+                let mut buffer = BytesMut::with_capacity(1024 * 8);
                 let bytes_read = reader.read_buf(&mut buffer).await?;
                 if 0 == bytes_read {
                     debug!("reached end of stream");
@@ -65,6 +65,7 @@ impl LocalConnection {
                 let tcp_frame = TcpFrame::DataPacketClient {
                     connection_id,
                     buffer: buffer.clone(),
+                    buffer_size: bytes_read as u32,
                 };
 
                 sender.send(tcp_frame).await?;
@@ -111,8 +112,8 @@ impl LocalConnection {
         let task2 = LocalConnection::write_to_socket(stream_writer, reader);
 
         tokio::select! {
-            _ = task1 => {},
             _ = task2 => {},
+            _ = task1 => {},
             _ = cancellation_token.cancelled() => {}
         };
 

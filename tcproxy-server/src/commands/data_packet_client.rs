@@ -25,13 +25,13 @@ impl DataPacketClientCommand {
 
 #[async_trait]
 impl Command for DataPacketClientCommand {
-    async fn handle(&self) -> Result<()> {
+    async fn handle(&mut self) -> Result<()> {
         let (connection_sender, _) = match self.proxy_state.connections.get_connection(self.connection_id) {
             Some(sender) => sender,
             None => return Ok(()),
         };
 
-        let buffer = BytesMut::from(&self.buffer[..]);
+        let buffer = self.buffer.split();
         let _ = connection_sender.send(buffer).await;
         Ok(())
     }

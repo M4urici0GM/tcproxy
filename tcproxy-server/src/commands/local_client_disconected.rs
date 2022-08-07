@@ -12,17 +12,17 @@ pub struct LocalClientDisconnectedCommand {
 }
 
 impl LocalClientDisconnectedCommand {
-  pub fn new(connection_id: Uuid, proxy_state: Arc<ProxyState>) -> Self {
+  pub fn new(connection_id: Uuid, proxy_state: &Arc<ProxyState>) -> Self {
     Self {
       connection_id,
-      proxy_state,
+      proxy_state: proxy_state.clone(),
     }
   }
 }
 
 #[async_trait]
 impl Command for LocalClientDisconnectedCommand {
-    async fn handle(&self)  -> Result<()> {
+    async fn handle(&mut self)  -> Result<()> {
       debug!("connection {} disconnected from client", self.connection_id);
       match self.proxy_state.connections.remove_connection(self.connection_id) {
           Some((_, token)) => {

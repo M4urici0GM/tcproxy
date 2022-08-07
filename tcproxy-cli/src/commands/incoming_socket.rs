@@ -12,6 +12,7 @@ use tcproxy_core::Command;
 
 use crate::{LocalConnection, client_state::ClientState};
 
+/// issued when a remote socket connects to server.
 pub struct IncomingSocketCommand {
     connection_id: Uuid,
     client_sender: Sender<TcpFrame>,
@@ -22,15 +23,15 @@ impl IncomingSocketCommand {
     pub fn new(id: Uuid, sender: &Sender<TcpFrame>, state: &Arc<ClientState>) -> Self {
         Self {
             connection_id: id,
-            client_sender: sender.clone(),
             state: state.clone(),
+            client_sender: sender.clone(),
         }
     }
 }
 
 #[async_trait]
 impl Command for IncomingSocketCommand {
-    async fn handle(&self) -> Result<()> {
+    async fn handle(&mut self) -> Result<()> {
         debug!("new connection received!");
         let (connection_sender, reader) = mpsc::channel::<BytesMut>(1000);
         let token = CancellationToken::new();

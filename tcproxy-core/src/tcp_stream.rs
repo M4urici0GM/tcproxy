@@ -17,8 +17,8 @@ pub enum TcpFrame {
     IncomingSocket { connection_id: Uuid },
     ClientUnableToConnect { connection_id: Uuid },
     LocalClientDisconnected { connection_id: Uuid },
-    DataPacketClient { connection_id: Uuid, buffer: BytesMut },
-    DataPacketHost { connection_id: Uuid, buffer: BytesMut },
+    DataPacketClient { connection_id: Uuid, buffer_size: u32, buffer: BytesMut },
+    DataPacketHost { connection_id: Uuid, buffer_size: u32, buffer: BytesMut },
 }
 
 impl TcpFrame {
@@ -103,18 +103,18 @@ impl TcpFrame {
                 let buffer = seek_buffer(cursor, buffer_size)?;
 
                 let connection_id = Uuid::from_u128(connection_id_value);
-                Ok(TcpFrame::DataPacketClient { connection_id, buffer })
+                Ok(TcpFrame::DataPacketClient { connection_id, buffer, buffer_size })
             },
             b'!' => {
                 trace!("found DataPacketHost frame, buffer size: {}, cursor_pos: {}", cursor.get_ref().len(), cursor.position());
                 let connection_id_value = get_u128(cursor)?;
-                let buff_size = get_u32(cursor)?;
-                let buffer = seek_buffer(cursor, buff_size)?;
+                let buffer_size = get_u32(cursor)?;
+                let buffer = seek_buffer(cursor, buffer_size)?;
 
-                trace!("supposed buffer size: {}, actual buffer size: {}", buff_size, buffer.len());
+                trace!("supposed buffer size: {}, actual buffer size: {}", buffer_size, buffer.len());
 
                 let connection_id = Uuid::from_u128(connection_id_value);
-                Ok(TcpFrame::DataPacketHost { connection_id, buffer })
+                Ok(TcpFrame::DataPacketHost { connection_id, buffer, buffer_size })
             },
             actual => Err(format!("proto error. invalid frame type. {}", actual).into()),
         }
@@ -153,16 +153,16 @@ impl TcpFrame {
                 final_buff.put_u8(b'(');
                 final_buff.put_u128(connection_id.as_u128());
             },
-            TcpFrame::DataPacketClient { connection_id, buffer } => {
+            TcpFrame::DataPacketClient { connection_id, buffer, buffer_size } => {
                 final_buff.put_u8(b')');
                 final_buff.put_u128(connection_id.as_u128());
-                final_buff.put_u32(buffer.len() as u32);
+                final_buff.put_u32(*buffer_size);
                 final_buff.put_slice(&buffer[..]);
             },
-            TcpFrame::DataPacketHost { connection_id, buffer } => {
+            TcpFrame::DataPacketHost { connection_id, buffer,buffer_size } => {
                 final_buff.put_u8(b'!');
                 final_buff.put_u128(connection_id.as_u128());
-                final_buff.put_u32(buffer.len() as u32);
+                final_buff.put_u32(*buffer_size);
                 final_buff.put_slice(&buffer[..]);
             },
             TcpFrame::PortLimitReached => {
@@ -185,8 +185,8 @@ impl Display for TcpFrame {
             TcpFrame::RemoteSocketDisconnected { connection_id } => format!("RemoteSocketDisconnected ({})", connection_id),
             TcpFrame::IncomingSocket { connection_id } => format!("IncomingSocket ({})", connection_id),
             TcpFrame::ClientUnableToConnect { connection_id } => format!("ClientUnableToConnect ({})", connection_id),
-            TcpFrame::DataPacketClient { connection_id, buffer } => format!("DataPacketClient, {}, size: {}, {}", connection_id, buffer.len(), String::from_utf8(buffer.to_vec()).unwrap()),
-            TcpFrame::DataPacketHost { connection_id, buffer } => format!("DataPacketHost, {}, size: {}: {}", connection_id, buffer.len(), String::from_utf8(buffer.to_vec()).unwrap()),
+            TcpFrame::DataPacketClient { connection_id, buffer, buffer_size } => format!("DataPacketClient, {}, size: {}, expected: {}", connection_id, buffer.len(), buffer_size),
+            TcpFrame::DataPacketHost { connection_id, buffer, buffer_size } => format!("DataPacketHost, {}, size: {}, expected: {}", connection_id, buffer.len(), buffer_size),
             TcpFrame::LocalClientDisconnected { connection_id } => format!("LocalClientDisconnected ({})", connection_id),
         };
 

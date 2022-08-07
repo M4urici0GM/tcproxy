@@ -16,7 +16,7 @@ impl PingCommand {
 
 #[async_trait]
 impl Command for PingCommand {
-  async fn handle(&self) -> Result<()> {
+  async fn handle(&mut self) -> Result<()> {
       let _ = self.sender.send(TcpFrame::Pong).await;
       Ok(())
   }

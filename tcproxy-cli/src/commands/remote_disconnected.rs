@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use crate::ClientState;
 
+/// issued when remote socket disconnects from server.
 pub struct RemoteDisconnectedCommand {
     connection_id: Uuid,
     state: Arc<ClientState>,
@@ -24,7 +25,7 @@ impl RemoteDisconnectedCommand {
 
 #[async_trait]
 impl Command for RemoteDisconnectedCommand {
-    async fn handle(&self) -> Result<()> {
+    async fn handle(&mut self) -> Result<()> {
         let (sender, cancellation_token) = match self.state.remove_connection(self.connection_id) {
             Some(item) => item,
             None => {

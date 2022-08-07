@@ -21,7 +21,7 @@ pub struct ClientConnectedCommand {
 
 #[async_trait]
 impl Command for ClientConnectedCommand {
-    async fn handle(&self) -> Result<()> {
+    async fn handle(&mut self) -> Result<()> {
         let target_port = match self.state.ports.get_port().await {
             Ok(port) => port,
             Err(err) => {
@@ -50,6 +50,8 @@ impl Command for ClientConnectedCommand {
                 }
             };
 
+            let _ = client_sender.send(TcpFrame::ClientConnectedAck { port: target_port }).await;
+
             let aaa = state.clone();
             let proxy_listener_task = tokio::spawn(async move {
                 let semaphore = Arc::new(Semaphore::new(120));
@@ -71,12 +73,11 @@ impl Command for ClientConnectedCommand {
                     );
 
                     let connection_id = Uuid::new_v4();
-                    let (connection_sender, mut connection_receiver) =
-                        mpsc::channel::<BytesMut>(100);
+                    let (connection_sender, mut connection_receiver) = mpsc::channel::<BytesMut>(100);
 
                     aaa.connections.insert_connection(
                         connection_id,
-                        connection_sender.clone(),
+                        connection_sender,
                         CancellationToken::new(),
                     );
                     let _ = client_sender
@@ -88,8 +89,8 @@ impl Command for ClientConnectedCommand {
                         let (mut reader, mut writer) = connection.into_split();
                         let aa = client_sender.clone();
                         let reader_task = tokio::spawn(async move {
-                            let mut buffer = BytesMut::with_capacity(1024 * 8);
                             loop {
+                                let mut buffer = BytesMut::with_capacity(1024 * 8);
                                 let bytes_read = match reader.read_buf(&mut buffer).await {
                                     Ok(read) => read,
                                     Err(err) => {
@@ -111,10 +112,12 @@ impl Command for ClientConnectedCommand {
                                     break;
                                 }
 
-                                let buffer = BytesMut::from(&buffer[..bytes_read]);
+                                buffer.truncate(bytes_read);
+                                let buffer = BytesMut::from(&buffer[..]);
                                 let frame = TcpFrame::DataPacketHost {
                                     connection_id,
                                     buffer,
+                                    buffer_size: bytes_read as u32,
                                 };
                                 match aa.send(frame).await {
                                     Ok(_) => {}
@@ -130,6 +133,7 @@ impl Command for ClientConnectedCommand {
 
                         let writer_task = tokio::spawn(async move {
                             while let Some(mut buffer) = connection_receiver.recv().await {
+                                let mut buffer = buffer.split();
                                 match writer.write_buf(&mut buffer).await {
                                     Ok(written) => {
                                         trace!("written {} bytes to {}", written, connection_addr)
