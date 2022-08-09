@@ -1,3 +1,5 @@
+use std::net::{SocketAddrV4, SocketAddr};
+
 use bytes::BytesMut;
 use tcproxy_core::{Result, TcpFrame};
 use tokio::{
@@ -15,19 +17,21 @@ use uuid::Uuid;
 
 pub struct LocalConnection {
     connection_id: Uuid,
+    target_ip: SocketAddrV4,
     sender: Sender<TcpFrame>,
 }
 
 impl LocalConnection {
-    pub fn new(connection_id: Uuid, sender: &Sender<TcpFrame>) -> Self {
+    pub fn new(connection_id: Uuid, sender: &Sender<TcpFrame>, target_ip: SocketAddrV4) -> Self {
         Self {
+            target_ip,
             connection_id,
             sender: sender.clone(),
         }
     }
 
     async fn connect(&self) -> Result<TcpStream> {
-        match TcpStream::connect("192.168.0.221:22").await {
+        match TcpStream::connect(self.target_ip).await {
             Ok(stream) => Ok(stream),
             Err(err) => {
                 debug!(

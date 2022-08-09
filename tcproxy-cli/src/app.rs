@@ -39,13 +39,12 @@ impl App {
 
       writer.send(TcpFrame::ClientConnected).await?;
       writer.send(TcpFrame::Ping).await?;
-
       
       let ping_task = PingSender::new(&sender, &state, Some(5)).spawn();
       let console_task = ConsoleUpdater::new(console_receiver, &state, &self.args).spawn();
 
       let receive_task = TcpFrameWriter::new(receiver, writer).spawn();
-      let foward_task = TcpFrameReader::new(&sender, &state, reader).spawn();
+      let foward_task = TcpFrameReader::new(&sender, &state, reader, &self.args).spawn();
 
       tokio::select! {
           res = console_task => {
@@ -68,7 +67,7 @@ impl App {
   }
 
   pub async fn connect(&self) -> Result<TcpStream> {
-      match TcpStream::connect("127.0.0.1:8080").await {
+      match TcpStream::connect("192.168.0.221:8080").await {
           Ok(stream) => {
               debug!("Connected to server..");
               Ok(stream)
