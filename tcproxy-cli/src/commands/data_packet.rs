@@ -34,6 +34,8 @@ impl DataPacketCommand {
 
 #[async_trait]
 impl Command for DataPacketCommand {
+    type Output = ();
+
     async fn handle(&mut self) -> Result<()> {
         debug!("received new packet from {}", self.connection_id);
         match self.state.get_connection(self.connection_id) {

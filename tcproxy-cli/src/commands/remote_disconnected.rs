@@ -15,16 +15,18 @@ pub struct RemoteDisconnectedCommand {
 }
 
 impl RemoteDisconnectedCommand {
-  pub fn new(connection_id: Uuid, state: &Arc<ClientState>) -> Self {
-    Self {
-      connection_id,
-      state: state.clone(),
+    pub fn new(connection_id: Uuid, state: &Arc<ClientState>) -> Self {
+        Self {
+            connection_id,
+            state: state.clone(),
+        }
     }
-  } 
 }
 
 #[async_trait]
 impl Command for RemoteDisconnectedCommand {
+    type Output = ();
+
     async fn handle(&mut self) -> Result<()> {
         let (sender, cancellation_token) = match self.state.remove_connection(self.connection_id) {
             Some(item) => item,

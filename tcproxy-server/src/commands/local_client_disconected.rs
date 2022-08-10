@@ -22,6 +22,7 @@ impl LocalClientDisconnectedCommand {
 
 #[async_trait]
 impl Command for LocalClientDisconnectedCommand {
+    type Output = ();
     async fn handle(&mut self) -> Result<()> {
         debug!("connection {} disconnected from client", self.connection_id);
         let result = self

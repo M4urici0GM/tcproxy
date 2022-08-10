@@ -10,11 +10,11 @@ use tcproxy_core::Result;
 #[clap(author, version, about, long_about = None)]
 pub struct ClientArgs {
     #[clap(subcommand)]
-    command_type: Type,
+    command_type: AppCommandType,
 }
 
 #[derive(clap::Subcommand, Debug)]
-pub enum Type {
+pub enum AppCommandType {
     Listen(ListenArgs),
     Config,
 }
@@ -25,7 +25,7 @@ pub struct ListenArgs {
     port: u16,
 
     #[clap(short, long, value_parser = parse_ip, default_value = "127.0.0.1")]
-    ip: String,
+    ip: Ipv4Addr,
 
     #[clap(short, long, value_parser, default_value = "false")]
     verbose: bool,
@@ -35,7 +35,7 @@ pub struct ListenArgs {
 }
 
 impl ClientArgs {
-    pub fn get_type(&self) -> &Type {
+    pub fn get_type(&self) -> &AppCommandType {
         &self.command_type
     }
 }
@@ -45,13 +45,8 @@ impl ListenArgs {
         self.verbose
     }
 
-    pub fn parse_target_ip(&self) -> Ipv4Addr {
-        Ipv4Addr::from_str(&self.ip).unwrap()
-    }
-
     pub fn parse_socket_addr(&self) -> SocketAddrV4 {
-        let ip = self.parse_target_ip();
-        SocketAddrV4::new(ip, self.port)
+        SocketAddrV4::new(self.ip, self.port)
     }
 
     pub fn ping_interval(&self) -> u8 {
@@ -63,14 +58,14 @@ impl Clone for ListenArgs {
     fn clone(&self) -> Self {
         Self {
             verbose: self.verbose,
-            ip: String::from(&self.ip),
+            ip: self.ip,
             ping_interval: self.ping_interval,
             port: self.port,
         }
     }
 }
 
-fn parse_ping_interval(s: &str) -> Result<String> {
+fn parse_ping_interval(s: &str) -> Result<u8> {
     let parsed_value = match s.parse::<u8>() {
       Ok(value) => value,
       Err(err) => return Err(err.into()),
@@ -80,13 +75,13 @@ fn parse_ping_interval(s: &str) -> Result<String> {
         return Err("minimum ping interval is 2s".into());
     }
 
-    return Ok(String::from(s));
+    return Ok(parsed_value);
 }
 
 /// validates if given ip target is a valid ip.
-fn parse_ip(s: &str) -> Result<String> {
+fn parse_ip(s: &str) -> Result<Ipv4Addr> {
     match Ipv4Addr::from_str(s) {
-        Ok(_) => Ok(String::from(s)),
+        Ok(ip) => Ok(ip),
         Err(_) => Err("Invalid IP Address.".into()),
     }
 }

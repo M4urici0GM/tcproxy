@@ -18,6 +18,8 @@ pub struct ClientConnectedCommand {
 
 #[async_trait]
 impl Command for ClientConnectedCommand {
+    type Output = ();
+
     async fn handle(&mut self) -> Result<()> {
         let target_port = match self.state.ports.get_port().await {
             Ok(port) => port,

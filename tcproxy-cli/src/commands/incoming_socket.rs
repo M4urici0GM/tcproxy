@@ -32,6 +32,7 @@ impl IncomingSocketCommand {
 
 #[async_trait]
 impl Command for IncomingSocketCommand {
+    type Output = ();
     async fn handle(&mut self) -> Result<()> {
         debug!("new connection received!");
         let (connection_sender, reader) = mpsc::channel::<BytesMut>(1000);

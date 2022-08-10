@@ -5,7 +5,7 @@ use tracing::debug;
 use tcproxy_core::{transport::TransportReader, Command, Result, TcpFrame};
 use tokio::{sync::mpsc::Sender, task::JoinHandle};
 
-use crate::{ClientState, DataPacketCommand, IncomingSocketCommand, RemoteDisconnectedCommand, ClientArgs, ListenArgs};
+use crate::{ClientState, DataPacketCommand, IncomingSocketCommand, RemoteDisconnectedCommand, ListenArgs};
 
 pub struct TcpFrameReader {
     sender: Sender<TcpFrame>,
@@ -49,7 +49,7 @@ impl TcpFrameReader {
             };
 
             debug!("received new frame from server: {}", msg);
-            let mut command: Box<dyn Command> = match msg {
+            let mut command: Box<dyn Command<Output = ()>> = match msg {
                 TcpFrame::DataPacketHost {
                     connection_id,
                     buffer,
