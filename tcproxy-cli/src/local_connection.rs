@@ -1,45 +1,42 @@
 use bytes::BytesMut;
+use std::net::SocketAddrV4;
 use tcproxy_core::{Result, TcpFrame};
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::{
-        tcp::{OwnedReadHalf, OwnedWriteHalf},
-        TcpStream,
-    },
-    sync::mpsc::{Receiver, Sender},
-    task::JoinHandle,
-};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
+use tokio::net::TcpStream;
+use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use uuid::Uuid;
 
 pub struct LocalConnection {
     connection_id: Uuid,
+    target_ip: SocketAddrV4,
     sender: Sender<TcpFrame>,
 }
 
 impl LocalConnection {
-    pub fn new(connection_id: Uuid, sender: &Sender<TcpFrame>) -> Self {
+    pub fn new(connection_id: Uuid, sender: &Sender<TcpFrame>, target_ip: SocketAddrV4) -> Self {
         Self {
+            target_ip,
             connection_id,
             sender: sender.clone(),
         }
     }
 
     async fn connect(&self) -> Result<TcpStream> {
-        match TcpStream::connect("127.0.0.1:3337").await {
+        match TcpStream::connect(self.target_ip).await {
             Ok(stream) => Ok(stream),
             Err(err) => {
                 debug!(
                     "Error when connecting to {}: {}. Aborting connection..",
-                    "127.0.0.1:80", err
+                    "192.168.0.221:22", err
                 );
 
                 let _ = self
                     .sender
-                    .send(TcpFrame::ClientUnableToConnect {
-                        connection_id: self.connection_id,
-                    })
+                    .send(TcpFrame::ClientUnableToConnect { connection_id: self.connection_id })
                     .await;
 
                 return Err(err.into());
@@ -53,18 +50,17 @@ impl LocalConnection {
         connection_id: Uuid,
     ) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
+            let mut buffer = BytesMut::with_capacity(1024 * 8);
             loop {
-                let mut buffer = BytesMut::with_capacity(1024 * 8);
                 let bytes_read = reader.read_buf(&mut buffer).await?;
                 if 0 == bytes_read {
                     debug!("reached end of stream");
                     return Ok(());
                 }
 
-                buffer.truncate(bytes_read);
                 let tcp_frame = TcpFrame::DataPacketClient {
                     connection_id,
-                    buffer: buffer.clone(),
+                    buffer: buffer.split_to(bytes_read),
                     buffer_size: bytes_read as u32,
                 };
 

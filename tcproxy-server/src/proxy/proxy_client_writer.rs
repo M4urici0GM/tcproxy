@@ -1,4 +1,5 @@
 use tokio::sync::mpsc::Receiver;
+use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
@@ -12,7 +13,15 @@ pub struct ProxyClientStreamWriter {
 }
 
 impl ProxyClientStreamWriter {
-    pub async fn start_writing(&mut self) -> Result<()> {
+    pub fn start_writing(mut self) -> JoinHandle<Result<()>> {
+        tokio::spawn(async move {
+            let res = self.start().await;
+            debug!("writer finished with {:?}", res);
+            Ok(())
+        })
+    }
+
+    async fn start(&mut self) -> Result<()> {
         loop {
             tokio::select! {
                 frame = self.receiver.recv() => {
@@ -27,6 +36,7 @@ impl ProxyClientStreamWriter {
                     }
                 },
                 _ = self.cancellation_token.cancelled() => {
+                    debug!("cancellation token from client cancelled");
                     break;
                 },
             }

@@ -38,17 +38,17 @@ impl Connection {
             reader,
         };
 
-        let mut proxy_writer = ProxyClientStreamWriter {
+        let proxy_writer = ProxyClientStreamWriter {
             writer,
             receiver: client_reader,
-            cancellation_token: local_cancellation_token.clone(),
+            cancellation_token: local_cancellation_token.child_token(),
         };
 
         tokio::select! {
             res = proxy_writer.start_writing() => {
                 debug!("ProxyClientStreamWriter::start_writing task completed with {:?}", res)
             },
-            res = proxy_reader.start_reading(local_cancellation_token.clone()) => {
+            res = proxy_reader.start_reading(local_cancellation_token.child_token()) => {
                 debug!("ProxyClientStreamWriter::start_reading task completed with {:?}", res);
             },
             _ = cancellation_token.cancelled() => {

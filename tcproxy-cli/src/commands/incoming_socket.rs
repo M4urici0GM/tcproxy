@@ -1,5 +1,4 @@
 use std::sync::Arc;
-
 use async_trait::async_trait;
 use bytes::BytesMut;
 use tcproxy_core::{Result, TcpFrame};
@@ -10,19 +9,21 @@ use uuid::Uuid;
 
 use tcproxy_core::Command;
 
-use crate::{LocalConnection, client_state::ClientState};
+use crate::{LocalConnection, client_state::ClientState, ListenArgs};
 
 /// issued when a remote socket connects to server.
 pub struct IncomingSocketCommand {
     connection_id: Uuid,
     client_sender: Sender<TcpFrame>,
     state: Arc<ClientState>,
+    args: Arc<ListenArgs>,
 }
 
 impl IncomingSocketCommand {
-    pub fn new(id: Uuid, sender: &Sender<TcpFrame>, state: &Arc<ClientState>) -> Self {
+    pub fn new(id: Uuid, sender: &Sender<TcpFrame>, state: &Arc<ClientState>, args: &Arc<ListenArgs>) -> Self {
         Self {
             connection_id: id,
+            args: args.clone(),
             state: state.clone(),
             client_sender: sender.clone(),
         }
@@ -31,6 +32,7 @@ impl IncomingSocketCommand {
 
 #[async_trait]
 impl Command for IncomingSocketCommand {
+    type Output = ();
     async fn handle(&mut self) -> Result<()> {
         debug!("new connection received!");
         let (connection_sender, reader) = mpsc::channel::<BytesMut>(1000);
@@ -39,9 +41,10 @@ impl Command for IncomingSocketCommand {
 
         self.state.insert_connection(self.connection_id, connection_sender, token);
 
+        let target_ip = self.args.parse_socket_addr();
         let connection_id = self.connection_id.clone();
         let sender = self.client_sender.clone();
-        let mut local_connection = LocalConnection::new(self.connection_id, &self.client_sender);
+        let mut local_connection = LocalConnection::new(self.connection_id, &self.client_sender, target_ip);
 
         tokio::spawn(async move {
             let _ = local_connection

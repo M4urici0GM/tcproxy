@@ -25,6 +25,7 @@ impl DataPacketClientCommand {
 
 #[async_trait]
 impl Command for DataPacketClientCommand {
+    type Output = ();
     async fn handle(&mut self) -> Result<()> {
         let (connection_sender, _) = match self.proxy_state.connections.get_connection(self.connection_id) {
             Some(sender) => sender,
