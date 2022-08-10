@@ -16,12 +16,8 @@ pub struct PingSender {
 }
 
 impl PingSender {
-  pub fn new(sender: &Sender<TcpFrame>, state: &Arc<ClientState>, interval: Option<u64>) -> Self {
-      let interval = match interval {
-          Some(i) => i,
-          None => 30,
-      };
-
+  pub fn new(sender: &Sender<TcpFrame>, state: &Arc<ClientState>, interval:  u8) -> Self {
+      let interval = interval as u64;
       Self {
           interval,
           state: state.clone(),

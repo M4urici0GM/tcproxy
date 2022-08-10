@@ -5,13 +5,13 @@ use tracing::debug;
 use tcproxy_core::{transport::TransportReader, Command, Result, TcpFrame};
 use tokio::{sync::mpsc::Sender, task::JoinHandle};
 
-use crate::{ClientState, DataPacketCommand, IncomingSocketCommand, RemoteDisconnectedCommand, ClientArgs};
+use crate::{ClientState, DataPacketCommand, IncomingSocketCommand, RemoteDisconnectedCommand, ClientArgs, ListenArgs};
 
 pub struct TcpFrameReader {
     sender: Sender<TcpFrame>,
     reader: TransportReader,
     state: Arc<ClientState>,
-    args: Arc<ClientArgs>,
+    args: Arc<ListenArgs>,
 }
 
 impl TcpFrameReader {
@@ -19,7 +19,7 @@ impl TcpFrameReader {
         sender: &Sender<TcpFrame>,
         state: &Arc<ClientState>,
         reader: TransportReader,
-        args: &Arc<ClientArgs>
+        args: &Arc<ListenArgs>
     ) -> Self {
         Self {
             args: args.clone(),

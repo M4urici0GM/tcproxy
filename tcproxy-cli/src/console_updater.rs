@@ -3,16 +3,16 @@ use std::sync::Arc;
 use tcproxy_core::Result;
 use tokio::{sync::mpsc::Receiver, task::JoinHandle};
 
-use crate::{ClientArgs, ClientState};
+use crate::{ClientState, ListenArgs};
 
 pub struct ConsoleUpdater {
     receiver: Receiver<i32>,
     state: Arc<ClientState>,
-    args: Arc<ClientArgs>,
+    args: Arc<ListenArgs>,
 }
 
 impl ConsoleUpdater {
-    pub fn new(receiver: Receiver<i32>, state: &Arc<ClientState>, args: &Arc<ClientArgs>) -> Self {
+    pub fn new(receiver: Receiver<i32>, state: &Arc<ClientState>, args: &Arc<ListenArgs>) -> Self {
         Self {
             receiver,
             args: args.clone(),

@@ -1,5 +1,4 @@
-use std::{sync::Arc, net::{SocketAddrV4, Ipv4Addr}, str::FromStr};
-
+use std::sync::Arc;
 use async_trait::async_trait;
 use bytes::BytesMut;
 use tcproxy_core::{Result, TcpFrame};
@@ -10,18 +9,18 @@ use uuid::Uuid;
 
 use tcproxy_core::Command;
 
-use crate::{LocalConnection, client_state::ClientState, ClientArgs};
+use crate::{LocalConnection, client_state::ClientState, ListenArgs};
 
 /// issued when a remote socket connects to server.
 pub struct IncomingSocketCommand {
     connection_id: Uuid,
     client_sender: Sender<TcpFrame>,
     state: Arc<ClientState>,
-    args: Arc<ClientArgs>,
+    args: Arc<ListenArgs>,
 }
 
 impl IncomingSocketCommand {
-    pub fn new(id: Uuid, sender: &Sender<TcpFrame>, state: &Arc<ClientState>, args: &Arc<ClientArgs>) -> Self {
+    pub fn new(id: Uuid, sender: &Sender<TcpFrame>, state: &Arc<ClientState>, args: &Arc<ListenArgs>) -> Self {
         Self {
             connection_id: id,
             args: args.clone(),

@@ -1,14 +1,20 @@
 use clap::Parser;
-use tcproxy_cli::{ClientArgs, App};
+use tcproxy_cli::{ClientArgs, App, Type};
 use tcproxy_core::Result;
-use tokio::signal;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = ClientArgs::parse();
-    App::new(args)
-        .start()
-        .await?;
+    match args.get_type() {
+        Type::Listen(args) => {
+            App::new(args.clone())
+                .start()
+                .await?;
+        },
+        Type::Config => {
+            println!("received config command");
+        }
+    }
 
     Ok(())
 }
