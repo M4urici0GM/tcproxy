@@ -4,7 +4,11 @@ use bytes::{Buf, BytesMut};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use std::str::FromStr;
+use rand::RngCore;
+use uuid::Bytes;
+
 use tcproxy_core::{FrameError, TcpFrame};
+
 use crate::{AppArguments, DefaultListener, Server, Listener};
 
 
@@ -90,6 +94,48 @@ async fn should_listen_in_ack_port() {
     assert!(matches!(frame.unwrap(), TcpFrame::IncomingSocket {..}));
 }
 
+#[tokio::test]
+async fn should_forward_data_successfully() {
+    let server = create_server().await;
+    let result = TcpStream::connect(server).await;
+    assert!(result.is_ok());
+
+    let mut stream = result.unwrap();
+    let ping_frame = TcpFrame::ClientConnected;
+    let mut ping_buffer = ping_frame.to_buffer();
+
+    let _ = stream.write_buf(&mut ping_buffer).await.unwrap();
+
+    let frame = receive_frame(&mut stream, 1024).await.unwrap();
+    assert!(matches!(frame, TcpFrame::ClientConnectedAck {..}));
+
+    let port = extract_enum_value!(frame, TcpFrame::ClientConnectedAck { port } => port);
+    let ip = IpAddr::from_str("127.0.0.1").unwrap();
+    let target_ip = SocketAddr::new(ip,port);
+
+    let remote_stream = TcpStream::connect(target_ip).await;
+    assert!(remote_stream.is_ok());
+
+    let frame = receive_frame(&mut stream, 1024).await;
+    assert!(frame.is_ok());
+    assert!(matches!(frame.unwrap(), TcpFrame::IncomingSocket {..}));
+
+    let mut remote_stream = remote_stream.unwrap();
+    let mut buffer = generate_random_buffer(1024 * 2);
+
+    let _ = remote_stream.write_buf(&mut buffer).await.unwrap();
+
+    let frame = receive_frame(&mut stream, 1024 * 8).await.unwrap();
+    let (buffer, _) = extract_enum_value!(frame.unwrap(), TcpFrame::DataPacketHost { } => );
+}
+
+fn generate_random_buffer(buffer_size: i32) -> BytesMut {
+    let mut rand = rand::thread_rng();
+    let mut buffer = BytesMut::with_capacity(buffer_size as usize);
+
+    rand.fill_bytes(&mut buffer);
+    buffer
+}
 
 async fn receive_frame(stream: &mut TcpStream, buffer_size: usize) -> Result<TcpFrame, Box<dyn std::error::Error>> {
     let mut buffer = BytesMut::with_capacity(buffer_size);
