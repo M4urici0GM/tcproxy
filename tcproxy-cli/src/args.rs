@@ -71,7 +71,7 @@ fn parse_ping_interval(s: &str) -> Result<u8> {
       Err(err) => return Err(err.into()),
     };
 
-    if 2 < parsed_value {
+    if 2 > parsed_value {
         return Err("minimum ping interval is 2s".into());
     }
 

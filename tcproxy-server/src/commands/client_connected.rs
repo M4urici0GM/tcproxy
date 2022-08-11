@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use std::{net::Ipv4Addr, sync::Arc};
+use std::net::IpAddr;
 use tcproxy_core::{Command, Result, TcpFrame};
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
@@ -10,7 +11,7 @@ use crate::tcp::ListenerUtils;
 use crate::ProxyState;
 
 pub struct ClientConnectedCommand {
-    pub(crate) target_ip: Ipv4Addr,
+    pub(crate) target_ip: IpAddr,
     pub(crate) sender: Sender<TcpFrame>,
     pub(crate) state: Arc<ProxyState>,
     pub(crate) cancellation_token: CancellationToken,

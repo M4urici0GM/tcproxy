@@ -1,3 +1,5 @@
+mod tests;
+
 mod server;
 mod args;
 pub mod managers;
@@ -6,6 +8,8 @@ pub mod tcp;
 pub mod commands;
 pub mod state;
 
-pub use server::Server;
+
+
+pub use server::*;
 pub use args::AppArguments;
 pub use state::*;

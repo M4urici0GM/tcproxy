@@ -5,9 +5,11 @@ use tokio_util::sync::CancellationToken;
 use tracing::trace;
 use uuid::Uuid;
 
+type ConnectionCollection = HashMap<Uuid, (Sender<BytesMut>, CancellationToken)>;
+
 #[derive(Debug)]
 pub struct ConnectionsManager {
-    connections: Mutex<HashMap<Uuid, (Sender<BytesMut>, CancellationToken)>>,
+    connections: Mutex<ConnectionCollection>,
 }
 
 impl ConnectionsManager {

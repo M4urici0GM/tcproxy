@@ -1,4 +1,4 @@
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use bytes::BytesMut;
 use tcproxy_core::TcpFrame;
@@ -18,7 +18,7 @@ use crate::tcp::{ListenerUtils, RemoteConnection};
 
 pub struct ProxyServer {
     pub(crate) listener: ListenerUtils,
-    pub(crate) target_ip: Ipv4Addr,
+    pub(crate) target_ip: IpAddr,
     pub(crate) target_port: u16,
     pub(crate) proxy_state: Arc<ProxyState>,
     pub(crate) client_sender: Sender<TcpFrame>,

@@ -1,4 +1,4 @@
-use std::net::Ipv4Addr;
+use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use tokio::{task::JoinHandle, sync::mpsc::Sender};
 use tokio_util::sync::CancellationToken;
@@ -13,7 +13,7 @@ use crate::commands::{PingCommand, LocalClientDisconnectedCommand};
 
 
 pub struct ProxyClientStreamReader {
-    pub(crate) target_ip: Ipv4Addr,
+    pub(crate) target_ip: IpAddr,
     pub(crate) sender: Sender<TcpFrame>,
     pub(crate) state: Arc<ProxyState>,
     pub(crate) reader: TransportReader,
@@ -45,11 +45,11 @@ impl ProxyClientStreamReader {
                     Box::new(LocalClientDisconnectedCommand::new(connection_id, &self.state))
                 }
                 TcpFrame::DataPacketClient { connection_id, buffer, buffer_size: _ } => {
-                    Box::new(DataPacketClientCommand::new(buffer, &connection_id, &&self.state))
+                    Box::new(DataPacketClientCommand::new(buffer, &connection_id, &self.state))
                 },
                 TcpFrame::ClientConnected => {
                     Box::new(ClientConnectedCommand {
-                        target_ip: self.target_ip.clone(),
+                        target_ip: self.target_ip,
                         state: self.state.clone(),
                         sender: self.sender.clone(),
                         cancellation_token: cancellation_token.child_token(),

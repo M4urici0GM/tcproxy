@@ -33,7 +33,7 @@ impl PingSender {
   }
 
   async fn start(&mut self) -> Result<()> {
-      loop {
+      loop {        
           debug!("Waiting for next ping to occur");
           time::sleep_until(Instant::now() + Duration::from_secs(self.interval)).await;
           match self.sender.send(TcpFrame::Ping).await {

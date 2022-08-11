@@ -1,4 +1,4 @@
-use std::net::Ipv4Addr;
+use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use tcproxy_core::{Result, TcpFrame};
 use tcproxy_core::transport::TcpFrameTransport;
@@ -13,12 +13,12 @@ use crate::ProxyState;
 
 #[derive(Debug)]
 pub struct Connection {
-    pub(crate) listen_ip: Ipv4Addr,
+    pub(crate) listen_ip: IpAddr,
     pub(crate) state: Arc<ProxyState>,
 }
 
 impl Connection {
-    pub fn new(listen_ip: Ipv4Addr, state: Arc<ProxyState>) -> Self {
+    pub fn new(listen_ip: IpAddr, state: Arc<ProxyState>) -> Self {
         Self {
             listen_ip,
             state,

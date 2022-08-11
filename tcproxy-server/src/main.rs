@@ -2,7 +2,7 @@ use tracing::{info};
 use clap::Parser;
 use tokio::signal;
 
-use tcproxy_server::{AppArguments, Server};
+use tcproxy_server::{AppArguments, DefaultListener, Server};
 use tcproxy_core::Result;
 
 #[tokio::main]
@@ -11,7 +11,10 @@ async fn main() -> Result<()> {
 
     let args = AppArguments::parse();
     let shutdown_signal = signal::ctrl_c();
-    Server::new(args)
+    let ip = args.get_socket_addr();
+    let listener = DefaultListener::bind(ip).await?;
+
+    Server::new(args, Box::new(listener))
         .run(shutdown_signal)
         .await?;
 

@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::FrameError;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TcpFrame {
     ClientConnected,
     Ping,
@@ -178,9 +178,9 @@ impl Display for TcpFrame {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let data_type = match self {
             TcpFrame::ClientConnected => "ClientConnected".to_string(),
-            TcpFrame::Ping => format!("Ping"),
-            TcpFrame::Pong => format!("Pong"),
-            TcpFrame::PortLimitReached => format!("PortLimitReached"),
+            TcpFrame::Ping => "Ping".to_string(),
+            TcpFrame::Pong => "Pong".to_string(),
+            TcpFrame::PortLimitReached => "PortLimitReached".to_string(),
             TcpFrame::ClientConnectedAck { port } => format!("ClientConnectedACK ({})", port),
             TcpFrame::RemoteSocketDisconnected { connection_id } => format!("RemoteSocketDisconnected ({})", connection_id),
             TcpFrame::IncomingSocket { connection_id } => format!("IncomingSocket ({})", connection_id),

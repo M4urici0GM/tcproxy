@@ -21,12 +21,14 @@ impl ListenCommand {
 
     /// connects to remote server.
     async fn connect(&self) -> Result<TcpStream> {
-        match TcpStream::connect("192.168.0.221:8080").await {
+        match TcpStream::connect("20.197.199.20:8080").await {
             Ok(stream) => {
                 debug!("Connected to server..");
                 Ok(stream)
             }
             Err(err) => {
+                println!("{} {}", 124, 123);
+
                 error!("Failed to connect to server. Check you network connection and try again.");
                 return Err(format!("Failed when connecting to server: {}", err).into());
             }

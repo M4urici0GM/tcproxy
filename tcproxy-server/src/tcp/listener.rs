@@ -1,19 +1,19 @@
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use tcproxy_core::Result;
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{info, error, debug};
 
 #[derive(Debug)]
 pub struct ListenerUtils {
-    pub(crate) socket_addr: SocketAddrV4,
+    pub(crate) socket_addr: SocketAddr,
 }
 
 impl ListenerUtils {
-    pub fn new(ip: Ipv4Addr, port: u16) -> Self {
-        Self { socket_addr: SocketAddrV4::new(ip, port) }
+    pub fn new(ip: IpAddr, port: u16) -> Self {
+        Self { socket_addr: SocketAddr::new(ip, port) }
     }
 
-    pub fn listen_ip(&self) -> SocketAddrV4 {
+    pub fn listen_ip(&self) -> SocketAddr {
         self.socket_addr
     }
 
