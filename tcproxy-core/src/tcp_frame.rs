@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::FrameError;
 
+
 #[derive(Debug, PartialEq)]
 pub enum TcpFrame {
     ClientConnected,

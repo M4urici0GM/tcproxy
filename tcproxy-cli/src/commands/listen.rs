@@ -1,8 +1,10 @@
-use async_trait::async_trait;
+use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::net::TcpStream;
-use tokio::sync::mpsc;
+use std::str::FromStr;
+use async_trait::async_trait;
+use tokio::{sync::mpsc, net::TcpStream};
 use tracing::{debug, error};
+
 
 use tcproxy_core::{transport::TcpFrameTransport, Command, Result, TcpFrame};
 
@@ -21,7 +23,8 @@ impl ListenCommand {
 
     /// connects to remote server.
     async fn connect(&self) -> Result<TcpStream> {
-        match TcpStream::connect("20.197.199.20:8080").await {
+        let addr = SocketAddr::from_str("127.0.0.1:8080")?;
+        match TcpStream::connect(addr).await {
             Ok(stream) => {
                 debug!("Connected to server..");
                 Ok(stream)

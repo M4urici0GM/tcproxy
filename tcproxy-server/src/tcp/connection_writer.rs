@@ -1,7 +1,6 @@
 use std::net::SocketAddr;
 use bytes::BytesMut;
-use tokio::net::tcp::OwnedWriteHalf;
-use tokio::sync::mpsc::Receiver;
+use tokio::{sync::mpsc::Receiver, net::tcp::OwnedWriteHalf};
 use tokio::task::JoinHandle;
 use tokio::io::AsyncWriteExt;
 use tracing::{error, trace};

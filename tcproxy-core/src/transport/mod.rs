@@ -1,11 +1,11 @@
 pub mod writer;
 pub mod reader;
 
+use tokio::net::TcpStream;
 pub use writer::*;
 pub use reader::*;
 
 use crate::{Result, TcpFrame};
-use tokio::net::TcpStream;
 
 /// represents TcpFrame buffer transport reader.
 /// reads and writes TcpFrames from/info underlying buffer.

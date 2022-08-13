@@ -1,1 +1,1 @@
-mod integration_test;
+mod server;

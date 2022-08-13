@@ -1,7 +1,7 @@
 use std::io::Cursor;
 use bytes::{BytesMut, Buf};
+use tokio::{io::AsyncReadExt, net::tcp::OwnedReadHalf};
 use tracing::{debug, trace};
-use tokio::{net::tcp::OwnedReadHalf, io::AsyncReadExt};
 
 use crate::{Result, TcpFrame, FrameError};
 
@@ -13,7 +13,7 @@ pub struct TransportReader {
 }
 
 impl TransportReader {
-  pub(crate) fn new(reader: OwnedReadHalf, buffer_size: usize) -> Self {
+  pub fn new(reader: OwnedReadHalf, buffer_size: usize) -> Self {
     Self {
       reader,
       buffer: BytesMut::with_capacity(buffer_size),
@@ -40,23 +40,6 @@ impl TransportReader {
   }
 
   /// tries getting next frame from underling buffer.
-  /// 
-  /// # Examples
-  /// ```
-  /// let socket = listener.accept().socket;
-  /// let (reader, _) = socket.into_split();
-  /// let transport_reader = TransportReader::new(socket, 1024 * 8);
-  /// 
-  /// loop {
-  ///   let frame = match transport_reader.next().await? {
-  ///     Some(f) => f,
-  ///     None => {
-  ///       /// received none, so we've reached end of stream.
-  ///       break;
-  ///     }
-  ///   };
-  /// }
-  /// 
   pub async fn next(&mut self) -> Result<Option<TcpFrame>> {
       loop {
           if let Some(frame) = self.parse_frame().await? {
