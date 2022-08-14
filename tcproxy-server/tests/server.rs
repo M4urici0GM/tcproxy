@@ -12,20 +12,12 @@ use rand::RngCore;
 use tracing::debug;
 use uuid::Bytes;
 
+use tcproxy_server::{extract_enum_value, AppArguments, Server};
 use tcproxy_core::{FrameError, TcpFrame};
 use tcproxy_core::tcp::{TcpListener, SocketListener};
 
-use crate::{AppArguments, Server};
 
-macro_rules! extract_enum_value {
-  ($value:expr, $pattern:pat => $extracted_value:expr) => {
-    match $value {
-      $pattern => $extracted_value,
-      _ => panic!("Pattern doesn't match!"),
-    }
-  };
-}
-
+#[cfg(test)]
 #[tokio::test]
 async fn should_be_listening() {
     let server = create_server().await;
@@ -36,6 +28,7 @@ async fn should_be_listening() {
 }
 
 
+#[cfg(test)]
 #[tokio::test]
 async fn should_answer_ping() {
     let mut buffer = BytesMut::with_capacity(1024 * 8);
@@ -56,6 +49,7 @@ async fn should_answer_ping() {
     assert_eq!(frame.unwrap(), TcpFrame::Pong);
 }
 
+#[cfg(test)]
 #[tokio::test]
 async fn should_answer_client_connected() {
     let mut buffer = BytesMut::with_capacity(1024 * 8);
@@ -76,8 +70,11 @@ async fn should_answer_client_connected() {
     assert!(matches!(frame.unwrap(), TcpFrame::ClientConnectedAck { .. }));
 }
 
+#[cfg(test)]
 #[tokio::test]
 async fn should_listen_in_ack_port() {
+    use tcproxy_server::extract_enum_value;
+
     let mut buffer = BytesMut::with_capacity(1024 * 8);
     let server = create_server().await;
     let result = TcpStream::connect(server).await;
@@ -104,8 +101,10 @@ async fn should_listen_in_ack_port() {
     assert!(matches!(frame.unwrap(), TcpFrame::IncomingSocket {..}));
 }
 
+#[cfg(test)]
 #[tokio::test]
 async fn should_forward_data_successfully() {
+
     let mut buffer = BytesMut::with_capacity(1024 * 8);
 
     let server = create_server().await;
@@ -143,6 +142,7 @@ async fn should_forward_data_successfully() {
 }
 
 
+#[cfg(test)]
 #[tokio::test]
 async fn should_receive_data_successfully() -> Result<(), Box<dyn Error>> {
     let mut buffer = BytesMut::with_capacity(1024 * 8);
@@ -182,11 +182,13 @@ async fn should_receive_data_successfully() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[cfg(test)]
 async fn write_tcp_frame(stream: &mut TcpStream, frame: TcpFrame) {
     let result = stream.write_all(&frame.to_buffer()).await;
     assert!(result.is_ok());
 }
 
+#[cfg(test)]
 async fn receive_frame(stream: &mut TcpStream, buffer: &mut BytesMut) -> Result<TcpFrame, Box<dyn std::error::Error>> {
     tokio::select! {
         res = read_frame(stream, buffer) => res,
@@ -194,6 +196,7 @@ async fn receive_frame(stream: &mut TcpStream, buffer: &mut BytesMut) -> Result<
     }
 }
 
+#[cfg(test)]
 async fn read_frame(stream: &mut TcpStream, buffer: &mut BytesMut) -> Result<TcpFrame, Box<dyn Error>> {
     loop {
         let bytes_read = match stream.read_buf(buffer).await {
@@ -239,14 +242,14 @@ async fn create_server() -> SocketAddr {
     listen_ip
 }
 
-fn generate_random_buffer(buffer_size: i32) -> BytesMut {
+pub fn generate_random_buffer(buffer_size: i32) -> BytesMut {
     let mut buffer = BytesMut::with_capacity(buffer_size as usize);
-
+  
     (0..buffer_size)
         .for_each(|_| {
             let random = rand::random::<u8>();
             buffer.put_u8(random);
         });
-
+  
     return buffer;
-}
+  }

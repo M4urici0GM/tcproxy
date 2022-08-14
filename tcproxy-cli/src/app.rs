@@ -28,7 +28,7 @@ impl App {
                 let mut command = ListenCommand::new(Arc::new(args.clone()));
                 let _ = command.handle().await;
             },
-            AppCommandType::Config => {
+            AppCommandType::Config(args) => {
                 println!("received config command");
                 let mut command = ConfigCommand::new();
                 let _ = command.handle().await;

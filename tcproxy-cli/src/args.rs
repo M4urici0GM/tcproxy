@@ -16,7 +16,13 @@ pub struct ClientArgs {
 #[derive(clap::Subcommand, Debug)]
 pub enum AppCommandType {
     Listen(ListenArgs),
-    Config,
+    Config(ConfigArgs),
+}
+
+#[derive(Parser, Debug)]
+pub struct ConfigArgs {
+    #[clap(short, long, value_parser)]
+    pub(crate) port: u16,
 }
 
 #[derive(Parser, Debug)]

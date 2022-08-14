@@ -8,6 +8,8 @@ mod args;
 mod app;
 mod console_updater;
 
+pub mod config;
+
 pub use app::*;
 pub use console_updater::*;
 pub use args::*;

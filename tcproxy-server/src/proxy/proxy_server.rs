@@ -1,5 +1,4 @@
 use std::net::SocketAddr;
-use std::process::Output;
 use std::sync::Arc;
 use bytes::BytesMut;
 use tcproxy_core::TcpFrame;
