@@ -1,6 +1,4 @@
-use async_trait::async_trait;
 use bytes::BytesMut;
-use mockall::automock;
 use tokio::io::AsyncReadExt;
 use tokio::net::tcp::OwnedReadHalf;
 use tokio::sync::mpsc::Sender;
@@ -12,41 +10,15 @@ use tcproxy_core::Result;
 use tcproxy_core::TcpFrame;
 
 pub struct RemoteConnectionReader {
-    reader: Box<dyn StreamReader>,
+    reader: OwnedReadHalf,
     connection_id: Uuid,
     client_sender: Sender<TcpFrame>,
 }
 
-#[automock]
-#[async_trait]
-pub trait StreamReader: Sync + Send {
-    async fn read_buf(&mut self, buffer: &mut BytesMut) -> Result<usize>;
-}
-
-pub struct DefaultStreamReader {
-    inner: OwnedReadHalf,
-}
-
-#[async_trait]
-impl StreamReader for DefaultStreamReader {
-    async fn read_buf(&mut self, buffer: &mut BytesMut) -> Result<usize> {
-        Ok(self.inner.read_buf(buffer).await?)
-    }
-}
-
-impl DefaultStreamReader {
-    pub fn new(inner: OwnedReadHalf) -> Self {
-        Self { inner }
-    }
-}
-
 impl RemoteConnectionReader {
-    pub fn new<T>(reader: T, connection_id: Uuid, sender: &Sender<TcpFrame>) -> Self
-    where
-        T: StreamReader + 'static,
-    {
+    pub fn new(reader: OwnedReadHalf, connection_id: Uuid, sender: &Sender<TcpFrame>) -> Self {
         Self {
-            reader: Box::new(reader),
+            reader,
             connection_id,
             client_sender: sender.clone(),
         }
@@ -109,42 +81,39 @@ impl RemoteConnectionReader {
 
 #[cfg(test)]
 mod tests {
+
     #[cfg(test)]
     #[tokio::test]
     async fn should_read_frame_correctly() {
         use crate::extract_enum_value;
-        use crate::tcp::{MockStreamReader, RemoteConnectionReader};
         use crate::tests::utils::generate_random_buffer;
-        use bytes::BufMut;
-        use mockall::Sequence;
+
+        use super::*;
+        use tokio::net::TcpListener;
         use tcproxy_core::TcpFrame;
+        use tokio::net::TcpStream;
         use tokio::sync::mpsc;
+        use tokio::io::AsyncWriteExt;
         use uuid::Uuid;
 
         // Arrange
         let buffer_size = 1024;
-        let mut seq = Sequence::new();
-        let mut stream_reader = MockStreamReader::new();
 
-        stream_reader
-            .expect_read_buf()
-            .times(1)
-            .in_sequence(&mut seq)
-            .returning(move |buff| {
-                let random = generate_random_buffer(buffer_size);
-                buff.put_slice(&random[..]);
-                Ok(buffer_size as usize)
-            });
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
 
-        stream_reader
-            .expect_read_buf()
-            .times(1)
-            .in_sequence(&mut seq)
-            .returning(|_| Ok(0));
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let mut connection = TcpStream::connect(addr).await.unwrap();
+            let mut buffer = generate_random_buffer(1024);
+            connection.write_buf(&mut buffer).await.unwrap();
+        });
+        
+        let (stream, _) = listener.accept().await.unwrap();
+        let (reader, _) = stream.into_split();
 
         let connection_id = Uuid::new_v4();
         let (sender, mut receiver) = mpsc::channel::<TcpFrame>(1);
-        let connection_reader = RemoteConnectionReader::new(stream_reader, connection_id, &sender);
+        let connection_reader = RemoteConnectionReader::new(reader, connection_id, &sender);
 
         // Act
         let result = connection_reader.spawn().await;

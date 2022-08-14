@@ -1,4 +1,4 @@
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::IpAddr;
 use std::sync::Arc;
 use tokio::{task::JoinHandle, sync::mpsc::Sender};
 use tokio_util::sync::CancellationToken;
@@ -10,7 +10,6 @@ use tcproxy_core::{TcpFrame, Result, Command};
 use crate::ProxyState;
 use crate::commands::{DataPacketClientCommand, ClientConnectedCommand};
 use crate::commands::{PingCommand, LocalClientDisconnectedCommand};
-
 
 pub struct ProxyClientStreamReader {
     pub(crate) target_ip: IpAddr,
