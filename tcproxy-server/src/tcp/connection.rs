@@ -2,9 +2,10 @@ use std::net::SocketAddr;
 
 use bytes::BytesMut;
 use tcproxy_core::TcpFrame;
+use tokio::net::TcpStream;
 use tokio::sync::mpsc::{Sender, Receiver};
 use tokio::task::JoinHandle;
-use tokio::{sync::OwnedSemaphorePermit, net::TcpStream};
+use tokio::sync::OwnedSemaphorePermit;
 use uuid::Uuid;
 use tracing::debug;
 
@@ -34,11 +35,7 @@ impl RemoteConnection {
       }
   }
 
-  pub fn spawn(
-      mut self,
-      stream: TcpStream,
-      receiver: Receiver<BytesMut>,
-  ) -> JoinHandle<Result<()>> {
+  pub fn spawn(mut self, stream: TcpStream, receiver: Receiver<BytesMut>) -> JoinHandle<Result<()>> {
       tokio::spawn(async move {
           let _ = self.start(stream, receiver).await;
           Ok(())

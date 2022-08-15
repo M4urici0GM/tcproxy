@@ -1,4 +1,4 @@
-use std::net::Ipv4Addr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::ops::Range;
 use std::str::FromStr;
 use clap::Parser;
@@ -19,18 +19,30 @@ pub struct AppArguments {
 }
 
 impl AppArguments {
+    pub fn new(port: u16, ip: &str, port_range: &str) -> Self {
+        Self {
+            port,
+            ip: String::from(ip),
+            port_range: String::from(port_range),
+        }
+    }
+
     pub fn port(&self) -> u16 { self.port }
     pub fn ip(&self) -> &str { &self.ip }
     pub fn port_range(&self) -> &str { &self.port_range }
 
-    pub fn parse_ip(&self) -> Result<Ipv4Addr> {
-        match Ipv4Addr::from_str(&self.ip) {
+    pub fn parse_ip(&self) -> Result<IpAddr> {
+        match IpAddr::from_str(&self.ip) {
             Ok(ip) => Ok(ip),
             Err(err) => {
-                error!("Failed when parsing IP Address: {}", err);
+                error!("Fai led when parsing IP Address: {}", err);
                 Err(err.into())
             },
         }
+    }
+
+    pub fn get_socket_addr(&self) -> SocketAddr {
+        SocketAddr::new(self.parse_ip().unwrap(), self.port)
     }
 
     pub fn parse_port_range(&self) -> Result<Range<u16>> {

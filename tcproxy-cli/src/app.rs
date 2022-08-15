@@ -5,7 +5,6 @@ use tcproxy_core::Result;
 
 use crate::ClientArgs;
 use crate::AppCommandType;
-use crate::ConfigCommand;
 use crate::ListenCommand;
 
 /// represents main app logic.
@@ -28,10 +27,10 @@ impl App {
                 let mut command = ListenCommand::new(Arc::new(args.clone()));
                 let _ = command.handle().await;
             },
-            AppCommandType::Config => {
+            AppCommandType::Context(args) => {
                 println!("received config command");
-                let mut command = ConfigCommand::new();
-                let _ = command.handle().await;
+                // let mut command = ConfigCommand::new(args);
+                // let _ = command.handle().await;
             }
         }
         Ok(())

@@ -8,20 +8,43 @@ use tcproxy_core::Result;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
+/// Represents Entry point commands.
 pub struct ClientArgs {
     #[clap(subcommand)]
     command_type: AppCommandType,
 }
 
 #[derive(clap::Subcommand, Debug)]
+/// Available Sub commands
 pub enum AppCommandType {
+    /// Command for start listening for incoming connections
     Listen(ListenArgs),
-    Config,
+
+    /// Context configuration.
+    #[clap(subcommand)]
+    Context(ContextCommands)
+}
+
+#[derive(Parser, Debug)]
+pub enum ContextCommands {
+    List,
+    Create(CreateContextArgs),
+    Remove(DeleteContextArgs),
+}
+
+#[derive(Parser, Debug)]
+pub struct DeleteContextArgs {
+    name: String
+}
+
+#[derive(Parser, Debug)]
+pub struct CreateContextArgs {
+    name: String,
+    host: String,
 }
 
 #[derive(Parser, Debug)]
 pub struct ListenArgs {
-    #[clap(short, long, value_parser)]
     port: u16,
 
     #[clap(short, long, value_parser = parse_ip, default_value = "127.0.0.1")]
@@ -54,6 +77,7 @@ impl ListenArgs {
     }
 }
 
+
 impl Clone for ListenArgs {
     fn clone(&self) -> Self {
         Self {
@@ -71,7 +95,7 @@ fn parse_ping_interval(s: &str) -> Result<u8> {
       Err(err) => return Err(err.into()),
     };
 
-    if 2 < parsed_value {
+    if 2 > parsed_value {
         return Err("minimum ping interval is 2s".into());
     }
 

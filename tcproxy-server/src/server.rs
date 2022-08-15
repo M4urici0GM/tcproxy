@@ -1,31 +1,31 @@
+use std::fmt::Debug;
 use std::future::Future;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, debug};
 use tcproxy_core::Result;
 
+use tcproxy_core::tcp::SocketListener;
+
 use crate::{AppArguments, ProxyState};
 use crate::proxy::Connection;
-use crate::tcp::ListenerUtils;
 
 #[derive(Debug)]
 pub struct Server {
     args: Arc<AppArguments>,
-    server_listener: ListenerUtils,
+    server_listener: Box<dyn SocketListener>,
 }
 
 impl Server {
-    pub fn new(args: AppArguments) -> Self {
-        let ip = args.parse_ip().unwrap();
-        let port = args.port();
-
+    pub fn new(args: AppArguments, listener: Box<dyn SocketListener>) -> Self {
         Self {
             args: Arc::new(args),
-            server_listener: ListenerUtils::new(ip, port),
+            server_listener: listener,
         }
     }
 
-    pub async fn run(&self, shutdown_signal: impl Future) -> Result<()> {
+    pub async fn run(&mut self, shutdown_signal: impl Future) -> Result<()> {
         let cancellation_token = CancellationToken::new();
         tokio::select! {
             _ = self.start(cancellation_token.child_token()) => {},
@@ -38,13 +38,16 @@ impl Server {
         Ok(())
     }
 
-    async fn start(&self, cancellation_token: CancellationToken) -> Result<()> {
-        let tcp_listener = self.server_listener.bind().await?;
+    pub fn get_listen_ip(&self) -> Result<SocketAddr> {
+        self.server_listener.listen_ip()
+    }
+
+    async fn start(&mut self, cancellation_token: CancellationToken) -> Result<()> {
         let port_range = self.args.parse_port_range()?;
         let listen_ip = self.args.parse_ip()?;
 
         while !cancellation_token.is_cancelled() {
-            let (socket, addr) = self.server_listener.accept(&tcp_listener).await?;
+            let (socket, addr) = self.server_listener.accept().await?;
 
             let proxy_state = Arc::new(ProxyState::new(&port_range));
             let cancellation_token = cancellation_token.child_token();

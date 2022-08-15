@@ -1,25 +1,35 @@
-use async_trait::async_trait;
-use directories::{self, ProjectDirs};
+// use async_trait::async_trait;
+// use directories::{self, ProjectDirs};
 
-use tcproxy_core::{Result, Command};
+// use tcproxy_core::{Result, Command};
 
-pub struct ConfigCommand;
+// use crate::ConfigArgs;
 
-impl ConfigCommand {
-  pub fn new() -> Self {
-    Self {}
-  }
-}
+// pub struct ConfigCommand<'a> {
+//   args: &'a ConfigArgs
+// }
 
-#[async_trait]
-impl Command for ConfigCommand {
-  type Output = ();
+// impl<'a> ConfigCommand<'a> {
+//   pub fn new(args: &'a ConfigArgs) -> Self {
+//     Self {
+//       args
+//     }
+//   }
+// }
 
-  async fn handle(&mut self) -> Result<()> {
-    if let Some(some_dirs) = ProjectDirs::from("", "m4urici0gm", "tcproxy") {
-      let dir = some_dirs.config_dir();
-      println!("{:?}", dir);
-    }
-    Ok(())
-  }
-}
+// #[async_trait]
+// impl<'a> Command for ConfigCommand<'a> {
+//   type Output = ();
+
+//   async fn handle(&mut self) -> Result<()> {
+//     match self.args {
+
+//     }
+
+//     if let Some(some_dirs) = ProjectDirs::from("", "m4urici0gm", "tcproxy") {
+//       let dir = some_dirs.config_dir();
+//       println!("{:?}", dir);
+//     }
+//     Ok(())
+//   }
+// }
