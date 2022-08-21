@@ -2,6 +2,7 @@ use std::{
     net::{Ipv4Addr, SocketAddrV4},
     str::FromStr,
 };
+use std::net::IpAddr;
 
 use clap::Parser;
 use tcproxy_core::Result;
@@ -39,8 +40,8 @@ pub struct DeleteContextArgs {
 
 #[derive(Parser, Debug)]
 pub struct CreateContextArgs {
-    name: String,
-    host: String,
+    pub(crate) name: String,
+    pub(crate) host: IpAddr,
 }
 
 #[derive(Parser, Debug)]
@@ -77,6 +78,14 @@ impl ListenArgs {
     }
 }
 
+impl Clone for CreateContextArgs {
+    fn clone(&self) -> Self {
+        Self {
+            host: self.host.clone(),
+            name: self.name.clone(),
+        }
+    }
+}
 
 impl Clone for ListenArgs {
     fn clone(&self) -> Self {

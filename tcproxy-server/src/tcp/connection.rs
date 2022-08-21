@@ -54,9 +54,10 @@ impl RemoteConnection {
       };
 
       debug!(
-          "received none from connection {}, aborting",
+          "received stop signal from connection {}. aborting..",
           self.connection_id
       );
+    
       let _ = self
           .client_sender
           .send(TcpFrame::RemoteSocketDisconnected {
