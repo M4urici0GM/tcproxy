@@ -46,7 +46,7 @@ impl Server {
         let port_range = self.args.parse_port_range()?;
         let listen_ip = self.args.parse_ip()?;
 
-        while !cancellation_token.is_cancelled() {
+        loop {
             let (socket, addr) = self.server_listener.accept().await?;
 
             let proxy_state = Arc::new(ProxyState::new(&port_range));
@@ -60,7 +60,5 @@ impl Server {
                 };
             });
         }
-
-        Ok(())
     }
 }

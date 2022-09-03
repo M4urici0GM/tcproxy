@@ -3,8 +3,8 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
-use tcproxy_core::{TcpFrame, Result};
 use tcproxy_core::transport::TransportWriter;
+use tcproxy_core::{Result, TcpFrame};
 
 pub struct ProxyClientStreamWriter {
     pub(crate) receiver: Receiver<TcpFrame>,

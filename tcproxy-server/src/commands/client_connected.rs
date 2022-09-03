@@ -32,7 +32,7 @@ impl Command for ClientConnectedCommand {
         };
 
 
-        let target_ip = SocketAddr::new(self.target_ip, target_port);
+        let target_ip = SocketAddr::new(self.target_ip, target_port) ;
         let listener = TcpListener::bind(target_ip).await?;
         let proxy_server = ProxyServer {
             target_port,
