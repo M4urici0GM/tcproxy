@@ -14,7 +14,7 @@ use uuid::Uuid;
 use tcproxy_core::tcp::SocketListener;
 use tcproxy_core::Result;
 
-use crate::tcp::RemoteConnection;
+use crate::tcp::{RemoteConnection, Socket};
 use crate::ProxyState;
 
 pub struct ProxyServer {
@@ -86,9 +86,10 @@ impl ProxyServer {
                 .await?;
 
             let mut remote_connection = RemoteConnection::new(permit, socket_addr, connection_id, &self.client_sender);
-            let (reader, writer) = connection.into_split();
+
+            let socket = Socket { inner: connection };
             tokio::spawn(async move {
-                let _ = remote_connection.start(reader, writer, connection_receiver).await;
+                let _ = remote_connection.start(socket, connection_receiver).await;
             });
         }
     }

@@ -19,10 +19,7 @@ impl RemoteConnectionWriter {
         }
     }
 
-    pub async fn start<T>(&mut self, mut writer: T) -> Result<()>
-    where
-        T: AsyncWrite + Send + Unpin,
-    {
+    pub async fn start(&mut self, mut writer: Box<dyn AsyncWrite + Send + Unpin>) -> Result<()> {
         while let Some(mut buffer) = self.receiver.recv().await {
             let mut buffer = buffer.split();
             match writer.write_buf(&mut buffer).await {
@@ -99,7 +96,7 @@ mod tests {
             .times(1)
             .returning(|_| Poll::Ready(Ok(())));
 
-        let result = connection_writer.start(&mut mocked_stream).await;
+        let result = connection_writer.start(Box::new(mocked_stream)).await;
         assert_eq!(true, result.is_ok());
     }
 
@@ -121,7 +118,7 @@ mod tests {
         let result = sender.send(BytesMut::from(&random_buffer[..])).await;
         assert_eq!(true, result.is_ok());
 
-        let result = connection_writer.start(&mut mocked_stream).await;
+        let result = connection_writer.start(Box::new(mocked_stream)).await;
         assert_eq!(true, result.is_ok());
         assert_eq!(true, sender.is_closed());
     }

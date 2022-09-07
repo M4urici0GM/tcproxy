@@ -23,7 +23,7 @@ impl RemoteConnectionReader {
 
     pub async fn start<T>(&mut self, mut reader: T) -> Result<()>
     where
-        T: AsyncRead + Send + Unpin,
+        T: AsyncRead + Unpin,
     {
         let mut buffer = BytesMut::with_capacity(1024 * 8);
         loop {

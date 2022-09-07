@@ -21,6 +21,32 @@ pub struct RemoteConnection {
     client_sender: Sender<TcpFrame>,
 }
 
+pub trait SocketConnection: Sync + Send {
+    fn split(
+        self,
+    ) -> (
+        Box<dyn AsyncRead + Send + Unpin>,
+        Box<dyn AsyncWrite + Send + Unpin>,
+    );
+}
+
+pub struct Socket {
+    pub inner: TcpStream,
+}
+
+impl SocketConnection for Socket {
+    fn split(
+        self,
+    ) -> (
+        Box<dyn AsyncRead + Send + Unpin>,
+        Box<dyn AsyncWrite + Send + Unpin>,
+    ) {
+        let (reader, writer) = self.inner.into_split();
+
+        (Box::new(reader), Box::new(writer))
+    }
+}
+
 impl RemoteConnection {
     pub fn new(
         permit: OwnedSemaphorePermit,
@@ -36,16 +62,11 @@ impl RemoteConnection {
         }
     }
 
-    pub async fn start<T, U>(
-        &mut self,
-        reader: T,
-        writer: U,
-        receiver: Receiver<BytesMut>,
-    ) -> Result<()>
+    pub async fn start<T>(&mut self, connection: T, receiver: Receiver<BytesMut>) -> Result<()>
     where
-        T: AsyncRead + Send + Unpin + 'static,
-        U: AsyncWrite + Send + Unpin + 'static,
+        T: SocketConnection,
     {
+        let (reader, writer) = connection.split();
         tokio::select! {
             _ = self.spawn_reader(reader) => {},
             _ = self.spawn_writer(receiver, writer) => {},
@@ -66,10 +87,10 @@ impl RemoteConnection {
         Ok(())
     }
 
-    fn spawn_reader<T>(&self, connection_reader: T) -> JoinHandle<Result<()>>
-    where
-        T: AsyncRead + Send + Unpin + 'static,
-    {
+    fn spawn_reader(
+        &self,
+        connection_reader: Box<dyn AsyncRead + Send + Unpin>,
+    ) -> JoinHandle<Result<()>> {
         let mut reader = RemoteConnectionReader::new(self.connection_id, &self.client_sender);
         tokio::spawn(async move {
             let result = reader.start(connection_reader).await;
@@ -80,19 +101,15 @@ impl RemoteConnection {
         })
     }
 
-    fn spawn_writer<T>(
+    fn spawn_writer(
         &self,
         receiver: Receiver<BytesMut>,
-        connection_writer: T,
-    ) -> JoinHandle<Result<()>>
-    where
-        T: AsyncWrite + Send + Unpin + 'static,
-    {
+        connection_writer: Box<dyn AsyncWrite + Send + Unpin>,
+    ) -> JoinHandle<Result<()>> {
         let mut writer = RemoteConnectionWriter::new(receiver, self.connection_addr);
         tokio::spawn(async move {
             let _ = writer.start(connection_writer).await;
             Ok(())
         })
     }
-
 }
