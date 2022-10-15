@@ -1,18 +1,18 @@
 use async_trait::async_trait;
 use std::sync::Arc;
-use tcproxy_core::{Command, Result};
+use tcproxy_core::{Command, Result, AsyncCommand};
 use tracing::{debug, warn};
 use uuid::Uuid;
 
-use crate::ProxyState;
+use crate::ClientState;
 
 pub struct LocalClientDisconnectedCommand {
     connection_id: Uuid,
-    proxy_state: Arc<ProxyState>,
+    proxy_state: Arc<ClientState>,
 }
 
 impl LocalClientDisconnectedCommand {
-    pub fn new(connection_id: Uuid, proxy_state: &Arc<ProxyState>) -> Self {
+    pub fn new(connection_id: Uuid, proxy_state: &Arc<ClientState>) -> Self {
         Self {
             connection_id,
             proxy_state: proxy_state.clone(),
@@ -21,9 +21,10 @@ impl LocalClientDisconnectedCommand {
 }
 
 #[async_trait]
-impl Command for LocalClientDisconnectedCommand {
-    type Output = ();
-    async fn handle(&mut self) -> Result<()> {
+impl AsyncCommand for LocalClientDisconnectedCommand {
+    type Output = Result<()>;
+
+    async fn handle(&mut self) -> Self::Output {
         debug!("connection {} disconnected from client", self.connection_id);
         let result = self
             .proxy_state

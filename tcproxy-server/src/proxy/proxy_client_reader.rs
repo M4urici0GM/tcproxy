@@ -5,23 +5,23 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
 
 use tcproxy_core::transport::TransportReader;
-use tcproxy_core::{TcpFrame, Result, Command};
+use tcproxy_core::{TcpFrame, Result, AsyncCommand};
 
-use crate::ProxyState;
+use crate::ClientState;
 use crate::commands::{DataPacketClientCommand, ClientConnectedCommand};
 use crate::commands::{PingCommand, LocalClientDisconnectedCommand};
 
-pub struct ProxyClientStreamReader {
+pub struct ClientFrameReader {
     pub(crate) target_ip: IpAddr,
-    pub(crate) sender: Sender<TcpFrame>,
-    pub(crate) state: Arc<ProxyState>,
+    pub(crate) frame_tx: Sender<TcpFrame>,
+    pub(crate) state: Arc<ClientState>,
     pub(crate) reader: TransportReader,
 }
 
-impl ProxyClientStreamReader {
+impl ClientFrameReader {
     pub fn start_reading(mut self, cancellation_token: CancellationToken) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
-            let _ = ProxyClientStreamReader::start(&mut self, cancellation_token).await;
+            let _ = ClientFrameReader::start(&mut self, cancellation_token).await;
             Ok(())
         })
     }
@@ -38,8 +38,8 @@ impl ProxyClientStreamReader {
             };
 
             debug!("received new frame from client {}", frame);
-            let mut command_handler: Box<dyn Command<Output = ()>> = match frame {
-                TcpFrame::Ping => Box::new(PingCommand::new(&self.sender)),
+            let mut command_handler: Box<dyn AsyncCommand<Output = Result<()>>> = match frame {
+                TcpFrame::Ping => Box::new(PingCommand::new(&self.frame_tx)),
                 TcpFrame::LocalClientDisconnected { connection_id } => {
                     Box::new(LocalClientDisconnectedCommand::new(connection_id, &self.state))
                 }
@@ -50,7 +50,7 @@ impl ProxyClientStreamReader {
                     Box::new(ClientConnectedCommand {
                         target_ip: self.target_ip,
                         state: self.state.clone(),
-                        sender: self.sender.clone(),
+                        sender: self.frame_tx.clone(),
                         cancellation_token: cancellation_token.child_token(),
                     })
                 },

@@ -1,7 +1,7 @@
 use bytes::BytesMut;
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
-use std::net::{SocketAddr, Ipv4Addr};
+use std::net::{Ipv4Addr, SocketAddr};
 use std::str::FromStr;
 use std::sync::Mutex;
 use tokio::sync::mpsc::Sender;
@@ -43,10 +43,10 @@ impl ClientState {
         let mutex_lock = self.last_sent_ping.lock().unwrap();
         let mut last_ping = self.last_ping.lock().unwrap();
 
-       *last_ping = time.timestamp_subsec_millis() - *mutex_lock;
-       drop(mutex_lock);
+        *last_ping = time.timestamp_subsec_millis() - *mutex_lock;
+        drop(mutex_lock);
 
-       self.notify_console_update();
+        self.notify_console_update();
     }
 
     pub fn update_remote_ip(&self, ip: &str) {
@@ -67,10 +67,16 @@ impl ClientState {
         drop(remote_ip);
         drop(ping);
         drop(connections);
-        
+
         let remote_ip = match remote_ip_str.as_str() {
-            "" => SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::from_str("0.0.0.0").unwrap()), 8080u16),
-            value => SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::from_str("0.0.0.0").unwrap()), value.parse::<u16>().unwrap())
+            "" => SocketAddr::new(
+                std::net::IpAddr::V4(Ipv4Addr::from_str("0.0.0.0").unwrap()),
+                8080u16,
+            ),
+            value => SocketAddr::new(
+                std::net::IpAddr::V4(Ipv4Addr::from_str("0.0.0.0").unwrap()),
+                value.parse::<u16>().unwrap(),
+            ),
         };
 
         ConsoleStatus {
@@ -100,7 +106,7 @@ impl ClientState {
             None => {
                 debug!("connection {} not found", id);
                 None
-            },
+            }
         }
     }
 

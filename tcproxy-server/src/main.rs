@@ -14,8 +14,10 @@ async fn main() -> Result<()> {
     let shutdown_signal = signal::ctrl_c();
     let ip = args.get_socket_addr();
     let listener = TcpListener::bind(ip).await?;
+    let port_range = args.parse_port_range()?;
+    let listen_ip = args.parse_ip()?;
 
-    Server::new(args, Box::new(listener))
+    Server::new(&port_range, &listen_ip, listener)
         .run(shutdown_signal)
         .await?;
 

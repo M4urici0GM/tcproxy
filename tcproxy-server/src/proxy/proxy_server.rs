@@ -1,8 +1,11 @@
+use async_trait::async_trait;
 use bytes::BytesMut;
+use futures_util::Future;
+use futures_util::future::BoxFuture;
 use std::net::SocketAddr;
+use std::process::Output;
 use std::sync::Arc;
-use tcproxy_core::TcpFrame;
-use tokio::net::TcpStream;
+use tcproxy_core::{TcpFrame, Command, AsyncCommand};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Semaphore;
@@ -11,16 +14,16 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, error};
 use uuid::Uuid;
 
-use tcproxy_core::tcp::SocketListener;
+use tcproxy_core::tcp::{SocketListener, TcpStream, SocketConnection};
 use tcproxy_core::Result;
 
-use crate::tcp::{RemoteConnection, Socket};
-use crate::ProxyState;
+use crate::tcp::RemoteConnection;
+use crate::ClientState;
 
 pub struct ProxyServer {
     pub(crate) listener: Box<dyn SocketListener>,
     pub(crate) target_port: u16,
-    pub(crate) proxy_state: Arc<ProxyState>,
+    pub(crate) proxy_state: Arc<ClientState>,
     pub(crate) client_sender: Sender<TcpFrame>,
     pub(crate) cancellation_token: CancellationToken,
 }
@@ -28,8 +31,6 @@ pub struct ProxyServer {
 impl ProxyServer {
     pub fn spawn(mut self) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
-            // TODO: send nack message to client if bind fails.
-
             let token = self.cancellation_token.child_token();
             tokio::select! {
                 _ = self.start() => {},
@@ -42,9 +43,9 @@ impl ProxyServer {
         })
     }
 
-    async fn accept_connection(&mut self) -> Result<(TcpStream, SocketAddr)> {
+    async fn accept_connection(&mut self) -> Result<TcpStream> {
         match self.listener.accept().await {
-            Ok(connection) => Ok(connection),
+            Ok(stream) => Ok(stream),
             Err(err) => {
                 let ip = self.listener.listen_ip()?;
                 error!("failed to accept socket. {}: {}", ip, err);
@@ -65,12 +66,12 @@ impl ProxyServer {
         let semaphore = Arc::new(Semaphore::new(120));
         loop {
             let permit = semaphore.clone().acquire_owned().await.unwrap();
-            let (connection, socket_addr) = self.accept_connection().await?;
+            let connection = self.accept_connection().await?;
 
             debug!(
                 "received new connection on proxy {} from {}",
                 self.listener.listen_ip()?,
-                socket_addr
+                connection.addr
             );
 
             let connection_id = Uuid::new_v4();
@@ -81,15 +82,18 @@ impl ProxyServer {
                 connection_sender,
                 CancellationToken::new(),
             );
+
             self.client_sender
                 .send(TcpFrame::IncomingSocket { connection_id })
                 .await?;
 
-            let mut remote_connection = RemoteConnection::new(permit, socket_addr, connection_id, &self.client_sender);
+            let mut remote_connection =
+                RemoteConnection::new(permit, connection.addr, connection_id, &self.client_sender);
 
-            let socket = Socket { inner: connection };
             tokio::spawn(async move {
-                let _ = remote_connection.start(socket, connection_receiver).await;
+                let _ = remote_connection
+                    .start(connection, connection_receiver)
+                    .await;
             });
         }
     }

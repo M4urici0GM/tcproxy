@@ -1,46 +1,55 @@
-use std::net::{IpAddr};
+use std::net::IpAddr;
+use std::ops::Range;
 use std::sync::Arc;
-use tcproxy_core::{Result, TcpFrame};
+use tcproxy_core::tcp::SocketConnection;
 use tcproxy_core::transport::TcpFrameTransport;
-use tokio::net::TcpStream;
+use tcproxy_core::{Result, TcpFrame};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
-use crate::proxy::{ProxyClientStreamReader, ProxyClientStreamWriter};
-use crate::ProxyState;
-
+use crate::proxy::{ClientFrameReader, ClientFrameWriter};
+use crate::ClientState;
 
 #[derive(Debug)]
-pub struct Connection {
+pub struct ClientConnection {
     pub(crate) listen_ip: IpAddr,
-    pub(crate) state: Arc<ProxyState>,
+    pub(crate) state: Arc<ClientState>,
 }
 
-impl Connection {
-    pub fn new(listen_ip: IpAddr, state: Arc<ProxyState>) -> Self {
+impl ClientConnection {
+    pub fn new(listen_ip: &IpAddr, port_range: &Range<u16>) -> Self {
         Self {
-            listen_ip,
-            state,
+            listen_ip: listen_ip.clone(),
+            state: ClientState::new(&port_range),
         }
     }
 
-    pub async fn start_streaming(&mut self, tcp_stream: TcpStream, cancellation_token: CancellationToken) -> Result<()> {
+    /// Starts reading and writing to client.
+    pub async fn start_streaming<T>(
+        &mut self,
+        tcp_stream: T,
+        cancellation_token: CancellationToken,
+    ) -> Result<()>
+    where
+        T: SocketConnection,
+    {
         let transport = TcpFrameTransport::new(tcp_stream);
         let local_cancellation_token = CancellationToken::new();
 
         let (reader, writer) = transport.split();
-        let (client_sender, client_reader) = mpsc::channel::<TcpFrame>(10000);
-        let proxy_reader = ProxyClientStreamReader {
+        let (frame_tx, frame_rx) = mpsc::channel::<TcpFrame>(10000);
+
+        let client_reader = ClientFrameReader {
             reader,
+            frame_tx,
             target_ip: self.listen_ip,
-            sender: client_sender.clone(),
             state: self.state.clone(),
         };
 
-        let proxy_writer = ProxyClientStreamWriter {
+        let proxy_writer = ClientFrameWriter {
             writer,
-            receiver: client_reader,
+            receiver: frame_rx,
             cancellation_token: local_cancellation_token.child_token(),
         };
 
@@ -48,7 +57,7 @@ impl Connection {
             res = proxy_writer.start_writing() => {
                 debug!("ProxyClientStreamWriter::start_writing task completed with {:?}", res)
             },
-            res = proxy_reader.start_reading(local_cancellation_token.child_token()) => {
+            res = client_reader.start_reading(local_cancellation_token.child_token()) => {
                 debug!("ProxyClientStreamWriter::start_reading task completed with {:?}", res);
             },
             _ = cancellation_token.cancelled() => {

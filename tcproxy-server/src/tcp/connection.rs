@@ -2,8 +2,10 @@ use std::net::SocketAddr;
 
 use bytes::BytesMut;
 use tcproxy_core::TcpFrame;
+use tcproxy_core::tcp::SocketConnection;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::net::TcpStream;
+use tokio::net::TcpStream as TokioTcpStream;
+use tokio::net::tcp::OwnedReadHalf;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::OwnedSemaphorePermit;
 use tokio::task::JoinHandle;
@@ -19,32 +21,6 @@ pub struct RemoteConnection {
     connection_id: Uuid,
     connection_addr: SocketAddr,
     client_sender: Sender<TcpFrame>,
-}
-
-pub trait SocketConnection: Sync + Send {
-    fn split(
-        self,
-    ) -> (
-        Box<dyn AsyncRead + Send + Unpin>,
-        Box<dyn AsyncWrite + Send + Unpin>,
-    );
-}
-
-pub struct Socket {
-    pub inner: TcpStream,
-}
-
-impl SocketConnection for Socket {
-    fn split(
-        self,
-    ) -> (
-        Box<dyn AsyncRead + Send + Unpin>,
-        Box<dyn AsyncWrite + Send + Unpin>,
-    ) {
-        let (reader, writer) = self.inner.into_split();
-
-        (Box::new(reader), Box::new(writer))
-    }
 }
 
 impl RemoteConnection {
@@ -79,9 +55,7 @@ impl RemoteConnection {
 
         let _ = self
             .client_sender
-            .send(TcpFrame::RemoteSocketDisconnected {
-                connection_id: self.connection_id,
-            })
+            .send(TcpFrame::RemoteSocketDisconnected { connection_id: self.connection_id })
             .await;
 
         Ok(())

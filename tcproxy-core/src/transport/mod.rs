@@ -1,41 +1,43 @@
-pub mod writer;
 pub mod reader;
+pub mod writer;
 
-use tokio::net::TcpStream;
-pub use writer::*;
 pub use reader::*;
+pub use writer::*;
 
-use crate::{Result, TcpFrame};
+use crate::{tcp::{TcpStream, SocketConnection}, Result, TcpFrame};
 
 /// represents TcpFrame buffer transport reader.
 /// reads and writes TcpFrames from/info underlying buffer.
 pub struct TcpFrameTransport {
-  reader: TransportReader,
-  writer: TransportWriter,
+    reader: TransportReader,
+    writer: TransportWriter,
 }
 
 impl TcpFrameTransport {
-  /// creates new instance of TcpFrameTransport.
-  pub fn new(connection: TcpStream) -> Self {
-      let (reader, writer) = connection.into_split();
-      Self {
-          writer: TransportWriter::new(writer),
-          reader: TransportReader::new(reader, 1024 * 8),
-      }
-  }
+    /// creates new instance of TcpFrameTransport.
+    pub fn new<T>(connection: T) -> Self
+    where
+        T: SocketConnection,
+    {
+        let (reader, writer) = connection.split();
+        Self {
+            writer: TransportWriter::new(writer),
+            reader: TransportReader::new(reader, 1024 * 8),
+        }
+    }
 
-  /// fetches new tcpframe from underlying reader.
-  pub async fn next(&mut self) -> Result<Option<TcpFrame>> {
-      self.reader.next().await
-  }
+    /// fetches new tcpframe from underlying reader.
+    pub async fn next(&mut self) -> Result<Option<TcpFrame>> {
+        self.reader.next().await
+    }
 
-  /// writes new tcpframe to underlying writer.
-  pub async fn write(&mut self, frame: TcpFrame) -> Result<()> {
-      self.writer.send(frame).await
-  }
-  
-  /// splits TcpFrameTransport into its reader and writer.
-  pub fn split(self) -> (TransportReader, TransportWriter) {
-      (self.reader, self.writer)
-  }
+    /// writes new tcpframe to underlying writer.
+    pub async fn write(&mut self, frame: TcpFrame) -> Result<()> {
+        self.writer.send(frame).await
+    }
+
+    /// splits TcpFrameTransport into its reader and writer.
+    pub fn split(self) -> (TransportReader, TransportWriter) {
+        (self.reader, self.writer)
+    }
 }

@@ -6,13 +6,13 @@ use tracing::debug;
 use tcproxy_core::transport::TransportWriter;
 use tcproxy_core::{Result, TcpFrame};
 
-pub struct ProxyClientStreamWriter {
+pub struct ClientFrameWriter {
     pub(crate) receiver: Receiver<TcpFrame>,
     pub(crate) writer: TransportWriter,
     pub(crate) cancellation_token: CancellationToken,
 }
 
-impl ProxyClientStreamWriter {
+impl ClientFrameWriter {
     pub fn start_writing(mut self) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
             let res = self.start().await;

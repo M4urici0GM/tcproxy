@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use async_trait::async_trait;
 use bytes::BytesMut;
-use tcproxy_core::{Result, TcpFrame};
+use tcproxy_core::{Result, TcpFrame, AsyncCommand};
 use tokio::sync::mpsc::{self, Sender};
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
@@ -31,9 +31,10 @@ impl IncomingSocketCommand {
 }
 
 #[async_trait]
-impl Command for IncomingSocketCommand {
-    type Output = ();
-    async fn handle(&mut self) -> Result<()> {
+impl AsyncCommand for IncomingSocketCommand {
+    type Output = Result<()>;
+
+    async fn handle(&mut self) -> Self::Output {
         debug!("new connection received!");
         let (connection_sender, reader) = mpsc::channel::<BytesMut>(1000);
         let token = CancellationToken::new();

@@ -1,27 +1,27 @@
 use async_trait::async_trait;
-use std::{net::Ipv4Addr, sync::Arc};
+use tcproxy_core::tcp::{TcpListener, SocketListener};
 use std::net::{IpAddr, SocketAddr};
-use tcproxy_core::{Command, Result, TcpFrame};
+use std::sync::Arc;
+use tcproxy_core::{Result, TcpFrame, AsyncCommand};
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
-use tcproxy_core::tcp::{TcpListener, SocketListener};
 
+use crate::ClientState;
 use crate::proxy::ProxyServer;
-use crate::ProxyState;
 
 pub struct ClientConnectedCommand {
     pub(crate) target_ip: IpAddr,
     pub(crate) sender: Sender<TcpFrame>,
-    pub(crate) state: Arc<ProxyState>,
+    pub(crate) state: Arc<ClientState>,
     pub(crate) cancellation_token: CancellationToken,
 }
 
 #[async_trait]
-impl Command for ClientConnectedCommand {
-    type Output = ();
+impl AsyncCommand for ClientConnectedCommand {
+    type Output = Result<()>;
 
-    async fn handle(&mut self) -> Result<()> {
+    async fn handle(&mut self) -> Self::Output {
         let target_port = match self.state.ports.get_port().await {
             Ok(port) => port,
             Err(err) => {
@@ -32,14 +32,14 @@ impl Command for ClientConnectedCommand {
         };
 
 
-        let target_ip = SocketAddr::new(self.target_ip, target_port) ;
+        let target_ip = SocketAddr::new(self.target_ip, target_port);
         let listener = TcpListener::bind(target_ip).await?;
         let proxy_server = ProxyServer {
             target_port,
             listener: Box::new(listener),
             client_sender: self.sender.clone(),
             proxy_state: self.state.clone(),
-            cancellation_token: self.cancellation_token.child_token()
+            cancellation_token: self.cancellation_token.child_token(),
         };
 
         let _ = proxy_server.spawn();

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use tcproxy_core::Command;
+use tcproxy_core::{Command, AsyncCommand};
 use tcproxy_core::Result;
 
 use crate::{AppCommandType, ContextCommands};
@@ -31,7 +31,7 @@ impl App {
                 println!("received config command");
                 if let ContextCommands::Create(args) = args {
                     let mut command = CreateContextCommand::new(&args);
-                    let result = command.handle().await;
+                    let result = command.handle();
                     match result {
                         Ok(_) => println!("Hello"),
                         Err(err) => println!("{:?}", err),

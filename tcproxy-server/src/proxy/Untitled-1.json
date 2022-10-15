@@ -1,0 +1,245 @@
+POST /api/v1/table
+```
+{
+  table_name: "",
+}
+```
+
+/// PRODUTO
+{
+  _id: "",
+  name: "Espetinho de carne",
+  unit: "grams",
+  price:9.99
+  variants: [
+    {
+      _id: "",
+      name: "Mal passado",
+    },
+    {
+      _id: "",
+      name: "no ponto",
+    },
+    {
+      _id: "",
+      name: "bem passado",
+    }
+  ]
+}
+
+{
+  _id: "",
+  name: "Suco de laranja",
+  price:9.99,
+  unit: "liters",
+  options:[
+    {
+      _id:"",
+      description: "Gelo",
+    },
+    {
+      _id:"",
+      description: "Açucar",
+    },
+    {
+      _id:"",
+      description: "Rodelas de limão",
+    },
+    {
+      _id:"",
+      description: "Adoçante",
+    },
+  ]
+}
+
+----------------------------------
+POST /api/v1/table/join
+{
+  table_id: "",
+  user_name: "",
+  user_id: "",
+}
+
+// TABLE_EVENTS
+// represents when user enter a table
+{
+  "table_id": Guid,
+  "version": 0,
+  "event_type": "TABLE_SEAT",
+  "event_date": DateTime,
+  "data": null,
+  "metadata": {
+    "user": Guid,
+    "anonymous": boolean
+  },
+}
+----------------------------------
+
+
+POST /api/v1/order
+```
+{
+  table_id: Guid,
+  items: [
+    {
+      "item_id": ObjectId(),
+      "variant": GUID,
+      "amount": 1,
+      "details": "",
+      "user_id": "",
+      "split_with": [
+        {
+          "user_id": Guid,
+          "percentage": 0.3,
+        },
+        {
+          "user_id": Guid,
+          "percentage": 0.3,
+        },
+        {
+          "user_id": Guid,
+          "percentage": 0.3,
+        }
+      ]
+    }
+  ]
+}
+```
+// TABLE_EVENTS
+{
+  "table_id": Guid,
+  "version": 0,
+  "event_type": "ORDER_EVENT",
+  "event_date": new Date(),
+  "metadata": {
+    "user": Guid,
+    "order_id": Guid
+  },
+  "data": {
+    "itens": [
+      {
+        "user_id": Guid,
+        "split_id": Guid,
+        "item_id": Guid,
+        "variant": Guid,
+        "amount": 1,
+        "details": "",
+        "split_amount": 0.5,
+      },
+      {
+        "user_id": Guid,
+        "split_id": Guid,
+        "item_id": Guid,
+        "amount": 1,
+        "details": "",
+        "split_amount": 0.5,
+      }
+    ]
+  },
+}
+----------------------------------
+
+POST /api/v1/table/leave
+{
+  table_id: "",
+  user_id: "",
+}
+
+// TABLE_EVENTS
+// represents when a user leaves table.
+{
+  "table_id": Guid,
+  "version": 0,
+  "event_type": "TABLE_LEAVE",
+  "event_date": DateTime,
+  "metadata": {
+    "user": Guid,
+    "anonymous": boolean,
+    "totalPaymentAmount": 0,
+  },
+  "data": {
+    "itens": [
+      {
+        "user_id": Guid,
+        "split_id": Guid,
+        "item_id": Guid,
+        "amount": 1,
+        "details": "",
+        "split_amount": 0.5,
+      }
+    ]
+  },
+}
+--------------------------------------
+
+POST /api/v1/table/close
+{
+  table_id: ""
+}
+
+// TABLE_EVENTS
+// Represents when all users leave table.
+{
+  "table_id": Guid,
+  "version": 0,
+  "event_type": "TABLE_CLOSE",
+  "event_date": DateTime,
+  "data": null,
+  "user": Guid,
+  "metadata": {
+    "anonymous": boolean
+  },
+}
+
+
+
+
+
+//////////////////////////////
+
+GET /api/v1/table/dasdsadas/history
+
+POST /api/v1/table
+GET  /api/v1/table/:id
+
+GET /api/v1/table/:id/state
+{
+  TableId,
+  tableName,
+  version,
+  streamId,
+  totalAmount,
+  participants: [
+    {
+      userId: ObjectId,
+      userName: string,
+      joinedAt: datetime,
+      orders: [
+        {
+          orderId: Guid,
+          createdAt: datetime,
+          items: [
+            {
+              "split_id": Guid,
+              "item_id": Guid,
+              "itemName": "",
+              "variant": Guid,
+              "amount": 1,
+              "details": "",
+              "split_amount": 0.5,
+            }
+          ]
+        }
+      ]
+    }
+  ],
+}
+
+const request = await axios.get();
+const myOrders = request.data.participants.find(x => x.id == myId).orders;
+const tableOrders = request.data.participants.reduce((acc, value) => [...acc, ...value.orders], [])
+
+-> call endpoint
+  -> save event on database
+  -> update materialized database
+  -> dispatch event to rabbitmq

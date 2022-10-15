@@ -1,20 +1,19 @@
 use async_trait::async_trait;
 use bytes::BytesMut;
-use tcproxy_core::Result;
+use tcproxy_core::{Result, AsyncCommand};
 use std::sync::Arc;
 use uuid::Uuid;
-use tcproxy_core::Command;
 
-use crate::ProxyState;
+use crate::ClientState;
 
 pub struct DataPacketClientCommand {
     connection_id: Uuid,
     buffer: BytesMut,
-    proxy_state: Arc<ProxyState>,
+    proxy_state: Arc<ClientState>,
 }
 
 impl DataPacketClientCommand {
-    pub fn new(buffer: BytesMut, connection_id: &Uuid, proxy_state: &Arc<ProxyState>) -> Self {
+    pub fn new(buffer: BytesMut, connection_id: &Uuid, proxy_state: &Arc<ClientState>) -> Self {
         Self {
             buffer,
             connection_id: connection_id.clone(),
@@ -24,9 +23,10 @@ impl DataPacketClientCommand {
 }
 
 #[async_trait]
-impl Command for DataPacketClientCommand {
-    type Output = ();
-    async fn handle(&mut self) -> Result<()> {
+impl AsyncCommand for DataPacketClientCommand {
+    type Output = Result<()>;
+
+    async fn handle(&mut self) -> Self::Output {
         let (connection_sender, _) = match self.proxy_state.connections.get_connection(self.connection_id) {
             Some(sender) => sender,
             None => return Ok(()),

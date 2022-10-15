@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use bytes::BytesMut;
-use tcproxy_core::{Command, Result};
+use tcproxy_core::{Command, Result, AsyncCommand};
 use tracing::debug;
 use uuid::Uuid;
 
@@ -33,10 +33,10 @@ impl DataPacketCommand {
 }
 
 #[async_trait]
-impl Command for DataPacketCommand {
-    type Output = ();
+impl AsyncCommand for DataPacketCommand {
+    type Output = Result<()>;
 
-    async fn handle(&mut self) -> Result<()> {
+    async fn handle(&mut self) -> Self::Output {
         debug!("received new packet from {}", self.connection_id);
         match self.state.get_connection(self.connection_id) {
             Some((sender, _)) => {

@@ -1,9 +1,9 @@
 use std::fs;
 use std::fs::{File, OpenOptions};
-use std::io::{BufReader, Read, Write};
-use std::net::{IpAddr, Ipv4Addr};
+use std::io::{Read, Write};
+use std::io::BufReader;
+use std::net::{IpAddr};
 use std::path::{Path, PathBuf};
-use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 use directories::{self, ProjectDirs};
 
@@ -75,11 +75,10 @@ struct AppConfig {
 }
 
 
-#[async_trait]
 impl Command for CreateContextCommand {
-    type Output = ();
+    type Output = tcproxy_core::Result<()>;
 
-    async fn handle(&mut self) -> tcproxy_core::Result<Self::Output> {
+    fn handle(&mut self) -> Self::Output {
         let dir = match self.get_config_dir() {
             Some(dir) => dir,
             None => return Err("Couldnt access config folder".into()),

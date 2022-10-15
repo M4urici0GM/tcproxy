@@ -1,27 +1,32 @@
 use std::fmt::Debug;
 use std::future::Future;
-use std::net::SocketAddr;
-use std::sync::Arc;
-use tokio_util::sync::CancellationToken;
-use tracing::{info, debug};
+use std::net::{IpAddr, SocketAddr};
+use std::ops::Range;
 use tcproxy_core::Result;
+use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
+use tracing::{debug, info};
 
-use tcproxy_core::tcp::SocketListener;
+use tcproxy_core::tcp::{SocketConnection, SocketListener, TcpStream};
 
-use crate::{AppArguments, ProxyState};
-use crate::proxy::Connection;
+use crate::proxy::ClientConnection;
 
 #[derive(Debug)]
 pub struct Server {
-    args: Arc<AppArguments>,
+    port_range: Range<u16>,
+    listen_ip: IpAddr,
     server_listener: Box<dyn SocketListener>,
 }
 
 impl Server {
-    pub fn new(args: AppArguments, listener: Box<dyn SocketListener>) -> Self {
+    pub fn new<T>(port_range: &Range<u16>, listen_ip: &IpAddr, listener: T) -> Self
+    where
+        T: SocketListener + 'static,
+    {
         Self {
-            args: Arc::new(args),
-            server_listener: listener,
+            server_listener: Box::new(listener),
+            listen_ip: listen_ip.clone(),
+            port_range: port_range.clone(),
         }
     }
 
@@ -43,22 +48,38 @@ impl Server {
     }
 
     async fn start(&mut self, cancellation_token: CancellationToken) -> Result<()> {
-        let port_range = self.args.parse_port_range()?;
-        let listen_ip = self.args.parse_ip()?;
-
         loop {
-            let (socket, addr) = self.server_listener.accept().await?;
-
-            let proxy_state = Arc::new(ProxyState::new(&port_range));
+            let socket = self.server_listener.accept().await?;
             let cancellation_token = cancellation_token.child_token();
-            let mut proxy_client = Connection::new(listen_ip, proxy_state.clone());
 
-            tokio::spawn(async move {
-                match proxy_client.start_streaming(socket, cancellation_token).await {
-                    Ok(_) => debug!("Socket {} has been closed gracefully.", addr),
-                    Err(err) => debug!("Socket {} has been disconnected with error.. {}", addr, err)
-                };
-            });
+            self.spawn_proxy_connection(socket, cancellation_token);
         }
+    }
+
+    fn spawn_proxy_connection<T>(
+        &self,
+        socket: T,
+        cancellation_token: CancellationToken,
+    ) -> JoinHandle<Result<()>>
+    where
+        T: SocketConnection + 'static,
+    {
+        let mut proxy_client = ClientConnection::new(&self.listen_ip, &self.port_range);
+        tokio::spawn(async move {
+            let socket_addr = socket.addr();
+
+            match proxy_client
+                .start_streaming(socket, cancellation_token)
+                .await
+            {
+                Ok(_) => debug!("Socket {} has been closed gracefully.", socket_addr),
+                Err(err) => debug!(
+                    "Socket {} has been disconnected with error.. {}",
+                    socket_addr, err
+                ),
+            };
+
+            Ok(())
+        })
     }
 }

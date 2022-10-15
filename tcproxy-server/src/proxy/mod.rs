@@ -5,5 +5,5 @@ mod proxy_client_writer;
 
 pub use proxy_server::*;
 pub use connection::*;
-pub use proxy_client_reader::ProxyClientStreamReader;
-pub use proxy_client_writer::ProxyClientStreamWriter;
+pub use proxy_client_reader::ClientFrameReader;
+pub use proxy_client_writer::ClientFrameWriter;

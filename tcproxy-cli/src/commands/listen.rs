@@ -2,11 +2,13 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::str::FromStr;
 use async_trait::async_trait;
-use tokio::{sync::mpsc, net::TcpStream};
+use tokio::net::TcpStream as TokioTcpStream;
+use tokio::sync::mpsc;
 use tracing::{debug, error};
 
 
-use tcproxy_core::{transport::TcpFrameTransport, Command, Result, TcpFrame};
+use tcproxy_core::{transport::TcpFrameTransport, AsyncCommand, Result, TcpFrame};
+use tcproxy_core::tcp::TcpStream;
 
 use crate::{ClientState, ConsoleUpdater, ListenArgs, PingSender, TcpFrameReader, TcpFrameWriter};
 
@@ -24,10 +26,11 @@ impl ListenCommand {
     /// connects to remote server.
     async fn connect(&self) -> Result<TcpStream> {
         let addr = SocketAddr::from_str("127.0.0.1:8080")?;
-        match TcpStream::connect(addr).await {
+        match TokioTcpStream::connect(addr).await {
             Ok(stream) => {
                 debug!("Connected to server..");
-                Ok(stream)
+                let socket_addr = stream.peer_addr().unwrap();
+                Ok(TcpStream::new(stream, socket_addr))
             }
             Err(err) => {
                 println!("{} {}", 124, 123);
@@ -40,8 +43,8 @@ impl ListenCommand {
 }
 
 #[async_trait]
-impl Command for ListenCommand {
-    type Output = ();
+impl AsyncCommand for ListenCommand {
+    type Output = Result<()>;
 
     async fn handle(&mut self) -> Result<()> {
         if self.args.is_debug() {

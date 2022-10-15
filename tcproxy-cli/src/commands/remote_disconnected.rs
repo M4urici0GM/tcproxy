@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tcproxy_core::Command;
+use tcproxy_core::AsyncCommand;
 use tcproxy_core::Result;
 use tracing::debug;
 use uuid::Uuid;
@@ -24,10 +24,10 @@ impl RemoteDisconnectedCommand {
 }
 
 #[async_trait]
-impl Command for RemoteDisconnectedCommand {
-    type Output = ();
+impl AsyncCommand for RemoteDisconnectedCommand {
+    type Output = Result<()>;
 
-    async fn handle(&mut self) -> Result<()> {
+    async fn handle(&mut self) -> Self::Output {
         let (sender, cancellation_token) = match self.state.remove_connection(self.connection_id) {
             Some(item) => item,
             None => {

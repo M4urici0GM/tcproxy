@@ -1,9 +1,10 @@
 use chrono::Utc;
 use std::sync::Arc;
 use tracing::debug;
-
-use tcproxy_core::{transport::TransportReader, Command, Result, TcpFrame};
 use tokio::{sync::mpsc::Sender, task::JoinHandle};
+
+use tcproxy_core::AsyncCommand;
+use tcproxy_core::{transport::TransportReader, Command, Result, TcpFrame};
 
 use crate::{ClientState, DataPacketCommand, IncomingSocketCommand, RemoteDisconnectedCommand, ListenArgs};
 
@@ -49,7 +50,7 @@ impl TcpFrameReader {
             };
 
             debug!("received new frame from server: {}", msg);
-            let mut command: Box<dyn Command<Output = ()>> = match msg {
+            let mut command: Box<dyn AsyncCommand<Output = Result<()>>> = match msg {
                 TcpFrame::DataPacketHost {
                     connection_id,
                     buffer,

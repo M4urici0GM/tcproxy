@@ -2,7 +2,7 @@
 
 use std::error::Error;
 use std::io::Cursor;
-use std::net::{IpAddr, SocketAddr};
+use std::net::{IpAddr, SocketAddr, Ipv4Addr};
 use bytes::{Buf, BufMut, BytesMut};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -228,11 +228,14 @@ async fn read_frame(stream: &mut TcpStream, buffer: &mut BytesMut) -> Result<Tcp
 }
 
 async fn create_server() -> SocketAddr {
-    let args = AppArguments::new(0, "127.0.0.1", "1000:2000");
-    let listener = TcpListener::bind(args.get_socket_addr()).await.unwrap();
+    let port_range = 11000..15000;
+    let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
+    let socket_addr = SocketAddr::new(ip.clone(), 0);
+
+    let listener = TcpListener::bind(socket_addr).await.unwrap();
     let listen_ip = listener.listen_ip().unwrap();
 
-    let mut server = Server::new(args, Box::new(listener));
+    let mut server = Server::new(&port_range, &ip, listener);
 
     tokio::spawn(async move {
         let result = server.run(tokio::signal::ctrl_c()).await;
