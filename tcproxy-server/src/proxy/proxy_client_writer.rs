@@ -34,24 +34,16 @@ impl ClientFrameWriter {
     }
 
     async fn start(&mut self) -> Result<()> {
-        loop {
-            tokio::select! {
-                frame = self.receiver.recv() => {
-                    match frame {
-                        Some(frame) => {
-                            self.writer.send(frame).await?;
-                        },
-                        None => {
-                            debug!("received None from client channel");
-                            break;
-                        }
-                    }
+        while !self.cancellation_token.is_cancelled() {
+            match self.receiver.recv().await {
+                Some(frame) => {
+                    self.writer.send(frame).await?;
                 },
-                _ = self.cancellation_token.cancelled() => {
-                    debug!("cancellation token from client cancelled");
+                None => {
+                    debug!("received None from client channel");
                     break;
-                },
-            }
+                }
+            };
         }
 
         Ok(())

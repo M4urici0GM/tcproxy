@@ -47,11 +47,9 @@ impl RemoteConnectionReader {
                 break;
             }
 
-            buffer.truncate(bytes_read);
-            let buffer = BytesMut::from(&buffer[..]);
             let frame = TcpFrame::HostPacket(HostPacketData::new(
                 self.connection_id.clone(),
-                buffer,
+                buffer.split_to(bytes_read),
                 bytes_read as u32,
             ));
 
@@ -75,6 +73,7 @@ mod tests {
         pin::Pin,
         task::{Context, Poll},
     };
+    use bytes::BytesMut;
 
     use mockall::{mock, Sequence};
     use tcproxy_core::{HostPacketData, TcpFrame};
@@ -126,7 +125,8 @@ mod tests {
     async fn should_read_correctly() {
         // Arrange
         let uuid = Uuid::new_v4();
-        let random_buffer = generate_random_buffer(1024 * 2);
+        let bytes = b"\x06\x84\xc3\xfc\xeaS\xd8P\x1d@\xf5\xc5!\xe4\xdf4;}\x1b^\xc7J{qFq?\xe3\x88\x17\xd9\x99v\07\x1aPy5\xa5V'_\x1d`{v\xd9\x0b\t\x9bh\xe0\"\xb4\xa1\xd5\x9f\x9d\\D\xda\x02+\x81\xffG\xf2\x1b\xe0\xcdU\xc4\x0e:>\xf4\xd1\xea\x9e\x05\xf5\x03a\xbe\xc2r\xa0\x91?\x94\x99\xc38\\f\xaf\rLS";
+        let random_buffer = BytesMut::from(&bytes[..]);
         let (sender, mut receiver) = mpsc::channel::<TcpFrame>(1);
 
         let mut seq = Sequence::new();
@@ -158,6 +158,9 @@ mod tests {
                 panic!("Didnt expect this value! {value}");
             }
         };
+
+        println!("{:?}", buffer);
+        println!("{:?}", random_buffer);
 
         // Assert
         assert!(buffer_size > 0);
