@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use bytes::BytesMut;
-use tcproxy_core::{Command, Result, AsyncCommand};
+use tcproxy_core::{Result, AsyncCommand};
 use tracing::debug;
 use uuid::Uuid;
 
@@ -32,7 +32,7 @@ impl DataPacketCommand {
     }
 
     pub fn connection_id(&self) -> Uuid {
-        self.connection_id.clone()
+        self.connection_id
     }
 
     pub fn buffer(&self) -> &BytesMut {

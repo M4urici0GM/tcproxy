@@ -65,7 +65,7 @@ impl SocketConnection for TcpStream {
     }
 
     fn addr(&self) -> SocketAddr {
-        self.addr.clone()
+        self.addr
     }
 }
 

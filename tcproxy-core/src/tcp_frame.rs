@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::FrameError;
 
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ClientPacketData {
     connection_id: Uuid,
     buffer_size: u32,
@@ -15,7 +15,7 @@ pub struct ClientPacketData {
 }
 
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct HostPacketData {
     connection_id: Uuid,
     buffer_size: u32,
@@ -54,7 +54,7 @@ impl HostPacketData {
     }
 
     pub fn connection_id(&self) -> Uuid {
-        self.connection_id.clone()
+        self.connection_id
     }
 
     pub fn buffer(&self) -> &BytesMut {
@@ -66,7 +66,7 @@ impl HostPacketData {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum TcpFrame {
     ClientConnected,
     Ping,

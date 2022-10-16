@@ -30,7 +30,7 @@ impl App {
             AppCommandType::Context(args) => {
                 println!("received config command");
                 if let ContextCommands::Create(args) = args {
-                    let mut command = CreateContextCommand::new(&args);
+                    let mut command = CreateContextCommand::new(args);
                     let result = command.handle();
                     match result {
                         Ok(_) => println!("Hello"),

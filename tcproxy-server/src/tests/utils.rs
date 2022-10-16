@@ -1,13 +1,9 @@
-use bytes::{BytesMut, BufMut};
-use std;
-use proc_macro2::TokenStream;
-use syn::{parse_macro_input, DeriveInput, FieldsNamed, Type};
-use syn::__private::quote::quote;
-use syn::__private::TokenStream2;
 
+#[cfg(test)]
+pub fn generate_random_buffer(buffer_size: i32) -> bytes::BytesMut {
+  use bytes::BufMut;
 
-pub fn generate_random_buffer(buffer_size: i32) -> BytesMut {
-  let mut buffer = BytesMut::with_capacity(buffer_size as usize);
+  let mut buffer = bytes::BytesMut::with_capacity(buffer_size as usize);
 
   (0..buffer_size)
       .for_each(|_| {

@@ -9,7 +9,6 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use uuid::Uuid;
-use tcproxy_core::TcpFrame::ClientPacket;
 
 pub struct LocalConnection {
     connection_id: Uuid,
@@ -40,7 +39,7 @@ impl LocalConnection {
                     .send(TcpFrame::ClientUnableToConnect { connection_id: self.connection_id })
                     .await;
 
-                return Err(err.into());
+                Err(err.into())
             }
         }
     }
@@ -103,7 +102,7 @@ impl LocalConnection {
         let task1 = LocalConnection::read_from_socket(
             stream_reader,
             self.sender.clone(),
-            self.connection_id.clone(),
+            self.connection_id,
         );
 
         let task2 = LocalConnection::write_to_socket(stream_writer, reader);

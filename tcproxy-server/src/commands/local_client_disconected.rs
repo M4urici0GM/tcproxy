@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use std::sync::Arc;
-use tcproxy_core::{Command, Result, AsyncCommand};
+use tcproxy_core::{Result, AsyncCommand};
 use tracing::{debug, warn};
 use uuid::Uuid;
 

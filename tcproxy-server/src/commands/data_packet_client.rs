@@ -16,7 +16,7 @@ impl DataPacketClientCommand {
     pub fn new(buffer: &BytesMut, connection_id: &Uuid, proxy_state: &Arc<ClientState>) -> Self {
         Self {
             buffer: buffer.clone(),
-            connection_id: connection_id.clone(),
+            connection_id: *connection_id,
             proxy_state: proxy_state.clone(),
         }
     }

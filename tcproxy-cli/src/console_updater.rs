@@ -22,7 +22,7 @@ impl ConsoleUpdater {
 
     pub fn spawn(mut self) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
-            let _ = ConsoleUpdater::start(&mut self).await;
+            ConsoleUpdater::start(&mut self).await;
             Ok(())
         })
     }
@@ -44,7 +44,7 @@ impl ConsoleUpdater {
     }
 
     async fn start(&mut self) {
-        while let Some(_) = self.receiver.recv().await {
+        while (self.receiver.recv().await).is_some() {
             if self.args.is_debug() {
                 continue;
             }

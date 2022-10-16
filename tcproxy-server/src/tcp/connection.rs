@@ -4,8 +4,6 @@ use bytes::BytesMut;
 use tcproxy_core::TcpFrame;
 use tcproxy_core::tcp::SocketConnection;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::net::TcpStream as TokioTcpStream;
-use tokio::net::tcp::OwnedReadHalf;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::OwnedSemaphorePermit;
 use tokio::task::JoinHandle;
@@ -39,14 +37,14 @@ impl RemoteConnection {
     }
 
     pub async fn start<T>(&mut self, connection: T, receiver: Receiver<BytesMut>) -> Result<()>
-    where
-        T: SocketConnection,
+        where
+            T: SocketConnection,
     {
         let (reader, writer) = connection.split();
         tokio::select! {
             _ = self.spawn_reader(reader) => {},
             _ = self.spawn_writer(receiver, writer) => {},
-        };
+        }
 
         debug!(
             "received stop signal from connection {}. aborting..",

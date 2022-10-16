@@ -30,7 +30,7 @@ pub struct DefaultFrameHandler {
 impl DefaultFrameHandler {
     pub fn new(ip: &IpAddr, sender: &Sender<TcpFrame>, state: &Arc<ClientState>) -> Self {
         Self {
-            target_ip: ip.clone(),
+            target_ip: *ip,
             frame_tx: sender.clone(),
             state: state.clone(),
         }

@@ -9,7 +9,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, error};
 use uuid::Uuid;
 
-use tcproxy_core::tcp::{SocketListener, TcpStream, SocketConnection};
+use tcproxy_core::tcp::{SocketListener, TcpStream};
 use tcproxy_core::Result;
 
 use crate::tcp::RemoteConnection;
@@ -45,7 +45,7 @@ impl ProxyServer {
                 let ip = self.listener.listen_ip()?;
                 error!("failed to accept socket. {}: {}", ip, err);
                 debug!("closing proxy listener {}: {}", ip, err);
-                Err(err.into())
+                Err(err)
             }
         }
     }

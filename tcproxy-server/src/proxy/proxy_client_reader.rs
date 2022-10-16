@@ -2,10 +2,9 @@ use tokio::{sync::mpsc::Sender, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
 
-use tcproxy_core::transport::{DefaultTransportReader, TransportReader};
+use tcproxy_core::transport::TransportReader;
 use tcproxy_core::{Result, TcpFrame};
 
-use crate::commands::{ClientConnectedCommand, DataPacketClientCommand};
 use crate::proxy::FrameHandler;
 
 /// Responsible for reading commands / frames from client and processing them.
@@ -16,7 +15,7 @@ pub struct ClientFrameReader {
 }
 
 impl ClientFrameReader {
-    pub fn new<'a, T, V>(sender: &Sender<TcpFrame>, reader: V, frame_handler: T) -> Self
+    pub fn new<T, V>(sender: &Sender<TcpFrame>, reader: V, frame_handler: T) -> Self
     where
         T: FrameHandler + 'static,
         V: TransportReader + 'static
@@ -51,14 +50,10 @@ impl ClientFrameReader {
             };
 
             debug!("received new frame from client {}", frame);
-            match self
+            if let Some(frame_result) = self
                 .frame_handler
                 .handle_frame(frame, cancellation_token.child_token())
-                .await?
-            {
-                Some(frame_result) => self.frame_tx.send(frame_result).await?,
-                None => {}
-            }
+                .await? { self.frame_tx.send(frame_result).await? }
         }
 
         Ok(())

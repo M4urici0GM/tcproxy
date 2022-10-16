@@ -9,7 +9,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
 use crate::proxy::{ClientFrameReader, ClientFrameWriter};
-use crate::proxy::{DefaultFrameHandler, FrameHandler};
+use crate::proxy::DefaultFrameHandler;
 use crate::ClientState;
 
 #[derive(Debug)]
@@ -21,8 +21,8 @@ pub struct ClientConnection {
 impl ClientConnection {
     pub fn new(listen_ip: &IpAddr, port_range: &Range<u16>) -> Self {
         Self {
-            listen_ip: listen_ip.clone(),
-            state: ClientState::new(&port_range),
+            listen_ip: *listen_ip,
+            state: ClientState::new(port_range),
         }
     }
 

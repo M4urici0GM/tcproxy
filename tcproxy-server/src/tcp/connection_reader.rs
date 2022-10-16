@@ -49,7 +49,7 @@ impl RemoteConnectionReader {
             }
 
             let frame = TcpFrame::HostPacket(HostPacketData::new(
-                self.connection_id.clone(),
+                self.connection_id,
                 buffer.split_to(bytes_read),
                 bytes_read as u32,
             ));
@@ -76,7 +76,6 @@ mod tests {
     use tcproxy_core::TcpFrame;
     use tokio::sync::mpsc;
     use uuid::Uuid;
-
     use crate::tests::utils::generate_random_buffer;
 
     use super::RemoteConnectionReader;

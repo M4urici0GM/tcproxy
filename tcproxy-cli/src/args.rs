@@ -81,7 +81,7 @@ impl ListenArgs {
 impl Clone for CreateContextArgs {
     fn clone(&self) -> Self {
         Self {
-            host: self.host.clone(),
+            host: self.host,
             name: self.name.clone(),
         }
     }
@@ -108,7 +108,7 @@ fn parse_ping_interval(s: &str) -> Result<u8> {
         return Err("minimum ping interval is 2s".into());
     }
 
-    return Ok(parsed_value);
+    Ok(parsed_value)
 }
 
 /// validates if given ip target is a valid ip.

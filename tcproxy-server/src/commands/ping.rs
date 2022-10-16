@@ -1,6 +1,6 @@
 use tokio::sync::mpsc::Sender;
 use async_trait::async_trait;
-use tcproxy_core::{Result, TcpFrame, Command, AsyncCommand};
+use tcproxy_core::{Result, TcpFrame, AsyncCommand};
 
 pub struct PingCommand {
   sender: Sender<TcpFrame>,

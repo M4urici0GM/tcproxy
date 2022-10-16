@@ -1,8 +1,6 @@
-use std::sync::Arc;
-
 use async_trait::async_trait;
-use tcproxy_core::{Command, Result};
 
+use tcproxy_core::{Command, Result};
 
 struct GetPortCommand;
 

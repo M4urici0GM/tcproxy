@@ -1,7 +1,6 @@
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
-use std::io::BufReader;
 use std::net::{IpAddr};
 use std::path::{Path, PathBuf};
 use serde::{Serialize, Deserialize};
@@ -23,8 +22,6 @@ impl CreateContextCommand {
     }
 
     fn get_config_dir(&self) -> Option<ProjectDirs> {
-        let pkg_name = env!("CARGO_PKG_NAME");
-
         ProjectDirs::from("", "m4urici0gm", "tcproxy")
     }
 }
@@ -100,7 +97,7 @@ impl Command for CreateContextCommand {
         }
 
         if config.default_context == String::default() {
-            config.default_context = String::from(name.to_owned());
+            config.default_context = name.to_owned();
             config.contexts.push(ContextConfig {
                 ip: self.args.host,
                 name: name.to_owned()

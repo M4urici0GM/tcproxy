@@ -36,7 +36,7 @@ impl ListenCommand {
                 println!("{} {}", 124, 123);
 
                 error!("Failed to connect to server. Check you network connection and try again.");
-                return Err(format!("Failed when connecting to server: {}", err).into());
+                Err(format!("Failed when connecting to server: {}", err).into())
             }
         }
     }

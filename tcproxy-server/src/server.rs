@@ -7,7 +7,7 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
 
-use tcproxy_core::tcp::{SocketConnection, SocketListener, TcpStream};
+use tcproxy_core::tcp::{SocketConnection, SocketListener};
 
 use crate::proxy::ClientConnection;
 
@@ -25,7 +25,7 @@ impl Server {
     {
         Self {
             server_listener: Box::new(listener),
-            listen_ip: listen_ip.clone(),
+            listen_ip: *listen_ip,
             port_range: port_range.clone(),
         }
     }

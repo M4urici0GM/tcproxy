@@ -7,8 +7,6 @@ use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use uuid::Uuid;
 
-use tcproxy_core::Command;
-
 use crate::{LocalConnection, client_state::ClientState, ListenArgs};
 
 /// issued when a remote socket connects to server.
@@ -43,7 +41,7 @@ impl AsyncCommand for IncomingSocketCommand {
         self.state.insert_connection(self.connection_id, connection_sender, token);
 
         let target_ip = self.args.parse_socket_addr();
-        let connection_id = self.connection_id.clone();
+        let connection_id = self.connection_id;
         let sender = self.client_sender.clone();
         let mut local_connection = LocalConnection::new(self.connection_id, &self.client_sender, target_ip);
 

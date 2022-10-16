@@ -4,7 +4,7 @@ pub mod writer;
 pub use reader::*;
 pub use writer::*;
 
-use crate::{tcp::{TcpStream, SocketConnection}, Result, TcpFrame};
+use crate::{tcp::SocketConnection, Result, TcpFrame};
 
 /// represents TcpFrame buffer transport reader.
 /// reads and writes TcpFrames from/info underlying buffer.
