@@ -25,7 +25,7 @@ impl RemoteConnectionReader {
     where
         T: AsyncRead + Unpin,
     {
-        let mut buffer = BytesMut::with_capacity(1024 * 8);
+        let mut buffer = BytesMut::with_capacity(1024 * 4);
         loop {
             let bytes_read = match reader.read_buf(&mut buffer).await {
                 Ok(read) => read,
@@ -39,6 +39,7 @@ impl RemoteConnectionReader {
                 }
             };
 
+            trace!("read {} bytes from connection.", bytes_read);
             if 0 == bytes_read {
                 trace!(
                     "reached end of stream from connection {}",
@@ -69,51 +70,35 @@ impl RemoteConnectionReader {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        pin::Pin,
-        task::{Context, Poll},
-    };
-    use bytes::BytesMut;
+    use std::io::Cursor;
+    use bytes::{BufMut, BytesMut};
 
-    use mockall::{mock, Sequence};
-    use tcproxy_core::{HostPacketData, TcpFrame};
-    use tokio::{io::AsyncRead, sync::mpsc};
+    use tcproxy_core::TcpFrame;
+    use tokio::sync::mpsc;
     use uuid::Uuid;
 
-    use crate::{extract_enum_value, tests::utils::generate_random_buffer};
+    use crate::tests::utils::generate_random_buffer;
 
     use super::RemoteConnectionReader;
 
-    mock! {
-        pub Reader {}
-
-        impl AsyncRead for Reader {
-            fn poll_read<'a, 'b>(self: Pin<&mut Self>, ctx: &mut Context<'a>, buf: &mut tokio::io::ReadBuf<'b>) -> Poll<Result<(), std::io::Error>>;
-        }
-    }
-
     #[tokio::test]
     async fn should_stop_if_read_zero_bytes() {
+
         // Arrange
         let uuid = Uuid::new_v4();
         let (sender, mut receiver) = mpsc::channel::<TcpFrame>(1);
 
-        let mut mock_reader = MockReader::new();
-        mock_reader.expect_poll_read().returning(|_, buff| {
-            println!("{:?}", buff);
-            Poll::Ready(Ok(()))
-        });
-
+        let empty_vec: Vec<u8> = vec![];
+        let cursor = Cursor::new(&empty_vec[..]);
         let mut connection_reader = RemoteConnectionReader::new(uuid, &sender);
 
         // Act
-        let result = connection_reader.start(mock_reader).await;
+        let result = connection_reader.start(cursor).await;
 
         // drops sender and connection_reader for receiver.recv() to resolve.
         drop(sender);
         drop(connection_reader);
 
-        println!("HERE");
         let receiver_result = receiver.recv().await;
 
         // Assert
@@ -121,51 +106,38 @@ mod tests {
         assert_eq!(true, receiver_result.is_none());
     }
 
+
     #[tokio::test]
     async fn should_read_correctly() {
         // Arrange
         let uuid = Uuid::new_v4();
-        let bytes = b"\x06\x84\xc3\xfc\xeaS\xd8P\x1d@\xf5\xc5!\xe4\xdf4;}\x1b^\xc7J{qFq?\xe3\x88\x17\xd9\x99v\07\x1aPy5\xa5V'_\x1d`{v\xd9\x0b\t\x9bh\xe0\"\xb4\xa1\xd5\x9f\x9d\\D\xda\x02+\x81\xffG\xf2\x1b\xe0\xcdU\xc4\x0e:>\xf4\xd1\xea\x9e\x05\xf5\x03a\xbe\xc2r\xa0\x91?\x94\x99\xc38\\f\xaf\rLS";
-        let random_buffer = BytesMut::from(&bytes[..]);
-        let (sender, mut receiver) = mpsc::channel::<TcpFrame>(1);
+        let expected_buff_size = 1024 * 6;
+        let random_buffer = generate_random_buffer(expected_buff_size);
+        let (sender, mut receiver) = mpsc::channel::<TcpFrame>(3);
 
-        let mut seq = Sequence::new();
-        let mut mock_reader = MockReader::new();
-        let buff_clone = random_buffer.clone();
 
-        mock_reader
-            .expect_poll_read()
-            .times(1)
-            .in_sequence(&mut seq)
-            .returning(move |_, buff| {
-                buff.put_slice(&buff_clone[..]);
-                Poll::Ready(Ok(()))
-            });
+        let mut reader = RemoteConnectionReader::new(uuid, &sender);
+        let cursor = Cursor::new(&random_buffer[..]);
 
-        mock_reader
-            .expect_poll_read()
-            .times(1)
-            .in_sequence(&mut seq)
-            .returning(|_, _| Poll::Ready(Ok(())));
+        // At this point stream is already closed, but underlying buffer still there for reading.
+        let _ = reader.start(cursor).await;
 
-        let mut connection_reader = RemoteConnectionReader::new(uuid, &sender);
-
-        // Act
-        let result = connection_reader.start(mock_reader).await;
-        let (buffer, buffer_size) = match receiver.recv().await.unwrap() {
-            TcpFrame::HostPacket(data) => (data.buffer().clone(), data.buffer_size()),
-            value => {
-                panic!("Didnt expect this value! {value}");
+        let mut final_buff = BytesMut::with_capacity(expected_buff_size as usize);
+        for _ in 0..2 {
+            if let Some(frame) = receiver.recv().await {
+                match frame {
+                    TcpFrame::HostPacket(data) => {
+                        final_buff.put_slice(&data.buffer()[..]);
+                    },
+                    value => {
+                        panic!("didnt expected {value}");
+                    }
+                }
             }
-        };
+        }
 
-        println!("{:?}", buffer);
-        println!("{:?}", random_buffer);
-
-        // Assert
-        assert!(buffer_size > 0);
-        assert_eq!(true, result.is_ok());
-        assert_eq!(buffer_size as usize, random_buffer.len());
-        assert_eq!(&random_buffer[..], &buffer[..]);
+        assert!(final_buff.len() > 0);
+        assert_eq!(final_buff.len(), random_buffer.len());
+        assert_eq!(&final_buff[..], &random_buffer[..]);
     }
 }

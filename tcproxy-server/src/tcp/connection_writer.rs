@@ -19,7 +19,7 @@ impl RemoteConnectionWriter {
         }
     }
 
-    pub async fn start(&mut self, mut writer: Box<dyn AsyncWrite + Send + Unpin>) -> Result<()> {
+    pub async fn start<T>(&mut self, mut writer: T) -> Result<()> where T: AsyncWrite + Unpin {
         while let Some(mut buffer) = self.receiver.recv().await {
             let mut buffer = buffer.split();
             match writer.write_buf(&mut buffer).await {
