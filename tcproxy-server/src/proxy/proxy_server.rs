@@ -1,11 +1,6 @@
-use async_trait::async_trait;
 use bytes::BytesMut;
-use futures_util::Future;
-use futures_util::future::BoxFuture;
-use std::net::SocketAddr;
-use std::process::Output;
 use std::sync::Arc;
-use tcproxy_core::{TcpFrame, Command, AsyncCommand};
+use tcproxy_core::{TcpFrame};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Semaphore;

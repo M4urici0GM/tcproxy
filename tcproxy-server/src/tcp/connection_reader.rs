@@ -5,8 +5,8 @@ use tokio::sync::mpsc::Sender;
 use tracing::{error, trace};
 use uuid::Uuid;
 
-use tcproxy_core::Result;
 use tcproxy_core::TcpFrame;
+use tcproxy_core::{HostPacketData, Result};
 
 pub struct RemoteConnectionReader {
     connection_id: Uuid,
@@ -49,11 +49,11 @@ impl RemoteConnectionReader {
 
             buffer.truncate(bytes_read);
             let buffer = BytesMut::from(&buffer[..]);
-            let frame = TcpFrame::DataPacketHost {
-                connection_id: self.connection_id,
+            let frame = TcpFrame::HostPacket(HostPacketData::new(
+                self.connection_id.clone(),
                 buffer,
-                buffer_size: bytes_read as u32,
-            };
+                bytes_read as u32,
+            ));
 
             match self.client_sender.send(frame).await {
                 Ok(_) => {}
@@ -77,11 +77,11 @@ mod tests {
     };
 
     use mockall::{mock, Sequence};
-    use tcproxy_core::TcpFrame;
-    use tokio::{io::{AsyncRead}, sync::mpsc};
+    use tcproxy_core::{HostPacketData, TcpFrame};
+    use tokio::{io::AsyncRead, sync::mpsc};
     use uuid::Uuid;
 
-    use crate::{tests::utils::generate_random_buffer, extract_enum_value};
+    use crate::{extract_enum_value, tests::utils::generate_random_buffer};
 
     use super::RemoteConnectionReader;
 
@@ -100,11 +100,10 @@ mod tests {
         let (sender, mut receiver) = mpsc::channel::<TcpFrame>(1);
 
         let mut mock_reader = MockReader::new();
-        mock_reader.expect_poll_read()
-            .returning(|_, buff| {
-                println!("{:?}", buff);
-                Poll::Ready(Ok(()))
-            });
+        mock_reader.expect_poll_read().returning(|_, buff| {
+            println!("{:?}", buff);
+            Poll::Ready(Ok(()))
+        });
 
         let mut connection_reader = RemoteConnectionReader::new(uuid, &sender);
 
@@ -129,12 +128,13 @@ mod tests {
         let uuid = Uuid::new_v4();
         let random_buffer = generate_random_buffer(1024 * 2);
         let (sender, mut receiver) = mpsc::channel::<TcpFrame>(1);
-        
+
         let mut seq = Sequence::new();
         let mut mock_reader = MockReader::new();
         let buff_clone = random_buffer.clone();
 
-        mock_reader.expect_poll_read()
+        mock_reader
+            .expect_poll_read()
             .times(1)
             .in_sequence(&mut seq)
             .returning(move |_, buff| {
@@ -142,7 +142,8 @@ mod tests {
                 Poll::Ready(Ok(()))
             });
 
-        mock_reader.expect_poll_read()
+        mock_reader
+            .expect_poll_read()
             .times(1)
             .in_sequence(&mut seq)
             .returning(|_, _| Poll::Ready(Ok(())));
@@ -151,16 +152,17 @@ mod tests {
 
         // Act
         let result = connection_reader.start(mock_reader).await;
-        let (buff, buff_size) = extract_enum_value!(
-            receiver.recv().await.unwrap(),
-            TcpFrame::DataPacketHost { connection_id: _, buffer, buffer_size } => (buffer, buffer_size)
-        );
+        let (buffer, buffer_size) = match receiver.recv().await.unwrap() {
+            TcpFrame::HostPacket(data) => (data.buffer().clone(), data.buffer_size()),
+            value => {
+                panic!("Didnt expect this value! {value}");
+            }
+        };
 
         // Assert
-        assert!(buff_size > 0);
+        assert!(buffer_size > 0);
         assert_eq!(true, result.is_ok());
-        assert_eq!(buff_size as usize, random_buffer.len());
-        assert_eq!(&random_buffer[..], &buff[..]);
-
+        assert_eq!(buffer_size as usize, random_buffer.len());
+        assert_eq!(&random_buffer[..], &buffer[..]);
     }
 }

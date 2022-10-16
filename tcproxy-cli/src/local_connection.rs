@@ -1,6 +1,6 @@
 use bytes::BytesMut;
 use std::net::SocketAddrV4;
-use tcproxy_core::{Result, TcpFrame};
+use tcproxy_core::{ClientPacketData, Result, TcpFrame};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
@@ -9,6 +9,7 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use uuid::Uuid;
+use tcproxy_core::TcpFrame::ClientPacket;
 
 pub struct LocalConnection {
     connection_id: Uuid,
@@ -58,11 +59,11 @@ impl LocalConnection {
                     return Ok(());
                 }
 
-                let tcp_frame = TcpFrame::DataPacketClient {
+                let tcp_frame = TcpFrame::ClientPacket(ClientPacketData::new(
                     connection_id,
-                    buffer: buffer.split_to(bytes_read),
-                    buffer_size: bytes_read as u32,
-                };
+                    buffer.split_to(bytes_read),
+                    bytes_read as u32,
+                ));
 
                 sender.send(tcp_frame).await?;
             }

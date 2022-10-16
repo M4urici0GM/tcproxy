@@ -13,12 +13,17 @@ pub struct DataPacketClientCommand {
 }
 
 impl DataPacketClientCommand {
-    pub fn new(buffer: BytesMut, connection_id: &Uuid, proxy_state: &Arc<ClientState>) -> Self {
+    pub fn new(buffer: &BytesMut, connection_id: &Uuid, proxy_state: &Arc<ClientState>) -> Self {
         Self {
-            buffer,
+            buffer: buffer.clone(),
             connection_id: connection_id.clone(),
             proxy_state: proxy_state.clone(),
         }
+    }
+
+    pub fn boxed_new(buffer: &BytesMut, connection_id: &Uuid, proxy_state: &Arc<ClientState>) -> Box<Self> {
+        let obj = DataPacketClientCommand::new(buffer, connection_id, proxy_state);
+        Box::new(obj)
     }
 }
 

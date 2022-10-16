@@ -65,7 +65,6 @@ impl ClientState {
         let connections_len = connections.len();
 
         drop(remote_ip);
-        drop(ping);
         drop(connections);
 
         let remote_ip = match remote_ip_str.as_str() {

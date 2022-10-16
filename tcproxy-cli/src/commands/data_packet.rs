@@ -19,16 +19,28 @@ pub struct DataPacketCommand {
 impl DataPacketCommand {
     pub fn new(
         connection_id: Uuid,
-        buffer: BytesMut,
+        buffer: &BytesMut,
         buffer_size: u32,
         state: &Arc<ClientState>,
     ) -> Self {
         Self {
             connection_id,
-            buffer,
             buffer_size,
+            buffer: buffer.clone(),
             state: state.clone(),
         }
+    }
+
+    pub fn connection_id(&self) -> Uuid {
+        self.connection_id.clone()
+    }
+
+    pub fn buffer(&self) -> &BytesMut {
+        &self.buffer
+    }
+
+    pub fn buffer_size(&self) -> u32 {
+        self.buffer_size
     }
 }
 

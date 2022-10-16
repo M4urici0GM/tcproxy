@@ -9,7 +9,7 @@ use crate::{tcp::{TcpStream, SocketConnection}, Result, TcpFrame};
 /// represents TcpFrame buffer transport reader.
 /// reads and writes TcpFrames from/info underlying buffer.
 pub struct TcpFrameTransport {
-    reader: TransportReader,
+    reader: DefaultTransportReader,
     writer: TransportWriter,
 }
 
@@ -22,7 +22,7 @@ impl TcpFrameTransport {
         let (reader, writer) = connection.split();
         Self {
             writer: TransportWriter::new(writer),
-            reader: TransportReader::new(reader, 1024 * 8),
+                reader: DefaultTransportReader::new(reader, 1024 * 8),
         }
     }
 
@@ -37,7 +37,7 @@ impl TcpFrameTransport {
     }
 
     /// splits TcpFrameTransport into its reader and writer.
-    pub fn split(self) -> (TransportReader, TransportWriter) {
+    pub fn split(self) -> (DefaultTransportReader, TransportWriter) {
         (self.reader, self.writer)
     }
 }

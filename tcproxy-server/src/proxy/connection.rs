@@ -9,6 +9,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
 use crate::proxy::{ClientFrameReader, ClientFrameWriter};
+use crate::proxy::{DefaultFrameHandler, FrameHandler};
 use crate::ClientState;
 
 #[derive(Debug)]
@@ -37,21 +38,12 @@ impl ClientConnection {
         let transport = TcpFrameTransport::new(tcp_stream);
         let local_cancellation_token = CancellationToken::new();
 
-        let (reader, writer) = transport.split();
+        let (transport_reader, transport_writer) = transport.split();
         let (frame_tx, frame_rx) = mpsc::channel::<TcpFrame>(10000);
 
-        let client_reader = ClientFrameReader {
-            reader,
-            frame_tx,
-            target_ip: self.listen_ip,
-            state: self.state.clone(),
-        };
-
-        let proxy_writer = ClientFrameWriter {
-            writer,
-            receiver: frame_rx,
-            cancellation_token: local_cancellation_token.child_token(),
-        };
+        let frame_handler = DefaultFrameHandler::new(&self.listen_ip, &frame_tx, &self.state);
+        let client_reader = ClientFrameReader::new(&frame_tx, transport_reader, frame_handler);
+        let proxy_writer = ClientFrameWriter::new(frame_rx, transport_writer, &local_cancellation_token);
 
         tokio::select! {
             res = proxy_writer.start_writing() => {

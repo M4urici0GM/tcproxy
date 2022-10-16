@@ -13,7 +13,7 @@ use tracing::debug;
 use uuid::Bytes;
 
 use tcproxy_server::{extract_enum_value, AppArguments, Server};
-use tcproxy_core::{FrameError, TcpFrame};
+use tcproxy_core::{ClientPacketData, FrameError, TcpFrame};
 use tcproxy_core::tcp::{TcpListener, SocketListener};
 
 
@@ -130,12 +130,12 @@ async fn should_forward_data_successfully() {
 
     let _ = remote_stream.write_all(&expected_buffer[..]).await.unwrap();
 
-    let frame = receive_frame(&mut stream, &mut buffer).await.unwrap();
-    let buffer = extract_enum_value!(frame, TcpFrame::DataPacketHost {
-        buffer,
-        buffer_size: _,
-        connection_id: _
-    } => buffer);
+    let buffer = match receive_frame(&mut stream, &mut buffer).await.unwrap() {
+        TcpFrame::HostPacket(data) => data.buffer().clone(),
+        value => {
+            panic!("didn't expected value {value}");
+        }
+    };
 
     assert_eq!(buffer.len(), expected_buffer.len());
     assert_eq!(&buffer[..], &expected_buffer[..]);
@@ -165,11 +165,11 @@ async fn should_receive_data_successfully() -> Result<(), Box<dyn Error>> {
         TcpFrame::IncomingSocket { connection_id } => connection_id);
 
     let expected_buffer = generate_random_buffer(1024 * 4);
-    let frame = TcpFrame::DataPacketClient {
+    let frame = TcpFrame::ClientPacket(ClientPacketData::new(
         connection_id,
-        buffer: BytesMut::from(&expected_buffer[..]),
-        buffer_size: expected_buffer.len() as u32,
-    };
+        BytesMut::from(&expected_buffer[..]),
+        expected_buffer.len() as u32,
+    ));
 
     write_tcp_frame(&mut stream, frame).await;
 

@@ -1,21 +1,55 @@
 use bytes::{Buf, BytesMut};
-use std::io::Cursor;
+use std::io::{Cursor, Read};
+use async_trait::async_trait;
 use tokio::{
     io::{AsyncRead, AsyncReadExt},
     net::tcp::OwnedReadHalf,
 };
 use tracing::{debug, trace};
+use mockall::automock;
 
 use crate::{FrameError, Result, TcpFrame};
 
 /// represents TcpFrame transport reader
 /// read new frames from underlying buffer.
-pub struct TransportReader {
+pub struct DefaultTransportReader {
     buffer: BytesMut,
     reader: Box<dyn AsyncRead + Send + Unpin>,
 }
 
-impl TransportReader {
+#[automock]
+#[async_trait]
+pub trait TransportReader: Send {
+    async fn next(&mut self) -> Result<Option<TcpFrame>>;
+}
+
+#[async_trait]
+impl TransportReader for DefaultTransportReader {
+    async fn next(&mut self) -> Result<Option<TcpFrame>> {
+        loop {
+            if let Some(frame) = self.parse_frame().await? {
+                return Ok(Some(frame));
+            }
+
+            // when we read 0 from socket. it could mean two things.
+            // if the buffer is empty, it means that there's no data left to sent,
+            //   and the client disconnected gracefully.
+            // if the buffer is not empty, it means the socket closed before sending all required data,
+            // so probably socket was reset by peer.
+            if 0 == self.reader.read_buf(&mut self.buffer).await? {
+                trace!("read 0 bytes from client.");
+                if self.buffer.is_empty() {
+                    debug!("received 0 bytes from client, and buffer is empty.");
+                    return Ok(None);
+                }
+
+                return Err("connection reset by peer.".into());
+            }
+        }
+    }
+}
+
+impl DefaultTransportReader {
     pub fn new<T>(reader: T, buffer_size: usize) -> Self
     where
         T: AsyncRead  + Send + Unpin + 'static,
@@ -42,30 +76,6 @@ impl TransportReader {
             }
             Err(FrameError::Incomplete) => Ok(None),
             Err(err) => Err(err.into()),
-        }
-    }
-
-    /// tries getting next frame from underling buffer.
-    pub async fn next(&mut self) -> Result<Option<TcpFrame>> {
-        loop {
-            if let Some(frame) = self.parse_frame().await? {
-                return Ok(Some(frame));
-            }
-
-            // when we read 0 from socket. it could mean two things.
-            // if the buffer is empty, it means that there's no data left to sent,
-            //   and the client disconnected gracefully.
-            // if the buffer is not empty, it means the socket closed before sending all required data,
-            // so probably socket was reset by peer.
-            if 0 == self.reader.read_buf(&mut self.buffer).await? {
-                trace!("read 0 bytes from client.");
-                if self.buffer.is_empty() {
-                    debug!("received 0 bytes from client, and buffer is empty.");
-                    return Ok(None);
-                }
-
-                return Err("connection reset by peer.".into());
-            }
         }
     }
 }
