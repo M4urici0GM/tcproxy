@@ -1,17 +1,17 @@
 
 #[cfg(test)]
 pub fn generate_random_buffer(buffer_size: i32) -> bytes::BytesMut {
-  use bytes::BufMut;
+    use bytes::{BufMut, BytesMut};
 
-  let mut buffer = bytes::BytesMut::with_capacity(buffer_size as usize);
+    let initial_vec: Vec<u8> = vec![];
+    let result = (0..buffer_size)
+        .map(|_| rand::random::<u8>())
+        .fold(initial_vec, |mut a, b| {
+            a.put_u8(b);
+            a
+        });
 
-  (0..buffer_size)
-      .for_each(|_| {
-          let random = rand::random::<u8>();
-          buffer.put_u8(random);
-      });
-
-  return buffer;
+    BytesMut::from(result.as_slice())
 }
 
 #[macro_export]
