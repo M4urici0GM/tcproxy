@@ -36,7 +36,9 @@ impl LocalConnection {
 
                 let _ = self
                     .sender
-                    .send(TcpFrame::ClientUnableToConnect { connection_id: self.connection_id })
+                    .send(TcpFrame::ClientUnableToConnect {
+                        connection_id: self.connection_id,
+                    })
                     .await;
 
                 Err(err.into())

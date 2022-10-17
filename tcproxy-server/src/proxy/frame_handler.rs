@@ -1,15 +1,16 @@
+use async_trait::async_trait;
 use std::net::IpAddr;
 use std::sync::Arc;
-use async_trait::async_trait;
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
-
-use tcproxy_core::{AsyncCommand, Result};
-use tcproxy_core::TcpFrame;
+use crate::commands::{
+    ClientConnectedCommand, DataPacketClientCommand, LocalClientDisconnectedCommand, PingCommand,
+};
 use crate::ClientState;
-use crate::commands::{ClientConnectedCommand, DataPacketClientCommand, LocalClientDisconnectedCommand, PingCommand};
+use tcproxy_core::TcpFrame;
+use tcproxy_core::{AsyncCommand, Result};
 
 #[async_trait]
 pub trait FrameHandler: Sync + Send {
@@ -19,7 +20,6 @@ pub trait FrameHandler: Sync + Send {
         cancellation_token: CancellationToken,
     ) -> Result<Option<TcpFrame>>;
 }
-
 
 pub struct DefaultFrameHandler {
     target_ip: IpAddr,
@@ -44,16 +44,14 @@ impl FrameHandler for DefaultFrameHandler {
         frame: TcpFrame,
         cancellation_token: CancellationToken,
     ) -> Result<Option<TcpFrame>> {
-        let mut command_handler: Box<dyn AsyncCommand<Output=Result<()>>> = match frame {
+        let mut command_handler: Box<dyn AsyncCommand<Output = Result<()>>> = match frame {
             TcpFrame::Ping => Box::new(PingCommand::new(&self.frame_tx)),
             TcpFrame::LocalClientDisconnected { connection_id } => Box::new(
                 LocalClientDisconnectedCommand::new(connection_id, &self.state),
             ),
-            TcpFrame::ClientPacket(data) => DataPacketClientCommand::boxed_new(
-                data.buffer(),
-                data.connection_id(),
-                &self.state,
-            ),
+            TcpFrame::ClientPacket(data) => {
+                DataPacketClientCommand::boxed_new(data.buffer(), data.connection_id(), &self.state)
+            }
             TcpFrame::ClientConnected => Box::new(ClientConnectedCommand {
                 target_ip: self.target_ip,
                 state: self.state.clone(),

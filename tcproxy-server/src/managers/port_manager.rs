@@ -2,8 +2,8 @@ use rand::Rng;
 use std::ops::Range;
 use std::sync::Arc;
 use std::sync::Mutex;
-use tracing::{error, debug};
 use tcproxy_core::Result;
+use tracing::{debug, error};
 
 #[derive(Debug, Clone)]
 pub struct PortManager {

@@ -18,7 +18,7 @@ impl ClientFrameReader {
     pub fn new<T, V>(sender: &Sender<TcpFrame>, reader: V, frame_handler: T) -> Self
     where
         T: FrameHandler + 'static,
-        V: TransportReader + 'static
+        V: TransportReader + 'static,
     {
         Self {
             reader: Box::new(reader),
@@ -53,7 +53,10 @@ impl ClientFrameReader {
             if let Some(frame_result) = self
                 .frame_handler
                 .handle_frame(frame, cancellation_token.child_token())
-                .await? { self.frame_tx.send(frame_result).await? }
+                .await?
+            {
+                self.frame_tx.send(frame_result).await?
+            }
         }
 
         Ok(())

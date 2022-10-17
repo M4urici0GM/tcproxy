@@ -1,14 +1,14 @@
 use async_trait::async_trait;
-use tcproxy_core::tcp::{TcpListener, SocketListener};
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
-use tcproxy_core::{Result, TcpFrame, AsyncCommand};
+use tcproxy_core::tcp::{SocketListener, TcpListener};
+use tcproxy_core::{AsyncCommand, Result, TcpFrame};
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
-use crate::ClientState;
 use crate::proxy::ProxyServer;
+use crate::ClientState;
 
 pub struct ClientConnectedCommand {
     pub(crate) target_ip: IpAddr,
@@ -30,7 +30,6 @@ impl AsyncCommand for ClientConnectedCommand {
                 return Err(err);
             }
         };
-
 
         let target_ip = SocketAddr::new(self.target_ip, target_port);
         let listener = TcpListener::bind(target_ip).await?;

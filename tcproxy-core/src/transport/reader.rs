@@ -1,11 +1,9 @@
-use bytes::{Buf, BytesMut};
-use std::io::Cursor;
 use async_trait::async_trait;
-use tokio::{
-    io::{AsyncRead, AsyncReadExt},
-};
-use tracing::{debug, trace};
+use bytes::{Buf, BytesMut};
 use mockall::automock;
+use std::io::Cursor;
+use tokio::io::{AsyncRead, AsyncReadExt};
+use tracing::{debug, trace};
 
 use crate::{FrameError, Result, TcpFrame};
 
@@ -51,7 +49,7 @@ impl TransportReader for DefaultTransportReader {
 impl DefaultTransportReader {
     pub fn new<T>(reader: T, buffer_size: usize) -> Self
     where
-        T: AsyncRead  + Send + Unpin + 'static,
+        T: AsyncRead + Send + Unpin + 'static,
     {
         Self {
             reader: Box::new(reader),

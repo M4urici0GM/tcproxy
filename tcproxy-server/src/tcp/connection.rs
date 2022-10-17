@@ -1,8 +1,8 @@
 use std::net::SocketAddr;
 
 use bytes::BytesMut;
-use tcproxy_core::TcpFrame;
 use tcproxy_core::tcp::SocketConnection;
+use tcproxy_core::TcpFrame;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::OwnedSemaphorePermit;
@@ -37,8 +37,8 @@ impl RemoteConnection {
     }
 
     pub async fn start<T>(&mut self, connection: T, receiver: Receiver<BytesMut>) -> Result<()>
-        where
-            T: SocketConnection,
+    where
+        T: SocketConnection,
     {
         let (reader, writer) = connection.split();
         tokio::select! {
@@ -53,7 +53,9 @@ impl RemoteConnection {
 
         let _ = self
             .client_sender
-            .send(TcpFrame::RemoteSocketDisconnected { connection_id: self.connection_id })
+            .send(TcpFrame::RemoteSocketDisconnected {
+                connection_id: self.connection_id,
+            })
             .await;
 
         Ok(())

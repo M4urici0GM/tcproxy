@@ -1,13 +1,13 @@
-use std::sync::Arc;
 use async_trait::async_trait;
 use bytes::BytesMut;
-use tcproxy_core::{Result, TcpFrame, AsyncCommand};
+use std::sync::Arc;
+use tcproxy_core::{AsyncCommand, Result, TcpFrame};
 use tokio::sync::mpsc::{self, Sender};
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use uuid::Uuid;
 
-use crate::{LocalConnection, client_state::ClientState, ListenArgs};
+use crate::{client_state::ClientState, ListenArgs, LocalConnection};
 
 /// issued when a remote socket connects to server.
 pub struct IncomingSocketCommand {
@@ -18,7 +18,12 @@ pub struct IncomingSocketCommand {
 }
 
 impl IncomingSocketCommand {
-    pub fn new(id: Uuid, sender: &Sender<TcpFrame>, state: &Arc<ClientState>, args: &Arc<ListenArgs>) -> Self {
+    pub fn new(
+        id: Uuid,
+        sender: &Sender<TcpFrame>,
+        state: &Arc<ClientState>,
+        args: &Arc<ListenArgs>,
+    ) -> Self {
         Self {
             connection_id: id,
             args: args.clone(),
@@ -38,12 +43,14 @@ impl AsyncCommand for IncomingSocketCommand {
         let token = CancellationToken::new();
         let cancellation_token = token.child_token();
 
-        self.state.insert_connection(self.connection_id, connection_sender, token);
+        self.state
+            .insert_connection(self.connection_id, connection_sender, token);
 
         let target_ip = self.args.parse_socket_addr();
         let connection_id = self.connection_id;
         let sender = self.client_sender.clone();
-        let mut local_connection = LocalConnection::new(self.connection_id, &self.client_sender, target_ip);
+        let mut local_connection =
+            LocalConnection::new(self.connection_id, &self.client_sender, target_ip);
 
         tokio::spawn(async move {
             let _ = local_connection

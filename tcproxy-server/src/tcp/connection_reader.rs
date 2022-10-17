@@ -70,19 +70,18 @@ impl RemoteConnectionReader {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
     use bytes::{BufMut, BytesMut};
+    use std::io::Cursor;
 
+    use crate::tests::utils::generate_random_buffer;
     use tcproxy_core::TcpFrame;
     use tokio::sync::mpsc;
     use uuid::Uuid;
-    use crate::tests::utils::generate_random_buffer;
 
     use super::RemoteConnectionReader;
 
     #[tokio::test]
     async fn should_stop_if_read_zero_bytes() {
-
         // Arrange
         let uuid = Uuid::new_v4();
         let (sender, mut receiver) = mpsc::channel::<TcpFrame>(1);
@@ -105,7 +104,6 @@ mod tests {
         assert_eq!(true, receiver_result.is_none());
     }
 
-
     #[tokio::test]
     async fn should_read_correctly() {
         // Arrange
@@ -113,7 +111,6 @@ mod tests {
         let expected_buff_size = 1024 * 6;
         let random_buffer = generate_random_buffer(expected_buff_size);
         let (sender, mut receiver) = mpsc::channel::<TcpFrame>(3);
-
 
         let mut reader = RemoteConnectionReader::new(uuid, &sender);
         let cursor = Cursor::new(&random_buffer[..]);
@@ -127,7 +124,7 @@ mod tests {
                 match frame {
                     TcpFrame::HostPacket(data) => {
                         final_buff.put_slice(&data.buffer()[..]);
-                    },
+                    }
                     value => {
                         panic!("didnt expected {value}");
                     }
@@ -135,7 +132,7 @@ mod tests {
             }
         }
 
-        assert!(final_buff.len() > 0);
+        assert!(!final_buff.is_empty());
         assert_eq!(final_buff.len(), random_buffer.len());
         assert_eq!(&final_buff[..], &random_buffer[..]);
     }

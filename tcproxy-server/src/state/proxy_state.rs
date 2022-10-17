@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::ops::Range;
+use std::sync::Arc;
 
 use crate::managers::{ConnectionsManager, PortManager};
 

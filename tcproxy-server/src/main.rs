@@ -1,10 +1,10 @@
-use tracing::{info};
 use clap::Parser;
 use tokio::signal;
+use tracing::info;
 
-use tcproxy_server::{AppArguments, Server};
+use tcproxy_core::tcp::{SocketListener, TcpListener};
 use tcproxy_core::Result;
-use tcproxy_core::tcp::{TcpListener, SocketListener};
+use tcproxy_server::{AppArguments, Server};
 
 #[tokio::main]
 async fn main() -> Result<()> {

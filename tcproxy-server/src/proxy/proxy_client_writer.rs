@@ -38,7 +38,7 @@ impl ClientFrameWriter {
             match self.receiver.recv().await {
                 Some(frame) => {
                     self.writer.send(frame).await?;
-                },
+                }
                 None => {
                     debug!("received None from client channel");
                     break;
@@ -51,6 +51,4 @@ impl ClientFrameWriter {
 }
 
 #[cfg(test)]
-mod tests {
-
-}
+mod tests {}

@@ -6,9 +6,9 @@ struct GetPortCommand;
 
 #[async_trait]
 impl Command for GetPortCommand {
-  type Output = Result<u16>;
+    type Output = Result<u16>;
 
-  fn handle(&mut self) -> Self::Output {
-    todo!() 
-  }
+    fn handle(&mut self) -> Self::Output {
+        todo!()
+    }
 }

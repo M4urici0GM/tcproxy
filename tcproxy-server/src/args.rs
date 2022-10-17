@@ -1,9 +1,9 @@
+use clap::Parser;
 use std::net::{IpAddr, SocketAddr};
 use std::ops::Range;
 use std::str::FromStr;
-use clap::Parser;
-use tracing::{error, info};
 use tcproxy_core::Result;
+use tracing::{error, info};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -27,9 +27,15 @@ impl AppArguments {
         }
     }
 
-    pub fn port(&self) -> u16 { self.port }
-    pub fn ip(&self) -> &str { &self.ip }
-    pub fn port_range(&self) -> &str { &self.port_range }
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+    pub fn ip(&self) -> &str {
+        &self.ip
+    }
+    pub fn port_range(&self) -> &str {
+        &self.port_range
+    }
 
     pub fn parse_ip(&self) -> Result<IpAddr> {
         match IpAddr::from_str(&self.ip) {
@@ -37,7 +43,7 @@ impl AppArguments {
             Err(err) => {
                 error!("Fai led when parsing IP Address: {}", err);
                 Err(err.into())
-            },
+            }
         }
     }
 
@@ -55,7 +61,6 @@ impl AppArguments {
         Ok(initial_port..final_port)
     }
 }
-
 
 fn parse_port_range(s: &str) -> Result<String> {
     let groups: Vec<&str> = s.split(':').collect();

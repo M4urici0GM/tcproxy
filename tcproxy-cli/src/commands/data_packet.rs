@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use bytes::BytesMut;
-use tcproxy_core::{Result, AsyncCommand};
+use tcproxy_core::{AsyncCommand, Result};
 use tracing::debug;
 use uuid::Uuid;
 

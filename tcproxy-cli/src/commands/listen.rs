@@ -1,14 +1,13 @@
-use std::net::SocketAddr;
-use std::sync::Arc;
-use std::str::FromStr;
 use async_trait::async_trait;
+use std::net::SocketAddr;
+use std::str::FromStr;
+use std::sync::Arc;
 use tokio::net::TcpStream as TokioTcpStream;
 use tokio::sync::mpsc;
 use tracing::{debug, error};
 
-
-use tcproxy_core::{transport::TcpFrameTransport, AsyncCommand, Result, TcpFrame};
 use tcproxy_core::tcp::TcpStream;
+use tcproxy_core::{transport::TcpFrameTransport, AsyncCommand, Result, TcpFrame};
 
 use crate::{ClientState, ConsoleUpdater, ListenArgs, PingSender, TcpFrameReader, TcpFrameWriter};
 
@@ -18,9 +17,7 @@ pub struct ListenCommand {
 
 impl ListenCommand {
     pub fn new(args: Arc<ListenArgs>) -> Self {
-        Self {
-            args,
-        }
+        Self { args }
     }
 
     /// connects to remote server.

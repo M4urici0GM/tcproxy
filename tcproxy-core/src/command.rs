@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 
-
 /// represents a issued command.
 pub trait Command: Sync + Send {
     type Output;
@@ -15,4 +14,3 @@ pub trait AsyncCommand: Sync + Send {
 
     async fn handle(&mut self) -> Self::Output;
 }
-

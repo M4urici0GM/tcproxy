@@ -22,7 +22,7 @@ impl TcpFrameTransport {
         let (reader, writer) = connection.split();
         Self {
             writer: TransportWriter::new(writer),
-                reader: DefaultTransportReader::new(reader, 1024 * 8),
+            reader: DefaultTransportReader::new(reader, 1024 * 8),
         }
     }
 

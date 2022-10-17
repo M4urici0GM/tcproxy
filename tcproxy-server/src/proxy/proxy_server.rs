@@ -1,6 +1,6 @@
 use bytes::BytesMut;
 use std::sync::Arc;
-use tcproxy_core::{TcpFrame};
+use tcproxy_core::TcpFrame;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Semaphore;

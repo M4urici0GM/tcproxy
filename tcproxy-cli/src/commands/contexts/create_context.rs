@@ -1,24 +1,22 @@
+use directories::{self, ProjectDirs};
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
-use std::net::{IpAddr};
+use std::net::IpAddr;
 use std::path::{Path, PathBuf};
-use serde::{Serialize, Deserialize};
-use directories::{self, ProjectDirs};
 
 use tcproxy_core::{Command, Result};
 
 use crate::CreateContextArgs;
 
 pub struct CreateContextCommand {
-    args: CreateContextArgs
+    args: CreateContextArgs,
 }
 
 impl CreateContextCommand {
     pub fn new(args: &CreateContextArgs) -> Self {
-        Self {
-            args: args.clone(),
-        }
+        Self { args: args.clone() }
     }
 
     fn get_config_dir(&self) -> Option<ProjectDirs> {
@@ -42,11 +40,7 @@ fn open_or_create(path: &Path) -> Result<File> {
         fs::create_dir_all(parent)?;
     }
 
-    let mut file = options
-        .write(true)
-        .read(true)
-        .create(true)
-        .open(path)?;
+    let mut file = options.write(true).read(true).create(true).open(path)?;
 
     let empty_config = AppConfig {
         default_context: String::default(),
@@ -62,7 +56,7 @@ fn open_or_create(path: &Path) -> Result<File> {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct ContextConfig {
     name: String,
-    ip: IpAddr
+    ip: IpAddr,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -70,7 +64,6 @@ struct AppConfig {
     default_context: String,
     contexts: Vec<ContextConfig>,
 }
-
 
 impl Command for CreateContextCommand {
     type Output = tcproxy_core::Result<()>;
@@ -91,8 +84,12 @@ impl Command for CreateContextCommand {
 
         let mut config = serde_yaml::from_str::<AppConfig>(&contents)?;
 
-        let name= &self.args.name;
-        if config.contexts.iter().any(|cfg| { cfg.name == self.args.name && cfg.ip == self.args.host }) {
+        let name = &self.args.name;
+        if config
+            .contexts
+            .iter()
+            .any(|cfg| cfg.name == self.args.name && cfg.ip == self.args.host)
+        {
             return Err("".into());
         }
 
@@ -100,12 +97,12 @@ impl Command for CreateContextCommand {
             config.default_context = name.to_owned();
             config.contexts.push(ContextConfig {
                 ip: self.args.host,
-                name: name.to_owned()
+                name: name.to_owned(),
             });
         } else {
             config.contexts.push(ContextConfig {
                 ip: self.args.host,
-                name: name.to_owned()
+                name: name.to_owned(),
             });
         }
 
@@ -113,7 +110,10 @@ impl Command for CreateContextCommand {
         let stream = serde_yaml::to_string(&config)?;
         drop(file);
 
-        let mut file = OpenOptions::new().read(true).write(true).open(path_buf.as_path())?;
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(path_buf.as_path())?;
         file.write_all(stream.as_bytes())?;
         Ok(())
     }

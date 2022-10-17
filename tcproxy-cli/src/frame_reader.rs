@@ -1,13 +1,15 @@
 use chrono::Utc;
 use std::sync::Arc;
-use tracing::debug;
 use tokio::{sync::mpsc::Sender, task::JoinHandle};
+use tracing::debug;
 
+use tcproxy_core::transport::TransportReader;
 use tcproxy_core::AsyncCommand;
 use tcproxy_core::{transport::DefaultTransportReader, Result, TcpFrame};
-use tcproxy_core::transport::TransportReader;
 
-use crate::{ClientState, DataPacketCommand, IncomingSocketCommand, RemoteDisconnectedCommand, ListenArgs};
+use crate::{
+    ClientState, DataPacketCommand, IncomingSocketCommand, ListenArgs, RemoteDisconnectedCommand,
+};
 
 pub struct TcpFrameReader {
     sender: Sender<TcpFrame>,
@@ -21,7 +23,7 @@ impl TcpFrameReader {
         sender: &Sender<TcpFrame>,
         state: &Arc<ClientState>,
         reader: DefaultTransportReader,
-        args: &Arc<ListenArgs>
+        args: &Arc<ListenArgs>,
     ) -> Self {
         Self {
             args: args.clone(),

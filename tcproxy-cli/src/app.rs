@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use tcproxy_core::{Command, AsyncCommand};
 use tcproxy_core::Result;
+use tcproxy_core::{AsyncCommand, Command};
 
-use crate::{AppCommandType, ContextCommands};
-use crate::ClientArgs;
 use crate::contexts::CreateContextCommand;
+use crate::ClientArgs;
 use crate::ListenCommand;
+use crate::{AppCommandType, ContextCommands};
 
 /// represents main app logic.
 pub struct App {
@@ -44,5 +44,4 @@ impl App {
         }
         Ok(())
     }
-
 }
