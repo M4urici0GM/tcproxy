@@ -11,6 +11,7 @@ pub struct RemoteConnectionWriter {
     receiver: Receiver<BytesMut>,
 }
 
+/// Writes buffers into remote connection.
 impl RemoteConnectionWriter {
     pub fn new(receiver: Receiver<BytesMut>, connection_addr: SocketAddr) -> Self {
         Self {
@@ -56,7 +57,8 @@ mod tests {
     use bytes::BytesMut;
     use mockall::mock;
     use std::io;
-    use std::result;
+    use std::io::Cursor;
+    use std::net::IpAddr;
     use tokio::sync::mpsc;
 
     use crate::tests::utils::generate_random_buffer;
@@ -66,41 +68,30 @@ mod tests {
 
         impl AsyncWrite for Writer {
             fn poll_write<'a>(mut self: Pin<&mut Self>, _cx: &mut Context<'a>, buf: &[u8]) -> Poll<io::Result<usize>>;
-            fn poll_flush<'a>(self: Pin<&mut Self>, _cx: &mut Context<'a>) -> Poll<result::Result<(), io::Error>>;
-            fn poll_shutdown<'a>(self: Pin<&mut Self>, _cx: &mut Context<'a>) -> Poll<result::Result<(), io::Error>>;
+            fn poll_flush<'a>(self: Pin<&mut Self>, _cx: &mut Context<'a>) -> Poll<std::result::Result<(), io::Error>>;
+            fn poll_shutdown<'a>(self: Pin<&mut Self>, _cx: &mut Context<'a>) -> Poll<std::result::Result<(), io::Error>>;
         }
     }
 
+
     #[tokio::test]
     async fn should_write_buffer_correctly() {
-        let random_buffer = generate_random_buffer(1024 * 8);
+        let random_buffer = generate_random_buffer(1024);
 
-        let ip = Ipv4Addr::new(127, 0, 0, 1);
-        let addr = SocketAddr::new(std::net::IpAddr::V4(ip), 80);
-        let (sender, receiver) = mpsc::channel::<BytesMut>(10);
+        let mut bytes_buff: Vec<u8> = vec![];
+        let cursor = Cursor::new(&mut bytes_buff);
+        let (sender, receiver) = mpsc::channel::<BytesMut>(1);
 
-        let mut mocked_stream = MockWriter::new();
+        let addr = SocketAddr::new(IpAddr::from([127, 0, 0, 1]), 0);
         let mut connection_writer = RemoteConnectionWriter::new(receiver, addr);
 
         let _ = sender.send(BytesMut::from(&random_buffer[..])).await;
         drop(sender);
 
-        mocked_stream
-            .expect_poll_write()
-            .withf(move |_, buff| {
-                buff.iter()
-                    .enumerate()
-                    .all(|(i, value)| random_buffer[i] == *value)
-            })
-            .returning(|_, _| Poll::Ready(Ok(0)));
+        let result = connection_writer.start(Box::new(cursor)).await;
 
-        mocked_stream
-            .expect_poll_flush()
-            .times(1)
-            .returning(|_| Poll::Ready(Ok(())));
-
-        let result = connection_writer.start(Box::new(mocked_stream)).await;
         assert_eq!(true, result.is_ok());
+        assert_eq!(&bytes_buff[..], &random_buffer[..]);
     }
 
     #[tokio::test]
@@ -125,4 +116,5 @@ mod tests {
         assert_eq!(true, result.is_ok());
         assert_eq!(true, sender.is_closed());
     }
+
 }

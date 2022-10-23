@@ -11,6 +11,7 @@ use tcproxy_core::tcp::{SocketConnection, SocketListener};
 
 use crate::proxy::ClientConnection;
 
+/// Represents the server application
 #[derive(Debug)]
 pub struct Server {
     port_range: Range<u16>,

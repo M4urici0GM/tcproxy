@@ -11,6 +11,7 @@ use crate::commands::{
 use crate::ClientState;
 use tcproxy_core::TcpFrame;
 use tcproxy_core::{AsyncCommand, Result};
+use tcproxy_core::TcpFrame::ClientConnected;
 
 #[async_trait]
 pub trait FrameHandler: Sync + Send {
@@ -52,12 +53,12 @@ impl FrameHandler for DefaultFrameHandler {
             TcpFrame::ClientPacket(data) => {
                 DataPacketClientCommand::boxed_new(data.buffer(), data.connection_id(), &self.state)
             }
-            TcpFrame::ClientConnected => Box::new(ClientConnectedCommand {
-                target_ip: self.target_ip,
-                state: self.state.clone(),
-                sender: self.frame_tx.clone(),
-                cancellation_token: cancellation_token.child_token(),
-            }),
+            TcpFrame::ClientConnected => Box::new(ClientConnectedCommand::new(
+                    &self.target_ip,
+                &self.frame_tx,
+                &self.state,
+                &cancellation_token,
+            )),
             _ => {
                 debug!("invalid frame received.");
                 return Ok(None);
