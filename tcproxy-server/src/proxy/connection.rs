@@ -1,5 +1,6 @@
 use std::net::IpAddr;
 use std::ops::Range;
+use std::rc::Rc;
 use std::sync::Arc;
 use tcproxy_core::tcp::SocketConnection;
 use tcproxy_core::transport::TcpFrameTransport;
@@ -10,19 +11,19 @@ use tracing::debug;
 
 use crate::proxy::DefaultFrameHandler;
 use crate::proxy::{ClientFrameReader, ClientFrameWriter};
-use crate::ClientState;
+use crate::{ClientState, ServerConfig};
 
 #[derive(Debug)]
 pub struct ClientConnection {
-    pub(crate) listen_ip: IpAddr,
-    pub(crate) state: Arc<ClientState>,
+    server_config: Arc<ServerConfig>,
+    state: Arc<ClientState>,
 }
 
 impl ClientConnection {
-    pub fn new(listen_ip: &IpAddr, port_range: &Range<u16>) -> Self {
+    pub fn new(config: &Arc<ServerConfig>) -> Self {
         Self {
-            listen_ip: *listen_ip,
-            state: ClientState::new(port_range),
+            server_config: config.clone(),
+            state: ClientState::new(config.get_port_range()),
         }
     }
 
@@ -41,7 +42,7 @@ impl ClientConnection {
         let (transport_reader, transport_writer) = transport.split();
         let (frame_tx, frame_rx) = mpsc::channel::<TcpFrame>(10000);
 
-        let frame_handler = DefaultFrameHandler::new(&self.listen_ip, &frame_tx, &self.state);
+        let frame_handler = DefaultFrameHandler::new(&self.server_config, &frame_tx, &self.state);
         let client_reader = ClientFrameReader::new(&frame_tx, transport_reader, frame_handler);
         let proxy_writer =
             ClientFrameWriter::new(frame_rx, transport_writer, &local_cancellation_token);

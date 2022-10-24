@@ -1,33 +1,32 @@
 use std::fmt::Debug;
 use std::future::Future;
-use std::net::{IpAddr, SocketAddr};
-use std::ops::Range;
+use std::net::SocketAddr;
+use std::sync::Arc;
 use tcproxy_core::Result;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
 
 use tcproxy_core::tcp::{SocketConnection, SocketListener};
+use crate::managers::FeatureManager;
 
 use crate::proxy::ClientConnection;
 
 /// Represents the server application
-#[derive(Debug)]
 pub struct Server {
-    port_range: Range<u16>,
-    listen_ip: IpAddr,
+    feature_manager: Box<dyn FeatureManager>,
     server_listener: Box<dyn SocketListener>,
 }
 
 impl Server {
-    pub fn new<T>(port_range: &Range<u16>, listen_ip: &IpAddr, listener: T) -> Self
+    pub fn new<TListener, TFeatureManager>(feature_manager: TFeatureManager, listener: TListener) -> Self
     where
-        T: SocketListener + 'static,
+        TListener: SocketListener + 'static,
+        TFeatureManager: FeatureManager + 'static
     {
         Self {
+            feature_manager: Box::new(feature_manager),
             server_listener: Box::new(listener),
-            listen_ip: *listen_ip,
-            port_range: port_range.clone(),
         }
     }
 
@@ -65,7 +64,7 @@ impl Server {
     where
         T: SocketConnection + 'static,
     {
-        let mut proxy_client = ClientConnection::new(&self.listen_ip, &self.port_range);
+        let mut proxy_client = ClientConnection::new(&self.server_config);
         tokio::spawn(async move {
             let socket_addr = socket.addr();
 

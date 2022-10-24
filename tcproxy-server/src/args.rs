@@ -1,68 +1,68 @@
+use std::{net::{IpAddr, Ipv4Addr}, ops::Range};
+
 use clap::Parser;
-use std::net::{IpAddr, SocketAddr};
-use std::ops::Range;
-use std::str::FromStr;
 use tcproxy_core::Result;
-use tracing::{error, info};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 pub struct AppArguments {
-    #[clap(short, long, value_parser, default_value = "8080")]
-    port: u16,
+    #[clap(short, long, value_parser)]
+    port: Option<u16>,
 
-    #[clap(short, long, value_parser, default_value = "0.0.0.0")]
-    ip: String,
+    #[clap(short, long, value_parser)]
+    ip: Option<IpAddr>,
 
-    #[clap(short = 'D', long, value_parser = parse_port_range, default_value = "10000:25000")]
-    port_range: String,
+    #[clap(short = 'D', long, value_parser = parse_port_range)]
+    port_range: Option<Range<u16>>,
+
+    #[clap(long = "max-connections-per-proxy")]
+    max_connections_per_proxy: Option<u16>
 }
 
 impl AppArguments {
-    pub fn new(port: u16, ip: &str, port_range: &str) -> Self {
+    pub fn new(
+        port: Option<u16>,
+        ip: Option<IpAddr>,
+        port_range: Option<Range<u16>>,
+        max_connections_per_proxy: Option<u16>
+    ) -> Self {
         Self {
             port,
-            ip: String::from(ip),
-            port_range: String::from(port_range),
+            ip,
+            port_range,
+            max_connections_per_proxy,
         }
     }
 
-    pub fn port(&self) -> u16 {
+    pub fn get_port(&self) -> Option<u16> {
         self.port
     }
-    pub fn ip(&self) -> &str {
-        &self.ip
-    }
-    pub fn port_range(&self) -> &str {
-        &self.port_range
+
+    pub fn get_ip(&self) -> Option<IpAddr> {
+        self.ip
     }
 
-    pub fn parse_ip(&self) -> Result<IpAddr> {
-        match IpAddr::from_str(&self.ip) {
-            Ok(ip) => Ok(ip),
-            Err(err) => {
-                error!("Fai led when parsing IP Address: {}", err);
-                Err(err.into())
-            }
-        }
+    pub fn get_port_range(&self) -> Option<Range<u16>> {
+        self.port_range.clone()
     }
 
-    pub fn get_socket_addr(&self) -> SocketAddr {
-        SocketAddr::new(self.parse_ip().unwrap(), self.port)
-    }
-
-    pub fn parse_port_range(&self) -> Result<Range<u16>> {
-        info!("{}", self.port_range);
-
-        let groups: Vec<&str> = self.port_range.split(':').collect();
-        let initial_port = groups[0].to_owned().parse::<u16>()?;
-        let final_port = groups[1].to_owned().parse::<u16>()?;
-
-        Ok(initial_port..final_port)
+    pub fn get_max_connections_per_proxy(&self) -> Option<u16> {
+        self.max_connections_per_proxy
     }
 }
 
-fn parse_port_range(s: &str) -> Result<String> {
+impl Default for AppArguments {
+    fn default() -> Self {
+        Self {
+            port: None,
+            ip: None,
+            port_range: None,
+            max_connections_per_proxy: None,
+        }
+    }
+}
+
+fn parse_port_range(s: &str) -> Result<Range<u16>> {
     let groups: Vec<&str> = s.split(':').collect();
     if 2 > groups.len() {
         return Err(format!("Invalid port range: {}", s).into());
@@ -75,5 +75,5 @@ fn parse_port_range(s: &str) -> Result<String> {
         return Err(format!("Invalid por values.. {}", s).into());
     }
 
-    Ok(String::from(s))
+    Ok(initial_port?..final_port?)
 }

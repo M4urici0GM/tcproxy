@@ -6,6 +6,7 @@ use std::error::Error;
 use std::io::Cursor;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::str::FromStr;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -14,7 +15,7 @@ use uuid::Bytes;
 
 use tcproxy_core::tcp::{SocketListener, TcpListener};
 use tcproxy_core::{ClientPacketData, FrameError, TcpFrame};
-use tcproxy_server::{extract_enum_value, AppArguments, Server};
+use tcproxy_server::{extract_enum_value, AppArguments, Server, ServerConfig};
 
 #[cfg(test)]
 #[tokio::test]
@@ -233,14 +234,20 @@ async fn read_frame(
 }
 
 async fn create_server() -> SocketAddr {
-    let port_range = 11000..15000;
     let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
     let socket_addr = SocketAddr::new(ip, 0);
 
     let listener = TcpListener::bind(socket_addr).await.unwrap();
     let listen_ip = listener.listen_ip().unwrap();
+    let server_config = ServerConfig::new(
+        11000,
+        15000,
+        ip,
+        0,
+        "proxy.server.local",
+        120);
 
-    let mut server = Server::new(&port_range, &ip, listener);
+    let mut server = Server::new(Arc::new(server_config), listener);
 
     tokio::spawn(async move {
         let result = server.run(tokio::signal::ctrl_c()).await;

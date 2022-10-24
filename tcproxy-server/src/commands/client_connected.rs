@@ -1,8 +1,9 @@
 use async_trait::async_trait;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
+use clap::command;
 use tcproxy_core::tcp::{SocketListener, TcpListener};
-use tcproxy_core::{AsyncCommand, Result, TcpFrame};
+use tcproxy_core::{AsyncCommand, Command, Result, TcpFrame};
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error};
@@ -33,6 +34,16 @@ impl ClientConnectedCommand {
         }
     }
 
+    pub fn boxed_new(
+        target_ip: &IpAddr,
+        sender: &Sender<TcpFrame>,
+        state: &Arc<ClientState>,
+        cancellation_token: &CancellationToken
+    ) -> Box<Self> {
+        let local_self = ClientConnectedCommand::new(target_ip, sender, state, cancellation_token);
+        Box::new(local_self)
+    }
+
     async fn get_available_port(&self) -> Result<u16> {
         match self.state.ports.get_port().await {
             Ok(port) => Ok(port),
@@ -49,7 +60,6 @@ impl ClientConnectedCommand {
     }
 }
 
-
 #[async_trait]
 impl AsyncCommand for ClientConnectedCommand {
     type Output = Result<()>;
@@ -57,7 +67,18 @@ impl AsyncCommand for ClientConnectedCommand {
     async fn handle(&mut self) -> Self::Output {
         let target_port = self.get_available_port().await?;
         let target_ip = SocketAddr::new(self.target_ip, target_port);
-        let listener = TcpListener::bind(target_ip).await?;
+        let listener = match TcpListener::bind(target_ip).await {
+            Ok(listener) => listener,
+            Err(err) => {
+                error!("error when trying to spawn tcp proxy listener. {}", err);
+                let _ = self
+                    .client_sender
+                    .send(TcpFrame::FailedToCreateProxy)
+                    .await;
+
+                return Err(err);
+            }
+        };
 
         let proxy_server = ProxyServer {
             target_port,
@@ -68,6 +89,12 @@ impl AsyncCommand for ClientConnectedCommand {
         };
 
         let _ = proxy_server.spawn();
+        let _ = self
+            .client_sender
+            .send(TcpFrame::ClientConnectedAck {
+                port: target_port,
+            })
+            .await;
 
         Ok(())
     }

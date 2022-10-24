@@ -1,5 +1,7 @@
 use async_trait::async_trait;
 use std::net::IpAddr;
+use std::ops::Deref;
+use std::rc::Rc;
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
@@ -8,14 +10,13 @@ use tracing::debug;
 use crate::commands::{
     ClientConnectedCommand, DataPacketClientCommand, LocalClientDisconnectedCommand, PingCommand,
 };
-use crate::ClientState;
+use crate::{ClientState, ServerConfig};
 use tcproxy_core::TcpFrame;
 use tcproxy_core::{AsyncCommand, Result};
-use tcproxy_core::TcpFrame::ClientConnected;
 
 #[async_trait]
-pub trait FrameHandler: Sync + Send {
-    async fn handle_frame(
+pub trait FrameHandler: Send + Sync {
+    async fn handle(
         &mut self,
         frame: TcpFrame,
         cancellation_token: CancellationToken,
@@ -23,16 +24,16 @@ pub trait FrameHandler: Sync + Send {
 }
 
 pub struct DefaultFrameHandler {
-    target_ip: IpAddr,
-    frame_tx: Sender<TcpFrame>,
+    config: Arc<ServerConfig>,
+    sender: Sender<TcpFrame>,
     state: Arc<ClientState>,
 }
 
 impl DefaultFrameHandler {
-    pub fn new(ip: &IpAddr, sender: &Sender<TcpFrame>, state: &Arc<ClientState>) -> Self {
+    pub fn new(config: &Arc<ServerConfig>, sender: &Sender<TcpFrame>, state: &Arc<ClientState>) -> Self {
         Self {
-            target_ip: *ip,
-            frame_tx: sender.clone(),
+            config: config.clone(),
+            sender: sender.clone(),
             state: state.clone(),
         }
     }
@@ -40,25 +41,29 @@ impl DefaultFrameHandler {
 
 #[async_trait]
 impl FrameHandler for DefaultFrameHandler {
-    async fn handle_frame(
+    async fn handle(
         &mut self,
         frame: TcpFrame,
         cancellation_token: CancellationToken,
     ) -> Result<Option<TcpFrame>> {
         let mut command_handler: Box<dyn AsyncCommand<Output = Result<()>>> = match frame {
-            TcpFrame::Ping => Box::new(PingCommand::new(&self.frame_tx)),
-            TcpFrame::LocalClientDisconnected { connection_id } => Box::new(
-                LocalClientDisconnectedCommand::new(connection_id, &self.state),
-            ),
+            TcpFrame::Ping => Box::new(PingCommand::new(&self.sender)),
+            TcpFrame::LocalClientDisconnected { connection_id } => {
+                LocalClientDisconnectedCommand::boxed_new(connection_id, &self.state)
+            },
             TcpFrame::ClientPacket(data) => {
-                DataPacketClientCommand::boxed_new(data.buffer(), data.connection_id(), &self.state)
+                DataPacketClientCommand::boxed_new(
+                    data.buffer(),
+                    data.connection_id(),
+                    &self.state)
             }
-            TcpFrame::ClientConnected => Box::new(ClientConnectedCommand::new(
-                    &self.target_ip,
-                &self.frame_tx,
-                &self.state,
-                &cancellation_token,
-            )),
+            TcpFrame::ClientConnected => {
+                ClientConnectedCommand::boxed_new(
+                    &self.config.get_listen_ip(),
+                    &self.sender,
+                    &self.state,
+                    &cancellation_token)
+            },
             _ => {
                 debug!("invalid frame received.");
                 return Ok(None);

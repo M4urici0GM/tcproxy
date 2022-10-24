@@ -18,6 +18,11 @@ impl LocalClientDisconnectedCommand {
             proxy_state: proxy_state.clone(),
         }
     }
+
+    pub fn boxed_new(connection_id: Uuid, state: &Arc<ClientState>) -> Box<Self> {
+        let local_self = LocalClientDisconnectedCommand::new(connection_id, state);
+        Box::new(local_self)
+    }
 }
 
 #[async_trait]

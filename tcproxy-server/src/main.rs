@@ -1,24 +1,31 @@
+use std::sync::Arc;
 use clap::Parser;
 use tokio::signal;
-use tracing::info;
+use tracing::{info, error};
 
 use tcproxy_core::tcp::{SocketListener, TcpListener};
 use tcproxy_core::Result;
-use tcproxy_server::{AppArguments, Server};
+use tcproxy_server::{AppArguments, Server, ServerConfig};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
+    let env_vars: Vec<(String, String)> = std::env::vars().collect();
     let args = AppArguments::parse();
-    let shutdown_signal = signal::ctrl_c();
-    let ip = args.get_socket_addr();
-    let listener = TcpListener::bind(ip).await?;
-    let port_range = args.parse_port_range()?;
-    let listen_ip = args.parse_ip()?;
+    
+    let config = match ServerConfig::load(&env_vars, &args) {
+        Ok(config) => config,
+        Err(err) => {
+            error!("Failed when parsing config. Check your file/environment variables: {}", err);
+            panic!("Cannot start with invalid config!");
+        }
+    };
 
-    Server::new(&port_range, &listen_ip, listener)
-        .run(shutdown_signal)
+    let config = Arc::new(config);
+    let listener = TcpListener::bind(config.get_socket_addr()).await?;
+    Server::new(config, listener)
+        .run(signal::ctrl_c())
         .await?;
 
     info!("server stopped");

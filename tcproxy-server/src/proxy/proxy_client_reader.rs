@@ -52,7 +52,7 @@ impl ClientFrameReader {
             debug!("received new frame from client {}", frame);
             if let Some(frame_result) = self
                 .frame_handler
-                .handle_frame(frame, cancellation_token.child_token())
+                .handle(frame, cancellation_token.child_token())
                 .await?
             {
                 self.frame_tx.send(frame_result).await?

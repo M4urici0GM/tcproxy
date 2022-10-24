@@ -73,6 +73,7 @@ pub enum TcpFrame {
     Ping,
     Pong,
     PortLimitReached,
+    FailedToCreateProxy,
     ClientConnectedAck { port: u16 },
     RemoteSocketDisconnected { connection_id: Uuid },
     IncomingSocket { connection_id: Uuid },
@@ -93,6 +94,7 @@ impl TcpFrame {
             b'-' => Ok(()),
             b'+' => Ok(()),
             b':' => Ok(()),
+            b';' => Ok(()),
             b'^' => {
                 let _ = get_u16(cursor)?;
                 Ok(())
@@ -137,6 +139,7 @@ impl TcpFrame {
             b'-' => Ok(TcpFrame::Ping),
             b'+' => Ok(TcpFrame::Pong),
             b':' => Ok(TcpFrame::PortLimitReached),
+            b';' => Ok(TcpFrame::FailedToCreateProxy),
             b'^' => {
                 let port = get_u16(cursor)?;
                 Ok(TcpFrame::ClientConnectedAck { port })
@@ -245,6 +248,9 @@ impl TcpFrame {
             }
             TcpFrame::PortLimitReached => {
                 final_buff.put_u8(b':');
+            },
+            TcpFrame::FailedToCreateProxy => {
+                final_buff.put_u8(b';');
             }
         };
 
@@ -283,7 +289,8 @@ impl Display for TcpFrame {
             ),
             TcpFrame::LocalClientDisconnected { connection_id } => {
                 format!("LocalClientDisconnected ({})", connection_id)
-            }
+            },
+            TcpFrame::FailedToCreateProxy => format!("FailedToCreateProxy"),
         };
 
         let msg = format!("tcpframe: {}", data_type);

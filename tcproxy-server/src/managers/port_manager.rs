@@ -16,6 +16,7 @@ pub struct PortManager {
 #[derive(Debug)]
 pub enum PortError {
     PortLimitReached(Error),
+    Other(Error),
 }
 
 impl PortManager {
@@ -46,7 +47,7 @@ impl PortManager {
 
             if tries == mutex_lock.len() {
                 error!("could not accept more connections, all ports used.");
-                return Err("Port limit reached.".into());
+                return Err(PortError::PortLimitReached("Port limit reached.".into()));
             }
         }
 
