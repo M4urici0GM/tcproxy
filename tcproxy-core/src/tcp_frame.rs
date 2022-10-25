@@ -290,7 +290,7 @@ impl Display for TcpFrame {
             TcpFrame::LocalClientDisconnected { connection_id } => {
                 format!("LocalClientDisconnected ({})", connection_id)
             },
-            TcpFrame::FailedToCreateProxy => format!("FailedToCreateProxy"),
+            TcpFrame::FailedToCreateProxy => "FailedToCreateProxy".to_string(),
         };
 
         let msg = format!("tcpframe: {}", data_type);

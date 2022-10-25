@@ -1,7 +1,7 @@
 use async_trait::async_trait;
-use std::net::IpAddr;
-use std::ops::Deref;
-use std::rc::Rc;
+
+
+
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
@@ -10,7 +10,7 @@ use tracing::debug;
 use crate::commands::{
     ClientConnectedCommand, DataPacketClientCommand, LocalClientDisconnectedCommand, PingCommand,
 };
-use crate::{ClientState, ServerConfig};
+use crate::{ClientState};
 use tcproxy_core::TcpFrame;
 use tcproxy_core::{AsyncCommand, Result};
 use crate::managers::IFeatureManager;

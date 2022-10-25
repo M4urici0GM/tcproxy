@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
-use clap::command;
+
 use tcproxy_core::tcp::{SocketListener, TcpListener};
-use tcproxy_core::{AsyncCommand, Command, Result, TcpFrame};
+use tcproxy_core::{AsyncCommand, Result, TcpFrame};
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error};
@@ -52,11 +52,11 @@ impl ClientConnectedCommand {
             Err(PortError::PortLimitReached(err)) => {
                 debug!("server cannot listen to more ports. port limit reached.");
                 self.client_sender.send(TcpFrame::PortLimitReached).await?;
-                return Err(err.into());
+                Err(err)
             }
             Err(err) => {
                 error!("failed when trying to reserve a port for proxy server: {}", err);
-                return Err(err.into());
+                Err(err.into())
             },
         }
     }

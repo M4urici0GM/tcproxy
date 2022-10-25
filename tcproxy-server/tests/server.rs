@@ -16,6 +16,7 @@ use uuid::Bytes;
 use tcproxy_core::tcp::{SocketListener, TcpListener};
 use tcproxy_core::{ClientPacketData, FrameError, TcpFrame};
 use tcproxy_server::{extract_enum_value, AppArguments, Server, ServerConfig};
+use tcproxy_server::managers::DefaultFeatureManager;
 
 #[cfg(test)]
 #[tokio::test]
@@ -247,7 +248,8 @@ async fn create_server() -> SocketAddr {
         "proxy.server.local",
         120);
 
-    let mut server = Server::new(Arc::new(server_config), listener);
+    let feature_manager = DefaultFeatureManager::new(server_config);
+    let mut server = Server::new(feature_manager, listener);
 
     tokio::spawn(async move {
         let result = server.run(tokio::signal::ctrl_c()).await;

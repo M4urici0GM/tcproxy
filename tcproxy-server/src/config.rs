@@ -9,13 +9,13 @@ use tcproxy_core::Result;
 use crate::AppArguments;
 
 pub mod env {
-    pub const PORT_MIN: &'static str = "TCPROXY_PORT_MIN";
-    pub const PORT_MAX: &'static str = "TCPROXY_PORT_MAX";
-    pub const LISTEN_PORT: &'static str = "TCPROXY_LISTEN_PORT";
-    pub const SERVER_FQDN: &'static str = "TCPROXY_SERVER_FQDN";
-    pub const CONNECTIONS_PER_PROXY: &'static str = "TCPROXY_CONNECTIONS_PER_PROXY";
-    pub const LISTEN_IP: &'static str = "TCPROXY_LISTEN_IP";
-    pub const CONFIG_FILE: &'static str = "TCPROXY_CONFIG_FILE";
+    pub const PORT_MIN: &str = "TCPROXY_PORT_MIN";
+    pub const PORT_MAX: &str = "TCPROXY_PORT_MAX";
+    pub const LISTEN_PORT: &str = "TCPROXY_LISTEN_PORT";
+    pub const SERVER_FQDN: &str = "TCPROXY_SERVER_FQDN";
+    pub const CONNECTIONS_PER_PROXY: &str = "TCPROXY_CONNECTIONS_PER_PROXY";
+    pub const LISTEN_IP: &str = "TCPROXY_LISTEN_IP";
+    pub const CONFIG_FILE: &str = "TCPROXY_CONFIG_FILE";
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,7 +66,7 @@ impl ServerConfig {
     }
 
     pub fn load(env_vars: &[(String, String)], args: &AppArguments) -> Result<Self> {
-        let parsed_env_vars = ServerConfig::parse_environment_variables(&env_vars);
+        let parsed_env_vars = ServerConfig::parse_environment_variables(env_vars);
         let file_path = ServerConfig::get_config_file_path(&parsed_env_vars);
 
         if !ServerConfig::file_exists(&file_path) {
@@ -78,7 +78,7 @@ impl ServerConfig {
         let mut config = serde_json::from_str::<ServerConfig>(&file_contents)?;
 
         config.apply_env(&parsed_env_vars)?;
-        config.apply_args(&args);
+        config.apply_args(args);
         config.validate()?;
 
         Ok(config)
@@ -111,10 +111,6 @@ impl ServerConfig {
     fn validate(&self) -> Result<()> {
         if self.port_min == 0 {
             return Err("Min port cannot be zero".into());
-        }
-
-        if self.port_max > u16::MAX {
-            return Err(format!("Max port cannot exceed {}", u16::MAX).into());
         }
 
         if self.port_min > self.port_max {
@@ -195,12 +191,9 @@ impl ServerConfig {
             env::PORT_MAX.to_owned()
         ];
 
-        for env_key in available_env_vars {
-            match std::env::var(&env_key) {
-                Ok(val) => {
-                    hash_map.insert(env_key.to_owned(), val);
-                },
-                Err(_) => continue,
+        for (key, value) in env_vars {
+            if available_env_vars.contains(key) {
+                hash_map.insert(key.to_owned(), value.to_owned());
             }
         }
 
@@ -218,7 +211,7 @@ impl ServerConfig {
                 .to_owned();
         }
 
-        return "./config.json".to_owned();
+        "./config.json".to_owned()
     }
 
     fn file_exists(file_path: &str) -> bool {
@@ -240,7 +233,7 @@ impl ServerConfig {
             Ok(file_contents) => Ok(file_contents),
             Err(err) => {
                 error!("Failed when trying to read config file: {}", err);
-                return Err(err.into());
+                Err(err.into())
             }
         }
     }
@@ -377,7 +370,7 @@ mod tests {
             120);
 
         let config_str = serde_json::to_string(&config).unwrap();
-        let _ = std::fs::write(&file_name, &config_str).unwrap();
+        std::fs::write(&file_name, &config_str).unwrap();
 
         config
     }

@@ -1,6 +1,6 @@
-use std::net::IpAddr;
-use std::ops::Range;
-use std::rc::Rc;
+
+
+
 use std::sync::Arc;
 use tcproxy_core::tcp::SocketConnection;
 use tcproxy_core::transport::TcpFrameTransport;
@@ -11,7 +11,7 @@ use tracing::debug;
 
 use crate::proxy::DefaultFrameHandler;
 use crate::proxy::{ClientFrameReader, ClientFrameWriter};
-use crate::{ClientState, ServerConfig};
+use crate::{ClientState};
 use crate::managers::IFeatureManager;
 
 pub struct ClientConnection {
@@ -23,7 +23,7 @@ impl ClientConnection {
     pub fn new(feature_manager: &Arc<IFeatureManager>) -> Self {
         Self {
             server_config: feature_manager.clone(),
-            state: ClientState::new(&feature_manager),
+            state: ClientState::new(feature_manager),
         }
     }
 

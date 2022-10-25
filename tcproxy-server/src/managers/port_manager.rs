@@ -3,7 +3,7 @@ use rand::Rng;
 use std::ops::Range;
 use std::sync::Arc;
 use std::sync::Mutex;
-use tcproxy_core::{Error, Result};
+use tcproxy_core::{Error};
 use tracing::{debug, error};
 
 #[derive(Debug, Clone)]

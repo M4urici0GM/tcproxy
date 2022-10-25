@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use tcproxy_core::transport::DefaultTransportReader;
+
 use crate::ServerConfig;
 
 pub trait FeatureManager: Sync + Send {

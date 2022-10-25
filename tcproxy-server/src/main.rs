@@ -1,4 +1,4 @@
-use std::sync::Arc;
+
 use clap::Parser;
 use tokio::signal;
 use tracing::{info, error};

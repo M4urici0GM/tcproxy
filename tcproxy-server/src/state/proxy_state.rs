@@ -4,7 +4,6 @@ use crate::managers::{ConnectionsManager, IFeatureManager, PortManager};
 
 pub struct ClientState {
     port_manager: Arc<PortManager>,
-    feature_manager: Arc<IFeatureManager>,
     connection_manager: Arc<ConnectionsManager>,
 }
 
@@ -14,7 +13,6 @@ impl ClientState {
         Arc::new(Self {
             connection_manager: Arc::new(ConnectionsManager::new()),
             port_manager: Arc::new(PortManager::new(server_config.get_port_range())),
-            feature_manager: feature_manager.clone(),
         })
     }
 
