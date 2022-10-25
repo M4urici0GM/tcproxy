@@ -1,21 +1,22 @@
 #![allow(dead_code, unused_imports, unused_macros)]
 
+use bytes::{Buf, BufMut, BytesMut};
+use rand::RngCore;
 use std::error::Error;
 use std::io::Cursor;
-use std::net::{IpAddr, SocketAddr};
-use bytes::{Buf, BufMut, BytesMut};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::str::FromStr;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use std::str::FromStr;
-use std::time::Duration;
-use rand::RngCore;
 use tracing::debug;
 use uuid::Bytes;
 
-use tcproxy_server::{extract_enum_value, AppArguments, Server};
-use tcproxy_core::{FrameError, TcpFrame};
-use tcproxy_core::tcp::{TcpListener, SocketListener};
-
+use tcproxy_core::tcp::{SocketListener, TcpListener};
+use tcproxy_core::{ClientPacketData, FrameError, TcpFrame};
+use tcproxy_server::{extract_enum_value, AppArguments, Server, ServerConfig};
+use tcproxy_server::managers::DefaultFeatureManager;
 
 #[cfg(test)]
 #[tokio::test]
@@ -26,7 +27,6 @@ async fn should_be_listening() {
     let result = TcpStream::connect(server).await;
     assert!(result.is_ok());
 }
-
 
 #[cfg(test)]
 #[tokio::test]
@@ -67,7 +67,10 @@ async fn should_answer_client_connected() {
 
     let frame = receive_frame(&mut stream, &mut buffer).await;
     assert!(frame.is_ok());
-    assert!(matches!(frame.unwrap(), TcpFrame::ClientConnectedAck { .. }));
+    assert!(matches!(
+        frame.unwrap(),
+        TcpFrame::ClientConnectedAck { .. }
+    ));
 }
 
 #[cfg(test)]
@@ -87,24 +90,23 @@ async fn should_listen_in_ack_port() {
     let _ = stream.write_buf(&mut ping_buffer).await.unwrap();
 
     let frame = receive_frame(&mut stream, &mut buffer).await.unwrap();
-    assert!(matches!(frame, TcpFrame::ClientConnectedAck {..}));
+    assert!(matches!(frame, TcpFrame::ClientConnectedAck { .. }));
 
     let port = extract_enum_value!(frame, TcpFrame::ClientConnectedAck { port } => port);
     let ip = IpAddr::from_str("127.0.0.1").unwrap();
-    let target_ip = SocketAddr::new(ip,port);
+    let target_ip = SocketAddr::new(ip, port);
 
     let remote_stream = TcpStream::connect(target_ip).await;
     assert!(remote_stream.is_ok());
 
     let frame = receive_frame(&mut stream, &mut buffer).await;
     assert!(frame.is_ok());
-    assert!(matches!(frame.unwrap(), TcpFrame::IncomingSocket {..}));
+    assert!(matches!(frame.unwrap(), TcpFrame::IncomingSocket { .. }));
 }
 
 #[cfg(test)]
 #[tokio::test]
 async fn should_forward_data_successfully() {
-
     let mut buffer = BytesMut::with_capacity(1024 * 8);
 
     let server = create_server().await;
@@ -112,35 +114,34 @@ async fn should_forward_data_successfully() {
     write_tcp_frame(&mut stream, TcpFrame::ClientConnected).await;
 
     let frame = receive_frame(&mut stream, &mut buffer).await.unwrap();
-    assert!(matches!(frame, TcpFrame::ClientConnectedAck {..}));
+    assert!(matches!(frame, TcpFrame::ClientConnectedAck { .. }));
 
     let port = extract_enum_value!(frame, TcpFrame::ClientConnectedAck { port } => port);
     let ip = IpAddr::from_str("127.0.0.1").unwrap();
-    let target_ip = SocketAddr::new(ip,port);
+    let target_ip = SocketAddr::new(ip, port);
 
     let remote_stream = TcpStream::connect(target_ip).await;
     assert!(remote_stream.is_ok());
 
     let frame = receive_frame(&mut stream, &mut buffer).await;
     assert!(frame.is_ok());
-    assert!(matches!(frame.unwrap(), TcpFrame::IncomingSocket {..}));
+    assert!(matches!(frame.unwrap(), TcpFrame::IncomingSocket { .. }));
 
     let mut remote_stream = remote_stream.unwrap();
     let expected_buffer = generate_random_buffer(1024 * 2);
 
-    let _ = remote_stream.write_all(&expected_buffer[..]).await.unwrap();
+    remote_stream.write_all(&expected_buffer[..]).await.unwrap();
 
-    let frame = receive_frame(&mut stream, &mut buffer).await.unwrap();
-    let buffer = extract_enum_value!(frame, TcpFrame::DataPacketHost {
-        buffer,
-        buffer_size: _,
-        connection_id: _
-    } => buffer);
+    let buffer = match receive_frame(&mut stream, &mut buffer).await.unwrap() {
+        TcpFrame::HostPacket(data) => data.buffer().clone(),
+        value => {
+            panic!("didn't expected value {value}");
+        }
+    };
 
     assert_eq!(buffer.len(), expected_buffer.len());
     assert_eq!(&buffer[..], &expected_buffer[..]);
 }
-
 
 #[cfg(test)]
 #[tokio::test]
@@ -165,11 +166,11 @@ async fn should_receive_data_successfully() -> Result<(), Box<dyn Error>> {
         TcpFrame::IncomingSocket { connection_id } => connection_id);
 
     let expected_buffer = generate_random_buffer(1024 * 4);
-    let frame = TcpFrame::DataPacketClient {
+    let frame = TcpFrame::ClientPacket(ClientPacketData::new(
         connection_id,
-        buffer: BytesMut::from(&expected_buffer[..]),
-        buffer_size: expected_buffer.len() as u32,
-    };
+        BytesMut::from(&expected_buffer[..]),
+        expected_buffer.len() as u32,
+    ));
 
     write_tcp_frame(&mut stream, frame).await;
 
@@ -189,7 +190,10 @@ async fn write_tcp_frame(stream: &mut TcpStream, frame: TcpFrame) {
 }
 
 #[cfg(test)]
-async fn receive_frame(stream: &mut TcpStream, buffer: &mut BytesMut) -> Result<TcpFrame, Box<dyn std::error::Error>> {
+async fn receive_frame(
+    stream: &mut TcpStream,
+    buffer: &mut BytesMut,
+) -> Result<TcpFrame, Box<dyn std::error::Error>> {
     tokio::select! {
         res = read_frame(stream, buffer) => res,
         _ = tokio::time::sleep(Duration::from_secs(30)) => Err("timeout reached".into()),
@@ -197,7 +201,10 @@ async fn receive_frame(stream: &mut TcpStream, buffer: &mut BytesMut) -> Result<
 }
 
 #[cfg(test)]
-async fn read_frame(stream: &mut TcpStream, buffer: &mut BytesMut) -> Result<TcpFrame, Box<dyn Error>> {
+async fn read_frame(
+    stream: &mut TcpStream,
+    buffer: &mut BytesMut,
+) -> Result<TcpFrame, Box<dyn Error>> {
     loop {
         let bytes_read = match stream.read_buf(buffer).await {
             Ok(s) => s,
@@ -228,11 +235,21 @@ async fn read_frame(stream: &mut TcpStream, buffer: &mut BytesMut) -> Result<Tcp
 }
 
 async fn create_server() -> SocketAddr {
-    let args = AppArguments::new(0, "127.0.0.1", "1000:2000");
-    let listener = TcpListener::bind(args.get_socket_addr()).await.unwrap();
-    let listen_ip = listener.listen_ip().unwrap();
+    let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
+    let socket_addr = SocketAddr::new(ip, 0);
 
-    let mut server = Server::new(args, Box::new(listener));
+    let listener = TcpListener::bind(socket_addr).await.unwrap();
+    let listen_ip = listener.listen_ip().unwrap();
+    let server_config = ServerConfig::new(
+        11000,
+        15000,
+        ip,
+        0,
+        "proxy.server.local",
+        120);
+
+    let feature_manager = DefaultFeatureManager::new(server_config);
+    let mut server = Server::new(feature_manager, listener);
 
     tokio::spawn(async move {
         let result = server.run(tokio::signal::ctrl_c()).await;
@@ -244,12 +261,11 @@ async fn create_server() -> SocketAddr {
 
 pub fn generate_random_buffer(buffer_size: i32) -> BytesMut {
     let mut buffer = BytesMut::with_capacity(buffer_size as usize);
-  
-    (0..buffer_size)
-        .for_each(|_| {
-            let random = rand::random::<u8>();
-            buffer.put_u8(random);
-        });
-  
-    return buffer;
-  }
+
+    (0..buffer_size).for_each(|_| {
+        let random = rand::random::<u8>();
+        buffer.put_u8(random);
+    });
+
+    buffer
+}

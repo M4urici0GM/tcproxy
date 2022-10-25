@@ -1,18 +1,21 @@
 use tracing::trace;
 
-use tokio::{io::AsyncWriteExt, net::tcp::OwnedWriteHalf};
-use crate::{TcpFrame, Result};
+use crate::{Result, TcpFrame};
+use tokio::io::{AsyncWrite, AsyncWriteExt};
 
 /// represents TcpFrame transport writer.
 /// writes TcpFrames into underlying buffer.
 pub struct TransportWriter {
-    writer: OwnedWriteHalf,
+    writer: Box<dyn AsyncWrite + Send + Unpin>,
 }
 
 impl TransportWriter {
-    pub(crate) fn new(writer: OwnedWriteHalf) -> Self {
+    pub(crate) fn new<T>(writer: T) -> Self
+    where
+        T: AsyncWrite + Send + Unpin + 'static,
+    {
         Self {
-            writer,
+            writer: Box::new(writer),
         }
     }
 

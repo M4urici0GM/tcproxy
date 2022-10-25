@@ -1,15 +1,19 @@
 use chrono::Utc;
 use std::sync::Arc;
+use tokio::{sync::mpsc::Sender, task::JoinHandle};
 use tracing::debug;
 
-use tcproxy_core::{transport::TransportReader, Command, Result, TcpFrame};
-use tokio::{sync::mpsc::Sender, task::JoinHandle};
+use tcproxy_core::transport::TransportReader;
+use tcproxy_core::AsyncCommand;
+use tcproxy_core::{transport::DefaultTransportReader, Result, TcpFrame};
 
-use crate::{ClientState, DataPacketCommand, IncomingSocketCommand, RemoteDisconnectedCommand, ListenArgs};
+use crate::{
+    ClientState, DataPacketCommand, IncomingSocketCommand, ListenArgs, RemoteDisconnectedCommand,
+};
 
 pub struct TcpFrameReader {
     sender: Sender<TcpFrame>,
-    reader: TransportReader,
+    reader: DefaultTransportReader,
     state: Arc<ClientState>,
     args: Arc<ListenArgs>,
 }
@@ -18,8 +22,8 @@ impl TcpFrameReader {
     pub fn new(
         sender: &Sender<TcpFrame>,
         state: &Arc<ClientState>,
-        reader: TransportReader,
-        args: &Arc<ListenArgs>
+        reader: DefaultTransportReader,
+        args: &Arc<ListenArgs>,
     ) -> Self {
         Self {
             args: args.clone(),
@@ -49,15 +53,11 @@ impl TcpFrameReader {
             };
 
             debug!("received new frame from server: {}", msg);
-            let mut command: Box<dyn Command<Output = ()>> = match msg {
-                TcpFrame::DataPacketHost {
-                    connection_id,
-                    buffer,
-                    buffer_size,
-                } => Box::new(DataPacketCommand::new(
-                    connection_id,
-                    buffer,
-                    buffer_size,
+            let mut command: Box<dyn AsyncCommand<Output = Result<()>>> = match msg {
+                TcpFrame::HostPacket(data) => Box::new(DataPacketCommand::new(
+                    data.connection_id(),
+                    data.buffer(),
+                    data.buffer_size(),
                     &self.state,
                 )),
                 TcpFrame::IncomingSocket { connection_id } => Box::new(IncomingSocketCommand::new(

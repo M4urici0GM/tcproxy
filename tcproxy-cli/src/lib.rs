@@ -1,21 +1,21 @@
-mod local_connection;
-mod commands;
+mod app;
+mod args;
 mod client_state;
-mod ping_sender;
+mod commands;
+mod console_updater;
 mod frame_reader;
 mod frame_writer;
-mod args;
-mod app;
-mod console_updater;
+mod local_connection;
+mod ping_sender;
 
 pub mod config;
 
 pub use app::*;
-pub use console_updater::*;
 pub use args::*;
-pub use frame_writer::*;
-pub use frame_reader::*;
-pub use ping_sender::*;
-pub use commands::*;
-pub use local_connection::*;
 pub use client_state::*;
+pub use commands::*;
+pub use console_updater::*;
+pub use frame_reader::*;
+pub use frame_writer::*;
+pub use local_connection::*;
+pub use ping_sender::*;

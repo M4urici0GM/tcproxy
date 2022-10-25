@@ -12,6 +12,12 @@ pub struct ConnectionsManager {
     connections: Mutex<ConnectionCollection>,
 }
 
+impl Default for ConnectionsManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConnectionsManager {
     pub fn new() -> Self {
         ConnectionsManager {
@@ -50,7 +56,7 @@ impl ConnectionsManager {
             Some(item) => Some(item.clone()),
             None => {
                 trace!("connection {} not found in state", connection_id);
-                return None;
+                None
             }
         }
     }

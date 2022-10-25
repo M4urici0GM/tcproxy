@@ -1,6 +1,6 @@
 use bytes::BytesMut;
 use std::net::SocketAddrV4;
-use tcproxy_core::{Result, TcpFrame};
+use tcproxy_core::{ClientPacketData, Result, TcpFrame};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
@@ -36,10 +36,12 @@ impl LocalConnection {
 
                 let _ = self
                     .sender
-                    .send(TcpFrame::ClientUnableToConnect { connection_id: self.connection_id })
+                    .send(TcpFrame::ClientUnableToConnect {
+                        connection_id: self.connection_id,
+                    })
                     .await;
 
-                return Err(err.into());
+                Err(err.into())
             }
         }
     }
@@ -58,11 +60,11 @@ impl LocalConnection {
                     return Ok(());
                 }
 
-                let tcp_frame = TcpFrame::DataPacketClient {
+                let tcp_frame = TcpFrame::ClientPacket(ClientPacketData::new(
                     connection_id,
-                    buffer: buffer.split_to(bytes_read),
-                    buffer_size: bytes_read as u32,
-                };
+                    buffer.split_to(bytes_read),
+                    bytes_read as u32,
+                ));
 
                 sender.send(tcp_frame).await?;
             }
@@ -102,7 +104,7 @@ impl LocalConnection {
         let task1 = LocalConnection::read_from_socket(
             stream_reader,
             self.sender.clone(),
-            self.connection_id.clone(),
+            self.connection_id,
         );
 
         let task2 = LocalConnection::write_to_socket(stream_writer, reader);

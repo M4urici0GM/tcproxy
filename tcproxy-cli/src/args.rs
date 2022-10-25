@@ -1,3 +1,4 @@
+use std::net::IpAddr;
 use std::{
     net::{Ipv4Addr, SocketAddrV4},
     str::FromStr,
@@ -22,7 +23,7 @@ pub enum AppCommandType {
 
     /// Context configuration.
     #[clap(subcommand)]
-    Context(ContextCommands)
+    Context(ContextCommands),
 }
 
 #[derive(Parser, Debug)]
@@ -34,13 +35,13 @@ pub enum ContextCommands {
 
 #[derive(Parser, Debug)]
 pub struct DeleteContextArgs {
-    name: String
+    name: String,
 }
 
 #[derive(Parser, Debug)]
 pub struct CreateContextArgs {
-    name: String,
-    host: String,
+    pub(crate) name: String,
+    pub(crate) host: IpAddr,
 }
 
 #[derive(Parser, Debug)]
@@ -77,6 +78,14 @@ impl ListenArgs {
     }
 }
 
+impl Clone for CreateContextArgs {
+    fn clone(&self) -> Self {
+        Self {
+            host: self.host,
+            name: self.name.clone(),
+        }
+    }
+}
 
 impl Clone for ListenArgs {
     fn clone(&self) -> Self {
@@ -91,15 +100,15 @@ impl Clone for ListenArgs {
 
 fn parse_ping_interval(s: &str) -> Result<u8> {
     let parsed_value = match s.parse::<u8>() {
-      Ok(value) => value,
-      Err(err) => return Err(err.into()),
+        Ok(value) => value,
+        Err(err) => return Err(err.into()),
     };
 
     if 2 > parsed_value {
         return Err("minimum ping interval is 2s".into());
     }
 
-    return Ok(parsed_value);
+    Ok(parsed_value)
 }
 
 /// validates if given ip target is a valid ip.

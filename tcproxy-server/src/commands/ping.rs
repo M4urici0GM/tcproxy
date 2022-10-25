@@ -1,25 +1,25 @@
-use tokio::sync::mpsc::Sender;
 use async_trait::async_trait;
-use tcproxy_core::{Result, TcpFrame, Command};
+use tcproxy_core::{AsyncCommand, Result, TcpFrame};
+use tokio::sync::mpsc::Sender;
 
 pub struct PingCommand {
-  sender: Sender<TcpFrame>,
+    sender: Sender<TcpFrame>,
 }
 
 impl PingCommand {
-  pub fn new(sender: &Sender<TcpFrame>) -> Self {
-    Self {
-      sender: sender.clone(),
+    pub fn new(sender: &Sender<TcpFrame>) -> Self {
+        Self {
+            sender: sender.clone(),
+        }
     }
-  }
 }
 
 #[async_trait]
-impl Command for PingCommand {
-  type Output = ();
-  async fn handle(&mut self) -> Result<()> {
-      let _ = self.sender.send(TcpFrame::Pong).await;
-      Ok(())
-  }
-}
+impl AsyncCommand for PingCommand {
+    type Output = Result<()>;
 
+    async fn handle(&mut self) -> Self::Output {
+        let _ = self.sender.send(TcpFrame::Pong).await;
+        Ok(())
+    }
+}

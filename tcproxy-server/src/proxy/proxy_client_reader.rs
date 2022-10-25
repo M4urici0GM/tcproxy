@@ -1,33 +1,45 @@
-use std::net::IpAddr;
-use std::sync::Arc;
-use tokio::{task::JoinHandle, sync::mpsc::Sender};
+use tokio::{sync::mpsc::Sender, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
 
 use tcproxy_core::transport::TransportReader;
-use tcproxy_core::{TcpFrame, Result, Command};
+use tcproxy_core::{Result, TcpFrame};
 
-use crate::ProxyState;
-use crate::commands::{DataPacketClientCommand, ClientConnectedCommand};
-use crate::commands::{PingCommand, LocalClientDisconnectedCommand};
+use crate::proxy::FrameHandler;
 
-pub struct ProxyClientStreamReader {
-    pub(crate) target_ip: IpAddr,
-    pub(crate) sender: Sender<TcpFrame>,
-    pub(crate) state: Arc<ProxyState>,
-    pub(crate) reader: TransportReader,
+/// Responsible for reading commands / frames from client and processing them.
+pub struct ClientFrameReader {
+    frame_tx: Sender<TcpFrame>,
+    reader: Box<dyn TransportReader>,
+    frame_handler: Box<dyn FrameHandler>,
 }
 
-impl ProxyClientStreamReader {
-    pub fn start_reading(mut self, cancellation_token: CancellationToken) -> JoinHandle<Result<()>> {
+impl ClientFrameReader {
+    pub fn new<T, V>(sender: &Sender<TcpFrame>, reader: V, frame_handler: T) -> Self
+    where
+        T: FrameHandler + 'static,
+        V: TransportReader + 'static,
+    {
+        Self {
+            reader: Box::new(reader),
+            frame_tx: sender.clone(),
+            frame_handler: Box::new(frame_handler),
+        }
+    }
+
+    pub fn start_reading(
+        mut self,
+        cancellation_token: CancellationToken,
+    ) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
-            let _ = ProxyClientStreamReader::start(&mut self, cancellation_token).await;
+            let _ = ClientFrameReader::start(&mut self, cancellation_token.child_token()).await;
             Ok(())
         })
     }
 
+    /// Start listening for frames, and handling them.
     async fn start(&mut self, cancellation_token: CancellationToken) -> Result<()> {
-        loop {
+        while !cancellation_token.is_cancelled() {
             let maybe_frame = self.reader.next().await?;
             let frame = match maybe_frame {
                 Some(f) => f,
@@ -38,32 +50,15 @@ impl ProxyClientStreamReader {
             };
 
             debug!("received new frame from client {}", frame);
-            let mut command_handler: Box<dyn Command<Output = ()>> = match frame {
-                TcpFrame::Ping => Box::new(PingCommand::new(&self.sender)),
-                TcpFrame::LocalClientDisconnected { connection_id } => {
-                    Box::new(LocalClientDisconnectedCommand::new(connection_id, &self.state))
-                }
-                TcpFrame::DataPacketClient { connection_id, buffer, buffer_size: _ } => {
-                    Box::new(DataPacketClientCommand::new(buffer, &connection_id, &self.state))
-                },
-                TcpFrame::ClientConnected => {
-                    Box::new(ClientConnectedCommand {
-                        target_ip: self.target_ip,
-                        state: self.state.clone(),
-                        sender: self.sender.clone(),
-                        cancellation_token: cancellation_token.child_token(),
-                    })
-                },
-                _ => {
-                    debug!("invalid frame received.");
-                    continue;
-                }
-            };
-
-            command_handler.handle().await?;
+            if let Some(frame_result) = self
+                .frame_handler
+                .handle(frame, cancellation_token.child_token())
+                .await?
+            {
+                self.frame_tx.send(frame_result).await?
+            }
         }
 
         Ok(())
     }
-
 }
