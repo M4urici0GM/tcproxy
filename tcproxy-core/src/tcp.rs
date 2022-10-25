@@ -10,6 +10,8 @@ use tracing::{debug, error};
 
 use crate::Result;
 
+pub type ISocketListener = Box<dyn SocketListener>;
+
 #[derive(Debug)]
 pub struct TcpListener {
     inner: TokioTcpListener,

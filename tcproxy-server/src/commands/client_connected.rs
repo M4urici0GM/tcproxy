@@ -35,17 +35,19 @@ impl ClientConnectedCommand {
     }
 
     pub fn boxed_new(
-        target_ip: &IpAddr,
+        target_ip: IpAddr,
         sender: &Sender<TcpFrame>,
         state: &Arc<ClientState>,
         cancellation_token: &CancellationToken
     ) -> Box<Self> {
-        let local_self = ClientConnectedCommand::new(target_ip, sender, state, cancellation_token);
+        let local_self = ClientConnectedCommand::new(&target_ip, sender, state, cancellation_token);
         Box::new(local_self)
     }
 
     async fn get_available_port(&self) -> Result<u16> {
-        match self.state.ports.get_port().await {
+        let port_manager = self.state.get_port_manager();
+
+        match port_manager.get_port().await {
             Ok(port) => Ok(port),
             Err(PortError::PortLimitReached(err)) => {
                 debug!("server cannot listen to more ports. port limit reached.");
@@ -53,7 +55,7 @@ impl ClientConnectedCommand {
                 return Err(err.into());
             }
             Err(err) => {
-                error!("failed when trying to reserver a port for proxy server: {}", err);
+                error!("failed when trying to reserve a port for proxy server: {}", err);
                 return Err(err.into());
             },
         }

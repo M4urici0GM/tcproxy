@@ -1,4 +1,3 @@
-use std::fmt::Debug;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -7,15 +6,15 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
 
-use tcproxy_core::tcp::{SocketConnection, SocketListener};
-use crate::managers::FeatureManager;
+use tcproxy_core::tcp::{ISocketListener, SocketConnection, SocketListener};
+use crate::managers::{FeatureManager, IFeatureManager};
 
 use crate::proxy::ClientConnection;
 
 /// Represents the server application
 pub struct Server {
-    feature_manager: Box<dyn FeatureManager>,
-    server_listener: Box<dyn SocketListener>,
+    feature_manager: Arc<IFeatureManager>,
+    server_listener: ISocketListener,
 }
 
 impl Server {
@@ -25,7 +24,7 @@ impl Server {
         TFeatureManager: FeatureManager + 'static
     {
         Self {
-            feature_manager: Box::new(feature_manager),
+            feature_manager: Arc::new(Box::new(feature_manager)),
             server_listener: Box::new(listener),
         }
     }
@@ -48,10 +47,12 @@ impl Server {
     }
 
     async fn start(&mut self, cancellation_token: CancellationToken) -> Result<()> {
+        info!("server running at: {}", self.feature_manager.get_config().get_listen_port());
         loop {
             let socket = self.server_listener.accept().await?;
-            let cancellation_token = cancellation_token.child_token();
+            info!("received new socket from {}", socket.addr);
 
+            let cancellation_token = cancellation_token.child_token();
             self.spawn_proxy_connection(socket, cancellation_token);
         }
     }
@@ -64,7 +65,7 @@ impl Server {
     where
         T: SocketConnection + 'static,
     {
-        let mut proxy_client = ClientConnection::new(&self.server_config);
+        let mut proxy_client = ClientConnection::new(&self.feature_manager);
         tokio::spawn(async move {
             let socket_addr = socket.addr();
 

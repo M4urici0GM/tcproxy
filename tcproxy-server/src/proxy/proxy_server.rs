@@ -26,14 +26,16 @@ pub struct ProxyServer {
 impl ProxyServer {
     pub fn spawn(mut self) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
+            let port_manager = self.proxy_state.get_port_manager();
             let token = self.cancellation_token.child_token();
+
             tokio::select! {
                 _ = self.start() => {},
                 _ = token.cancelled() => {},
             }
 
             debug!("proxy server finished.");
-            self.proxy_state.ports.remove_port(self.target_port);
+            port_manager.remove_port(self.target_port);
             Ok(())
         })
     }
@@ -59,6 +61,8 @@ impl ProxyServer {
 
     async fn start(&mut self) -> Result<()> {
         let semaphore = Arc::new(Semaphore::new(120));
+        let connection_manager = self.proxy_state.get_connection_manager();
+
         loop {
             let permit = semaphore.clone()
                 .acquire_owned()
@@ -70,7 +74,7 @@ impl ProxyServer {
             let connection_id = Uuid::new_v4();
             let (connection_sender, connection_receiver) = mpsc::channel::<BytesMut>(100);
 
-            self.proxy_state.connections.insert_connection(
+            connection_manager.insert_connection(
                 connection_id,
                 connection_sender,
                 CancellationToken::new(),

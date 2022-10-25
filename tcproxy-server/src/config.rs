@@ -41,18 +41,6 @@ impl Default for ServerConfig {
     }
 }
 
-impl Clone for ServerConfig {
-    fn clone(&self) -> Self {
-        Self {
-            server_fqdn: self.get_server_fqdn(),
-            port_max: self.get_port_range().end,
-            port_min: self.get_port_range().start,
-            listen_port: self.get_listen_port(),
-            listen_ip: self.get_listen_ip(),
-            max_connections_per_proxy: self.get_max_connections_per_proxy(),
-        }
-    }
-}
 
 // FILE
 // Environment Variables
@@ -78,14 +66,14 @@ impl ServerConfig {
     }
 
     pub fn load(env_vars: &[(String, String)], args: &AppArguments) -> Result<Self> {
-        let file_path = ServerConfig::get_config_file_path(env_vars);
+        let parsed_env_vars = ServerConfig::parse_environment_variables(&env_vars);
+        let file_path = ServerConfig::get_config_file_path(&parsed_env_vars);
 
         if !ServerConfig::file_exists(&file_path) {
             debug!("Config file doesnt exist. Creating default...");
             ServerConfig::create_default(&file_path)?;
         }
 
-        let parsed_env_vars = ServerConfig::parse_environment_variables(&env_vars);
         let file_contents = ServerConfig::read_file(&file_path)?;
         let mut config = serde_json::from_str::<ServerConfig>(&file_contents)?;
 

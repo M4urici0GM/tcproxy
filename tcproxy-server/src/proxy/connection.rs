@@ -12,18 +12,18 @@ use tracing::debug;
 use crate::proxy::DefaultFrameHandler;
 use crate::proxy::{ClientFrameReader, ClientFrameWriter};
 use crate::{ClientState, ServerConfig};
+use crate::managers::IFeatureManager;
 
-#[derive(Debug)]
 pub struct ClientConnection {
-    server_config: Arc<ServerConfig>,
+    server_config: Arc<IFeatureManager>,
     state: Arc<ClientState>,
 }
 
 impl ClientConnection {
-    pub fn new(config: &Arc<ServerConfig>) -> Self {
+    pub fn new(feature_manager: &Arc<IFeatureManager>) -> Self {
         Self {
-            server_config: config.clone(),
-            state: ClientState::new(config.get_port_range()),
+            server_config: feature_manager.clone(),
+            state: ClientState::new(&feature_manager),
         }
     }
 

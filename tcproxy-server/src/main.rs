@@ -6,6 +6,7 @@ use tracing::{info, error};
 use tcproxy_core::tcp::{SocketListener, TcpListener};
 use tcproxy_core::Result;
 use tcproxy_server::{AppArguments, Server, ServerConfig};
+use tcproxy_server::managers::DefaultFeatureManager;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -22,9 +23,11 @@ async fn main() -> Result<()> {
         }
     };
 
-    let config = Arc::new(config);
-    let listener = TcpListener::bind(config.get_socket_addr()).await?;
-    Server::new(config, listener)
+    let socket_addr = config.get_socket_addr();
+    let feature_manager = DefaultFeatureManager::new(config);
+    let listener = TcpListener::bind(socket_addr).await?;
+
+    Server::new(feature_manager, listener)
         .run(signal::ctrl_c())
         .await?;
 

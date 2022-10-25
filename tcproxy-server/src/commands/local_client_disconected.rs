@@ -31,12 +31,11 @@ impl AsyncCommand for LocalClientDisconnectedCommand {
 
     async fn handle(&mut self) -> Self::Output {
         debug!("connection {} disconnected from client", self.connection_id);
-        let result = self
-            .proxy_state
-            .connections
-            .remove_connection(self.connection_id);
 
-        match result {
+        match self.proxy_state
+            .get_connection_manager()
+            .remove_connection(self.connection_id)
+        {
             Some((_, token)) => {
                 token.cancel();
                 debug!("cancelled task for connection {}", self.connection_id);

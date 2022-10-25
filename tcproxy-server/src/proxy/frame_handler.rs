@@ -13,6 +13,7 @@ use crate::commands::{
 use crate::{ClientState, ServerConfig};
 use tcproxy_core::TcpFrame;
 use tcproxy_core::{AsyncCommand, Result};
+use crate::managers::IFeatureManager;
 
 #[async_trait]
 pub trait FrameHandler: Send + Sync {
@@ -24,15 +25,15 @@ pub trait FrameHandler: Send + Sync {
 }
 
 pub struct DefaultFrameHandler {
-    config: Arc<ServerConfig>,
+    feature_manager: Arc<IFeatureManager>,
     sender: Sender<TcpFrame>,
     state: Arc<ClientState>,
 }
 
 impl DefaultFrameHandler {
-    pub fn new(config: &Arc<ServerConfig>, sender: &Sender<TcpFrame>, state: &Arc<ClientState>) -> Self {
+    pub fn new(feature_manager: &Arc<IFeatureManager>, sender: &Sender<TcpFrame>, state: &Arc<ClientState>) -> Self {
         Self {
-            config: config.clone(),
+            feature_manager: feature_manager.clone(),
             sender: sender.clone(),
             state: state.clone(),
         }
@@ -58,8 +59,12 @@ impl FrameHandler for DefaultFrameHandler {
                     &self.state)
             }
             TcpFrame::ClientConnected => {
+                let listen_ip = self.feature_manager
+                    .get_config()
+                    .get_listen_ip();
+
                 ClientConnectedCommand::boxed_new(
-                    &self.config.get_listen_ip(),
+                    listen_ip,
                     &self.sender,
                     &self.state,
                     &cancellation_token)
