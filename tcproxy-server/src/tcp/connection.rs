@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use tcproxy_core::Result;
 
-use crate::tcp::{RemoteConnectionReader, RemoteConnectionWriter};
+use crate::tcp::{DefaultStreamReader, RemoteConnectionReader, RemoteConnectionWriter, StreamReader};
 
 pub struct RemoteConnection {
     _permit: OwnedSemaphorePermit,
@@ -37,12 +37,13 @@ impl RemoteConnection {
     }
 
     pub async fn start<T>(&mut self, connection: T, receiver: Receiver<BytesMut>) -> Result<()>
-    where
-        T: SocketConnection,
+        where
+            T: SocketConnection,
     {
         let (reader, writer) = connection.split();
+        let stream_reader = DefaultStreamReader::new(self.connection_id, 1024 * 8, reader);
         tokio::select! {
-            _ = self.spawn_reader(reader) => {},
+            _ = self.spawn_reader(stream_reader) => {},
             _ = self.spawn_writer(receiver, writer) => {},
         }
 
@@ -61,25 +62,22 @@ impl RemoteConnection {
         Ok(())
     }
 
-    fn spawn_reader(
-        &self,
-        connection_reader: Box<dyn AsyncRead + Send + Unpin>,
-    ) -> JoinHandle<Result<()>> {
+    fn spawn_reader<T>(&self, connection_reader: T) -> JoinHandle<Result<()>>
+        where T: StreamReader + Send + 'static {
         let mut reader = RemoteConnectionReader::new(self.connection_id, &self.client_sender);
         tokio::spawn(async move {
-            let result = reader.start(connection_reader).await;
-            match result {
+            match reader.start(connection_reader).await {
                 Ok(_) => Ok(()),
                 Err(err) => Err(err),
             }
         })
     }
 
-    fn spawn_writer(
+    fn spawn_writer<T>(
         &self,
         receiver: Receiver<BytesMut>,
-        connection_writer: Box<dyn AsyncWrite + Send + Unpin>,
-    ) -> JoinHandle<Result<()>> {
+        connection_writer: T,
+    ) -> JoinHandle<Result<()>> where T : AsyncWrite + Send + Unpin + 'static {
         let mut writer = RemoteConnectionWriter::new(receiver, self.connection_addr);
         tokio::spawn(async move {
             let _ = writer.start(connection_writer).await;
