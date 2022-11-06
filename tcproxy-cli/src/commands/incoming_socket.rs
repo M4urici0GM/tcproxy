@@ -57,7 +57,7 @@ impl AsyncCommand for IncomingSocketCommand {
                 .read_from_local_connection(reader, cancellation_token.child_token())
                 .await;
 
-            debug!("Local connection socket finis`hed.");
+            debug!("Local connection socket finished.");
             let _ = sender
                 .send(TcpFrame::LocalClientDisconnected { connection_id })
                 .await;

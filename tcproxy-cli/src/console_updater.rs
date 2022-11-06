@@ -4,8 +4,9 @@ use tcproxy_core::Result;
 use tokio::{sync::mpsc::Receiver, task::JoinHandle};
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
+use tracing::debug;
 
-use crate::{ClientState, ListenArgs};
+use crate::{ClientState, ListenArgs, Shutdown};
 
 pub struct ConsoleUpdater {
     receiver: Receiver<i32>,
@@ -24,10 +25,9 @@ impl ConsoleUpdater {
         }
     }
 
-    pub fn spawn(mut self, cancellation_token: &CancellationToken) -> JoinHandle<Result<()>> {
-        let child_cancellation_token = cancellation_token.child_token();
+    pub fn spawn(mut self, mut shutdown: Shutdown) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
-            Self::start(&mut self, child_cancellation_token).await;
+            Self::start(&mut self, shutdown).await;
             Ok(())
         })
     }
@@ -48,13 +48,26 @@ impl ConsoleUpdater {
         println!("{}", msg);
     }
 
-    async fn start(&mut self, cancellation_token: CancellationToken) {
-        while (self.receiver.recv().await).is_some() && !cancellation_token.is_cancelled() {
-            if self.args.is_debug() {
-                continue;
+    async fn start(&mut self, mut shutdown: Shutdown) {
+        loop {
+            tokio::select! {
+                res = self.receiver.recv() => {
+                    if let None = res {
+                        break;
+                    }
+
+                    if self.args.is_debug() {
+                        continue;
+                    }
+
+                    self.print_state();
+                }
+                _ = shutdown.recv() => {
+                    debug!("received stop signal.");
+                    return;
+                }
             }
 
-            self.print_state();
         }
 
         self.clear();

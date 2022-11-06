@@ -8,7 +8,7 @@ use tokio::{task::JoinHandle, time::Instant};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error};
 
-use crate::ClientState;
+use crate::{ClientState, Shutdown};
 
 pub struct PingSender {
     interval: u64,
@@ -32,16 +32,22 @@ impl PingSender {
         }
     }
 
-    pub fn spawn(mut self, cancellation_token: &CancellationToken) -> JoinHandle<Result<()>> {
-        let child_cancellation_token = cancellation_token.child_token();
+    pub fn spawn(mut self, mut shutdown: Shutdown) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
-            let _ = PingSender::start(&mut self, child_cancellation_token).await;
+            tokio::select! {
+                _ = PingSender::start(&mut self) => {
+                    debug!("ping sender task stopped.");
+                },
+                _ = shutdown.recv() => {
+                    debug!("received stop signal..");
+                }
+            };
             Ok(())
         })
     }
 
-    async fn start(&mut self, cancellation_token: CancellationToken) -> Result<()> {
-        while !cancellation_token.is_cancelled() {
+    async fn start(&mut self) -> Result<()> {
+        loop {
             debug!("Waiting for next ping to occur");
             time::sleep_until(Instant::now() + Duration::from_secs(self.interval)).await;
             match self.sender.send(TcpFrame::Ping).await {

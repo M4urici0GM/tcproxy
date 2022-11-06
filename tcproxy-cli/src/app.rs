@@ -1,6 +1,6 @@
 use std::future::Future;
 use std::sync::Arc;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, broadcast};
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
@@ -28,22 +28,27 @@ impl App {
     pub async fn start(&self, shutdown_signal: impl Future) -> Result<()> {
         match self.args.get_type() {
             AppCommandType::Listen(args) => {
-                let cancellation_token = CancellationToken::new();
+                // used to notify running threads that stop signal was received.
+                let (notify_shutdown, _) = broadcast::channel::<()>(1);
+
+                // used to wait for all threads to finish before closing the program..
                 let (shutdown_complete_tx, mut shutdown_complete_rx) = mpsc::channel::<()>(1);
 
-                let mut command = ListenCommand::new(Arc::new(args.clone()), shutdown_complete_tx.clone(), &cancellation_token);
+                let mut command = ListenCommand::new(
+                    Arc::new(args.clone()),
+                    shutdown_complete_tx,
+                    notify_shutdown,
+                );
                 tokio::select! {
                     res = command.handle() => {
                         debug!("ListenCommand has been finished with {:?}", res);
                     },
                     _ = shutdown_signal => {
                         debug!("app received stop signal..");
-                        cancellation_token.cancel();
                     },
                 };
 
-                // Drops shutdown_complete_tx for below instruction finish
-                drop(shutdown_complete_tx);
+                drop(command);
 
                 // waits for all internal threads/object that contains shutdown_complete_tx
                 // to be dropped.

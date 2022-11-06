@@ -8,9 +8,7 @@ use tcproxy_core::transport::TransportReader;
 use tcproxy_core::AsyncCommand;
 use tcproxy_core::{Result, TcpFrame};
 
-use crate::{
-    ClientState, DataPacketCommand, IncomingSocketCommand, ListenArgs, RemoteDisconnectedCommand,
-};
+use crate::{ClientState, DataPacketCommand, IncomingSocketCommand, ListenArgs, RemoteDisconnectedCommand, Shutdown};
 
 pub struct TcpFrameReader {
     sender: Sender<TcpFrame>,
@@ -38,18 +36,24 @@ impl TcpFrameReader {
         }
     }
 
-    pub fn spawn(mut self, cancellation_token: &CancellationToken) -> JoinHandle<Result<()>> {
-        let cancellation_token = cancellation_token.child_token();
+    pub fn spawn(mut self, mut shutdown: Shutdown) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
-            let result = TcpFrameReader::start(&mut self, cancellation_token).await;
+            let result = TcpFrameReader::start(&mut self, shutdown).await;
             debug!("tcpframe_reader::start finished with {:?}", result);
             Ok(())
         })
     }
 
-    async fn start(&mut self, cancellation_token: CancellationToken) -> Result<()> {
-        while !cancellation_token.is_cancelled() {
-            let maybe_frame = self.reader.next().await?;
+    async fn start(&mut self, mut shutdown: Shutdown) -> Result<()> {
+        while !shutdown.is_shutdown() {
+            let maybe_frame = tokio::select! {
+                res = self.reader.next() => res?,
+                _ = shutdown.recv() => {
+                    debug!("received stop signal from cancellation token");
+                    return Ok(())
+                }
+            };
+
             let msg = match maybe_frame {
                 Some(f) => f,
                 None => {

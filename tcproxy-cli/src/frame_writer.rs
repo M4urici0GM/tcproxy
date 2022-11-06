@@ -4,7 +4,8 @@ use tcproxy_core::TcpFrame;
 use tokio::{sync::mpsc::Receiver, task::JoinHandle};
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
-use tracing::info;
+use tracing::{info, debug};
+use crate::Shutdown;
 
 pub struct TcpFrameWriter {
     receiver: Receiver<TcpFrame>,
@@ -21,17 +22,24 @@ impl TcpFrameWriter {
         }
     }
 
-    pub fn spawn(mut self, cancellation_token: &CancellationToken) -> JoinHandle<Result<()>> {
-        let cancellation_token = cancellation_token.child_token();
+    pub fn spawn(mut self, mut shutdown: Shutdown) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
-            let _ = TcpFrameWriter::start(&mut self, cancellation_token).await;
+            let _ = TcpFrameWriter::start(&mut self, shutdown).await;
             Ok(())
         })
     }
 
-    async fn start(&mut self, cancellation_token: CancellationToken) -> Result<()> {
-        while !cancellation_token.is_cancelled() {
-            let msg = match self.receiver.recv().await {
+    async fn start(&mut self, mut shutdown: Shutdown) -> Result<()> {
+        while !shutdown.is_shutdown() {
+            let msg = tokio::select! {
+                res = self.receiver.recv() => res,
+                _ = shutdown.recv() => {
+                    debug!("received stop signal from cancellation token");
+                    return Ok(())
+                }
+            };
+
+            let msg = match msg {
                 Some(msg) => msg,
                 None => break,
             };
