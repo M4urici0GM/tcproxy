@@ -90,7 +90,7 @@ mod tests {
 
         let result = connection_writer.start(Box::new(cursor)).await;
 
-        assert_eq!(true, result.is_ok());
+        assert!(result.is_ok());
         assert_eq!(&bytes_buff[..], &random_buffer[..]);
     }
 
@@ -110,11 +110,11 @@ mod tests {
             .returning(|_, _| Poll::Ready(Err(std::io::Error::new(ErrorKind::Other, ""))));
 
         let result = sender.send(BytesMut::from(&random_buffer[..])).await;
-        assert_eq!(true, result.is_ok());
+        assert!(result.is_ok());
 
         let result = connection_writer.start(Box::new(mocked_stream)).await;
-        assert_eq!(true, result.is_ok());
-        assert_eq!(true, sender.is_closed());
+        assert!(result.is_ok());
+        assert!(sender.is_closed());
     }
 
 }

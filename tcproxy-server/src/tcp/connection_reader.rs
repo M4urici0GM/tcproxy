@@ -82,8 +82,8 @@ mod tests {
         let receiver_result = receiver.recv().await;
 
         // Assert
-        assert_eq!(true, result.is_ok());
-        assert_eq!(true, receiver_result.is_none());
+        assert!(result.is_ok());
+        assert!(receiver_result.is_none());
     }
 
     #[tokio::test]
