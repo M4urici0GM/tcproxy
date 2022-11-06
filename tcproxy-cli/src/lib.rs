@@ -9,6 +9,7 @@ mod local_connection;
 mod ping_sender;
 
 pub mod config;
+mod shutdown;
 
 pub use app::*;
 pub use args::*;
@@ -19,3 +20,4 @@ pub use frame_reader::*;
 pub use frame_writer::*;
 pub use local_connection::*;
 pub use ping_sender::*;
+pub use shutdown::*;

@@ -3,8 +3,10 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::net::TcpStream as TokioTcpStream;
-use tokio::sync::mpsc;
+use tokio::sync::mpsc::{self, Sender};
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error};
+
 
 use tcproxy_core::tcp::TcpStream;
 use tcproxy_core::{transport::TcpFrameTransport, AsyncCommand, Result, TcpFrame};
@@ -13,16 +15,22 @@ use crate::{ClientState, ConsoleUpdater, ListenArgs, PingSender, TcpFrameReader,
 
 pub struct ListenCommand {
     args: Arc<ListenArgs>,
+    cancellation_token: CancellationToken,
+    _shutdown_complete_tx: Sender<()>
 }
 
 impl ListenCommand {
-    pub fn new(args: Arc<ListenArgs>) -> Self {
-        Self { args }
+    pub fn new(args: Arc<ListenArgs>, shutdown_complete_tx: Sender<()>, cancellation_token: &CancellationToken) -> Self {
+        Self {
+            args,
+            cancellation_token: cancellation_token.child_token(),
+            _shutdown_complete_tx: shutdown_complete_tx
+        }
     }
 
     /// connects to remote server.
     async fn connect(&self) -> Result<TcpStream> {
-        let addr = SocketAddr::from_str("127.0.0.1:8080")?;
+        let addr = SocketAddr::from_str("144.217.14.8:8080")?;
         match TokioTcpStream::connect(addr).await {
             Ok(stream) => {
                 debug!("Connected to server..");
@@ -58,24 +66,22 @@ impl AsyncCommand for ListenCommand {
         writer.send(TcpFrame::ClientConnected).await?;
         writer.send(TcpFrame::Ping).await?;
 
-        let ping_task = PingSender::new(&sender, &state, self.args.ping_interval()).spawn();
-        let console_task = ConsoleUpdater::new(console_receiver, &state, &self.args).spawn();
-        let receive_task = TcpFrameWriter::new(receiver, writer).spawn();
-        let foward_task = TcpFrameReader::new(&sender, &state, reader, &self.args).spawn();
+        let ping_task = PingSender::new(&sender, &state, self.args.ping_interval(), &self._shutdown_complete_tx);
+        let console_task = ConsoleUpdater::new(console_receiver, &state, &self.args, &self._shutdown_complete_tx);
+        let receive_task = TcpFrameWriter::new(receiver, writer, &self._shutdown_complete_tx);
+        let forward_task = TcpFrameReader::new(&sender, &state, reader, &self.args, &self._shutdown_complete_tx);
 
         tokio::select! {
-            res = console_task => {
-                println!("{:?}", res);
-                debug!("console task finished.");
+            res = console_task.spawn(&self.cancellation_token) => {
+                debug!("console task finished. {:?}", res);
             }
-            _ = receive_task => {
+            _ = receive_task.spawn(&self.cancellation_token) => {
                 debug!("receive task finished.");
             },
-
-            res = foward_task => {
+            res = forward_task.spawn(&self.cancellation_token) => {
                 debug!("forward to server task finished. {:?}", res);
             },
-            _ = ping_task => {
+            _ = ping_task.spawn(&self.cancellation_token) => {
                 debug!("ping task finished.");
             }
         };

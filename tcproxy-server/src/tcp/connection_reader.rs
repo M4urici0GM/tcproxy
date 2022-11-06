@@ -1,9 +1,4 @@
-use std::fs::read;
-use async_trait::async_trait;
-use bytes::BytesMut;
-use mockall::automock;
-use tokio::io::AsyncRead;
-use tokio::io::AsyncReadExt;
+use tcproxy_core::tcp::StreamReader;
 use tokio::sync::mpsc::Sender;
 use tracing::{error, trace};
 use uuid::Uuid;
@@ -15,59 +10,6 @@ pub struct RemoteConnectionReader {
     connection_id: Uuid,
     client_sender: Sender<TcpFrame>,
 }
-
-#[automock]
-#[async_trait]
-pub trait StreamReader {
-    async fn read(&mut self) -> Result<Option<BytesMut>>;
-}
-
-pub struct DefaultStreamReader {
-    buffer: BytesMut,
-    connection_id: Uuid,
-    stream: Box<dyn AsyncRead + Unpin + Send>,
-
-}
-
-impl DefaultStreamReader {
-    pub fn new<T>(connection_id: Uuid, buffer_size: usize, stream: T) -> Self
-        where T: AsyncRead + Unpin + Send + 'static {
-        Self {
-            connection_id,
-            buffer: BytesMut::with_capacity(buffer_size),
-            stream: Box::new(stream),
-        }
-    }
-}
-
-#[async_trait]
-impl StreamReader for DefaultStreamReader {
-    async fn read(&mut self) -> Result<Option<BytesMut>> {
-        let bytes_read = match self.stream.read_buf(&mut self.buffer).await {
-            Ok(read) => read,
-            Err(err) => {
-                trace!(
-                        "failed to read from connection {}: {}",
-                        self.connection_id,
-                        err
-                    );
-                return Err(err.into());
-            }
-        };
-
-        trace!("read {} bytes from connection.", bytes_read);
-        if 0 == bytes_read {
-            trace!(
-                    "reached end of stream from connection {}",
-                    self.connection_id
-                );
-            return Ok(None);
-        }
-
-        Ok(Some(self.buffer.split_to(bytes_read)))
-    }
-}
-
 
 
 impl RemoteConnectionReader {
@@ -107,12 +49,12 @@ impl RemoteConnectionReader {
 #[cfg(test)]
 mod tests {
     use bytes::{BufMut, BytesMut};
-    use std::io::Cursor;
-
-    use crate::tests::utils::generate_random_buffer;
-    use tcproxy_core::TcpFrame;
+    use mockall::Sequence;
     use tokio::sync::mpsc;
     use uuid::Uuid;
+
+    use crate::tests::utils::generate_random_buffer;
+    use tcproxy_core::{TcpFrame, tcp::MockStreamReader};
 
     use super::*;
 
@@ -155,11 +97,27 @@ mod tests {
         let mut connection_reader = RemoteConnectionReader::new(uuid, &sender);
 
         let mut reader = MockStreamReader::new();
+        let mut sequence = Sequence::new();
         let buff_clone = random_buffer.clone();
         reader.expect_read()
+            .times(1)
             .returning(move || {
-                Ok(Some(BytesMut::from(&buff_clone[..])))
-            });
+                Ok(Some(BytesMut::from(&buff_clone[..(buff_clone.len()/2)])))
+            })
+            .in_sequence(&mut sequence);
+
+        let buff_clone = random_buffer.clone();
+        reader.expect_read()
+            .times(1)
+            .returning(move || {
+                Ok(Some(BytesMut::from(&buff_clone[(buff_clone.len()/2)..])))
+            })
+            .in_sequence(&mut sequence);
+
+        reader.expect_read()
+            .times(1)
+            .returning(|| Ok(None))
+            .in_sequence(&mut sequence);
 
         // At this point stream is already closed, but underlying buffer still there for reading.
         let _ = connection_reader.start(reader).await;

@@ -1,9 +1,9 @@
 use std::net::SocketAddr;
 
 use bytes::BytesMut;
-use tcproxy_core::tcp::SocketConnection;
+use tcproxy_core::tcp::{SocketConnection, DefaultStreamReader};
 use tcproxy_core::TcpFrame;
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::{AsyncWrite, AsyncRead};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::OwnedSemaphorePermit;
 use tokio::task::JoinHandle;
@@ -12,7 +12,8 @@ use uuid::Uuid;
 
 use tcproxy_core::Result;
 
-use crate::tcp::{DefaultStreamReader, RemoteConnectionReader, RemoteConnectionWriter, StreamReader};
+    
+use crate::tcp::{RemoteConnectionReader, RemoteConnectionWriter};
 
 pub struct RemoteConnection {
     _permit: OwnedSemaphorePermit,
@@ -41,9 +42,8 @@ impl RemoteConnection {
             T: SocketConnection,
     {
         let (reader, writer) = connection.split();
-        let stream_reader = DefaultStreamReader::new(self.connection_id, 1024 * 8, reader);
         tokio::select! {
-            _ = self.spawn_reader(stream_reader) => {},
+            _ = self.spawn_reader(reader) => {},
             _ = self.spawn_writer(receiver, writer) => {},
         }
 
@@ -62,11 +62,12 @@ impl RemoteConnection {
         Ok(())
     }
 
-    fn spawn_reader<T>(&self, connection_reader: T) -> JoinHandle<Result<()>>
-        where T: StreamReader + Send + 'static {
+    fn spawn_reader<T>(&self, reader: T) -> JoinHandle<Result<()>>
+        where T: AsyncRead + Send + Unpin + 'static {
+        let stream_reader = DefaultStreamReader::new(1024 * 8, reader);
         let mut reader = RemoteConnectionReader::new(self.connection_id, &self.client_sender);
         tokio::spawn(async move {
-            match reader.start(connection_reader).await {
+            match reader.start(stream_reader).await {
                 Ok(_) => Ok(()),
                 Err(err) => Err(err),
             }

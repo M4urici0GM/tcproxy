@@ -1,11 +1,12 @@
 use chrono::Utc;
 use std::sync::Arc;
 use tokio::{sync::mpsc::Sender, task::JoinHandle};
+use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
 use tcproxy_core::transport::TransportReader;
 use tcproxy_core::AsyncCommand;
-use tcproxy_core::{transport::DefaultTransportReader, Result, TcpFrame};
+use tcproxy_core::{Result, TcpFrame};
 
 use crate::{
     ClientState, DataPacketCommand, IncomingSocketCommand, ListenArgs, RemoteDisconnectedCommand,
@@ -13,36 +14,41 @@ use crate::{
 
 pub struct TcpFrameReader {
     sender: Sender<TcpFrame>,
-    reader: DefaultTransportReader,
+    reader: Box<dyn TransportReader>,
     state: Arc<ClientState>,
     args: Arc<ListenArgs>,
+    _shutdown_complete_tx: Sender<()>
 }
 
 impl TcpFrameReader {
-    pub fn new(
+    pub fn new<T>(
         sender: &Sender<TcpFrame>,
         state: &Arc<ClientState>,
-        reader: DefaultTransportReader,
+        reader: T,
         args: &Arc<ListenArgs>,
-    ) -> Self {
+        shutdown_complete_tx: &Sender<()>
+    ) -> Self
+        where T: TransportReader + 'static {
         Self {
             args: args.clone(),
             sender: sender.clone(),
             state: state.clone(),
-            reader,
+            reader: Box::new(reader),
+            _shutdown_complete_tx: shutdown_complete_tx.clone()
         }
     }
 
-    pub fn spawn(mut self) -> JoinHandle<Result<()>> {
+    pub fn spawn(mut self, cancellation_token: &CancellationToken) -> JoinHandle<Result<()>> {
+        let cancellation_token = cancellation_token.child_token();
         tokio::spawn(async move {
-            let result = TcpFrameReader::start(&mut self).await;
+            let result = TcpFrameReader::start(&mut self, cancellation_token).await;
             debug!("tcpframe_reader::start finished with {:?}", result);
             Ok(())
         })
     }
 
-    async fn start(&mut self) -> Result<()> {
-        loop {
+    async fn start(&mut self, cancellation_token: CancellationToken) -> Result<()> {
+        while !cancellation_token.is_cancelled() {
             let maybe_frame = self.reader.next().await?;
             let msg = match maybe_frame {
                 Some(f) => f,

@@ -23,6 +23,7 @@ pub struct ConsoleStatus {
     pub connections: i32,
 }
 
+
 impl ClientState {
     pub fn new(console_sender: &Sender<i32>) -> Self {
         Self {
@@ -63,9 +64,6 @@ impl ClientState {
 
         let remote_ip_str = remote_ip.clone();
         let connections_len = connections.len();
-
-        drop(remote_ip);
-        drop(connections);
 
         let remote_ip = match remote_ip_str.as_str() {
             "" => SocketAddr::new(
