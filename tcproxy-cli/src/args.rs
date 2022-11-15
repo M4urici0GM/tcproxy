@@ -1,4 +1,4 @@
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::{
     net::{Ipv4Addr, SocketAddrV4},
     str::FromStr,
@@ -41,7 +41,7 @@ pub struct DeleteContextArgs {
 #[derive(Parser, Debug)]
 pub struct CreateContextArgs {
     pub(crate) name: String,
-    pub(crate) host: IpAddr,
+    pub(crate) host: SocketAddr,
 }
 
 #[derive(Parser, Debug)]

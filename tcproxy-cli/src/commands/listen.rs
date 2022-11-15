@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::net::TcpStream as TokioTcpStream;
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::broadcast;
-use tokio_util::sync::CancellationToken;
+
 use tracing::{debug, error, info};
 
 use tcproxy_core::tcp::TcpStream;

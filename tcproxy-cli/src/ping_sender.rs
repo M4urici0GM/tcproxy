@@ -5,7 +5,7 @@ use tcproxy_core::{Result, TcpFrame};
 use tokio::sync::mpsc::Sender;
 use tokio::time;
 use tokio::{task::JoinHandle, time::Instant};
-use tokio_util::sync::CancellationToken;
+
 use tracing::{debug, error};
 
 use crate::{ClientState, Shutdown};

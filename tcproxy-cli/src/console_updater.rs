@@ -3,10 +3,20 @@ use std::sync::Arc;
 use tcproxy_core::Result;
 use tokio::{sync::mpsc::Receiver, task::JoinHandle};
 use tokio::sync::mpsc::Sender;
-use tokio_util::sync::CancellationToken;
+
 use tracing::debug;
 
 use crate::{ClientState, ListenArgs, Shutdown};
+
+macro_rules! MSG {
+    () => {
+        "
+            :rocket: Server running at {} -> {}\n
+            :dizzy: Ping: {:.2}ms\n
+            :anchor: Connections: {}
+        "
+    }
+}
 
 pub struct ConsoleUpdater {
     receiver: Receiver<i32>,
@@ -25,7 +35,7 @@ impl ConsoleUpdater {
         }
     }
 
-    pub fn spawn(mut self, mut shutdown: Shutdown) -> JoinHandle<Result<()>> {
+    pub fn spawn(mut self, shutdown: Shutdown) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
             Self::start(&mut self, shutdown).await;
             Ok(())
@@ -42,7 +52,7 @@ impl ConsoleUpdater {
         let ip = self.args.parse_socket_addr();
 
         let msg = print_emojis(&format!(
-            ":rocket: Server running at {} -> {}\n:dizzy: Ping: {:.2}ms\n:anchor: Connections: {}",
+            MSG!(),
             state.remote_ip, ip, state.ping, state.connections
         ));
         println!("{}", msg);
@@ -52,7 +62,7 @@ impl ConsoleUpdater {
         loop {
             tokio::select! {
                 res = self.receiver.recv() => {
-                    if let None = res {
+                    if res.is_none() {
                         break;
                     }
 

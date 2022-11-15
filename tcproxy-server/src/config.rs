@@ -74,8 +74,7 @@ impl ServerConfig {
             ServerConfig::create_default(&file_path)?;
         }
 
-        let file_contents = ServerConfig::read_file(&file_path)?;
-        let mut config = serde_json::from_str::<ServerConfig>(&file_contents)?;
+        let mut config = ServerConfig::read_from_file(&file_path)?;
 
         config.apply_env(&parsed_env_vars)?;
         config.apply_args(args);
@@ -228,14 +227,17 @@ impl ServerConfig {
     }
 
     /// reads config file from disk.
-    fn read_file(path: &str) -> Result<String> {
-        match fs::read_to_string(path) {
-            Ok(file_contents) => Ok(file_contents),
+    fn read_from_file(path: &str) -> Result<Self> {
+        let file_contents = match fs::read_to_string(path) {
+            Ok(file_contents) => file_contents,
             Err(err) => {
                 error!("Failed when trying to read config file: {}", err);
-                Err(err.into())
+                return Err(err.into());
             }
-        }
+        };
+
+        let config = serde_json::from_str::<Self>(&file_contents)?;
+        Ok(config)
     }
 }
 

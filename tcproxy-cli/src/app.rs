@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::{mpsc, broadcast};
-use tokio_util::sync::CancellationToken;
+
 use tracing::debug;
 
 use tcproxy_core::Result;
@@ -39,6 +39,7 @@ impl App {
                     shutdown_complete_tx,
                     notify_shutdown,
                 );
+
                 tokio::select! {
                     res = command.handle() => {
                         debug!("ListenCommand has been finished with {:?}", res);

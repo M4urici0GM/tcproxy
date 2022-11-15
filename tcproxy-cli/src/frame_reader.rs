@@ -1,7 +1,7 @@
 use chrono::Utc;
 use std::sync::Arc;
 use tokio::{sync::mpsc::Sender, task::JoinHandle};
-use tokio_util::sync::CancellationToken;
+
 use tracing::debug;
 
 use tcproxy_core::transport::TransportReader;
@@ -36,7 +36,7 @@ impl TcpFrameReader {
         }
     }
 
-    pub fn spawn(mut self, mut shutdown: Shutdown) -> JoinHandle<Result<()>> {
+    pub fn spawn(mut self, shutdown: Shutdown) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
             let result = TcpFrameReader::start(&mut self, shutdown).await;
             debug!("tcpframe_reader::start finished with {:?}", result);

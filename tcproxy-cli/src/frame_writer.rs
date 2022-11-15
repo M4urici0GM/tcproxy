@@ -3,7 +3,7 @@ use tcproxy_core::Result;
 use tcproxy_core::TcpFrame;
 use tokio::{sync::mpsc::Receiver, task::JoinHandle};
 use tokio::sync::mpsc::Sender;
-use tokio_util::sync::CancellationToken;
+
 use tracing::{info, debug};
 use crate::Shutdown;
 
@@ -22,7 +22,7 @@ impl TcpFrameWriter {
         }
     }
 
-    pub fn spawn(mut self, mut shutdown: Shutdown) -> JoinHandle<Result<()>> {
+    pub fn spawn(mut self, shutdown: Shutdown) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
             let _ = TcpFrameWriter::start(&mut self, shutdown).await;
             Ok(())
