@@ -1214,6 +1214,7 @@ dependencies = [
  "clap 4.0.23",
  "directories",
  "emoji-printer",
+ "mockall",
  "resolve-path",
  "serde",
  "serde_yaml",

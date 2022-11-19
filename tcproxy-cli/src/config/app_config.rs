@@ -1,32 +1,33 @@
-use std::borrow::Borrow;
-use std::fmt::{Display, Formatter, write};
+use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use std::fs;
+use std::fs::{File, OpenOptions};
+use std::io::Write;
 use resolve_path::PathResolveExt;
 use serde::{Deserialize, Serialize};
-use tracing::error;
 
-use tcproxy_core::{Error};
-
-use crate::config::{AppContext, AppContextError};
+use crate::config::{AppConfigError, AppContext, AppContextError};
 
 type Result<T> = std::result::Result<T, AppConfigError>;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct AppConfig {
     default_context: String,
-    contexts: Vec<AppContext>,
-}
-
-#[derive(Debug)]
-pub enum AppConfigError {
-    DeserializationError(Error),
-    SerializationError(Error),
-    WriteError(Error),
-    Other(Error)
+    contexts: HashMap<String, AppContext>,
 }
 
 impl AppConfig {
     pub fn load(path: &str) -> Result<Self> {
+        let actual_path = AppConfig::canonicalize_path(&path)?;
+        if !AppConfig::exists(&actual_path) {
+            return Err(AppConfigError::NotFound);
+        }
+
+        let config = AppConfig::read_from_file(&path)?;
+        Ok(config)
+    }
+
+    pub fn load_or_create(path: &str) -> Result<Self> {
         let actual_path = AppConfig::canonicalize_path(&path)?;
         if !AppConfig::exists(&actual_path) {
             AppConfig::create_default(&actual_path)?;
@@ -36,25 +37,36 @@ impl AppConfig {
         Ok(config)
     }
 
+    pub fn save_to_file(config: &Self, path: &str) -> Result<()> {
+        let path = AppConfig::canonicalize_path(&path)?;
+        let mut file = OpenOptions::new()
+            .write(true)
+            .append(false)
+            .create(true)
+            .open(&path)?;
+
+        let self_contents = serde_yaml::to_string(&config)?;
+
+        file.write_all(&self_contents.as_bytes())?;
+        file.flush()?;
+        Ok(())
+    }
+
     pub fn default_context(&self) -> &str {
         &self.default_context
     }
 
-    pub fn contexts(&self) -> &[AppContext] {
+    pub fn contexts(&self) -> &HashMap<String, AppContext> {
         &self.contexts
     }
 
-
     pub fn ctx_exists(&self, context: &AppContext) -> bool {
-        self.contexts
-            .iter()
-            .any(|ctx| *ctx == *context)
+        self.contexts.contains_key(context.name())
     }
 
     pub fn set_default_context(&mut self, context: &AppContext) -> bool {
         if !self.ctx_exists(&context) {
-            self.contexts.push(context.clone());
-            return false;
+            self.contexts.insert(context.name().to_owned(), context.clone());
         }
 
         self.default_context = context.name().to_owned();
@@ -70,7 +82,7 @@ impl AppConfig {
             return Err(AppContextError::AlreadyExists(context.clone()))
         }
 
-        self.contexts.push(context.clone());
+        self.contexts.insert(context.name().to_owned(), context.clone());
         if !self.has_default_context() {
             self.set_default_context(context);
         }
@@ -88,26 +100,26 @@ impl AppConfig {
     fn create_default(path: &str) -> Result<()> {
         let default_config = AppConfig::default();
         let config_str = serde_yaml::to_string(&default_config).unwrap();
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .append(false)
+            .open(&path)?;
 
-        match fs::write(&path, &config_str) {
-            Ok(_) => Ok(()),
-            Err(err) => Err(AppConfigError::WriteError(err.into())),
-        }
+        file.write_all(&config_str.as_bytes())?;
+        file.flush()?;
+
+        Ok(())
     }
 
     fn read_from_file(path: &str) -> Result<Self> {
-        let file_contents = match fs::read_to_string(&path) {
-            Ok(contents) => contents,
-            Err(err) => {
-                error!("Failed when reading config from file: {}", err);
-                return Err(AppConfigError::Other(err.into()));
-            }
-        };
+        let path = path.resolve();
+        let file = OpenOptions::new()
+            .read(true)
+            .open(&path)?;
 
-        match serde_yaml::from_str::<Self>(&file_contents) {
-            Ok(cfg) => Ok(cfg),
-            Err(err) => Err(AppConfigError::DeserializationError(err.into()))
-        }
+        let contents = serde_yaml::from_reader::<File, Self>(file)?;
+        Ok(contents)
     }
 
     fn exists(path: &str) -> bool {
@@ -118,7 +130,7 @@ impl AppConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            contexts: Vec::default(),
+            contexts: HashMap::default(),
             default_context: String::default(),
         }
     }
@@ -132,6 +144,66 @@ mod tests {
     use crate::config::{AppConfig, AppContext};
 
     #[test]
+    fn should_write_to_disk() {
+        let file_path = format!("./{}.yaml", Uuid::new_v4());
+        let mut config = AppConfig::default();
+        let context = AppContext::new("context1", &create_socket_addr());
+
+        config.set_default_context(&context);
+
+        // Act
+        AppConfig::save_to_file(&config, &file_path).unwrap();
+
+        let created_config = AppConfig::load(&file_path).unwrap();
+
+        // Assert
+        assert_eq!(created_config, config);
+
+        remove_file(&file_path);
+    }
+
+
+    #[test]
+    fn should_return_err_if_path_doesnt_exist() {
+        let path = format!("~/{}.test", Uuid::new_v4());
+        let config = AppConfig::default();
+        let result = AppConfig::save_to_file(&config, &path);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn push_context_should_return_err_if_ctx_exists() {
+        let mut config = AppConfig::default();
+        let context = AppContext::new("contex1", &create_socket_addr());
+
+        config.push_context(&context).unwrap();
+
+        // Act
+        let result = config.push_context(&context);
+
+        // Assert
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn set_default_context_should_push_if_not_existent() {
+        let file_name = create_file_name();
+        let mut config = create_default_config(&file_name);
+        let socket_addr = create_socket_addr();
+
+        let context = AppContext::new("context1", &socket_addr);
+
+        // Act
+        config.set_default_context(&context);
+
+        // Assert
+        assert_eq!(config.default_context(), context.name());
+        assert_eq!(config.contexts().len(), 1);
+        assert_eq!(config.contexts().get("context1").unwrap(), &context);
+    }
+
+    #[test]
     fn should_read_from_file() {
         let file_name = create_file_name();
         let config = create_default_config(&file_name);
@@ -141,7 +213,7 @@ mod tests {
 
         // Assert
         assert_eq!(config.default_context(), read_config.default_context());
-        assert_eq!(&config.contexts()[..], &read_config.contexts()[..]);
+        assert_eq!(&config.contexts(), &read_config.contexts());
 
         remove_file(&file_name);
     }
@@ -193,8 +265,15 @@ mod tests {
         assert!(read_config.is_ok());
 
         let read_config = read_config.unwrap();
-        assert_eq!(&read_config.contexts()[..], &vec![]);
+        assert!(read_config.contexts().is_empty());
         assert_eq!(read_config.default_context(), String::default());
+
+        remove_file(&file_name);
+    }
+
+    fn create_socket_addr() -> SocketAddr {
+        let ip = IpAddr::from([127, 0, 0, 1]);
+        SocketAddr::new(ip, 80)
     }
 
     fn create_file_name() -> String {
@@ -218,28 +297,15 @@ mod tests {
     }
 }
 
-impl From<String> for AppConfigError {
-    fn from(msg: String) -> Self {
-        AppConfigError::Other(msg.into())
-    }
-}
-
-impl From<&str> for AppConfigError {
-    fn from(msg: &str) -> Self {
-        AppConfigError::Other(msg.into())
-    }
-}
-
-
 impl std::error::Error for AppConfigError {}
 
 impl Display for AppConfigError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let msg = match self {
-            AppConfigError::DeserializationError(err) => format!("Error when deserializing object: {}", err),
-            AppConfigError::SerializationError(err) => format!("Error when serializing object: {}", err),
-            AppConfigError::WriteError(err) => format!("Failed when writing file to disk: {}", err),
+            AppConfigError::YamlErr(err) => format!("Error when serializing/deserializing Yaml: {}", err),
+            AppConfigError::IOError(err) => format!("IO error occurred: {}", err),
             AppConfigError::Other(err) => format!("Unexpected error! {}", err),
+            AppConfigError::NotFound => format!("AppConfig was not found.."),
         };
 
         write!(f, "{}", msg)

@@ -1,17 +1,9 @@
-use std::fmt::{Display, Formatter};
 use directories::{self, ProjectDirs};
-use serde::{Deserialize, Serialize};
-use std::fs;
-use std::fs::{File, OpenOptions};
-use std::io::{Read, Write};
-use std::net::{IpAddr, SocketAddr};
-use std::path::{Path, PathBuf};
-use tracing::error;
-use tracing_subscriber::fmt::format;
+use std::path::{PathBuf};
 
-use tcproxy_core::{Command, Error, Result};
+use tcproxy_core::{Command, Result};
 use crate::config::{AppConfig, AppContext};
-
+use crate::contexts::DirectoryResolver;
 use crate::CreateContextArgs;
 
 pub mod env {
@@ -20,15 +12,15 @@ pub mod env {
 
 pub struct CreateContextCommand {
     args: CreateContextArgs,
+    dir_resolver: Box<dyn DirectoryResolver + 'static>,
 }
 
 impl CreateContextCommand {
-    pub fn new(args: &CreateContextArgs) -> Self {
-        Self { args: args.clone() }
-    }
-
-    fn get_config_dir(&self) -> Option<ProjectDirs> {
-        ProjectDirs::from("", "m4urici0gm", "tcproxy")
+    pub fn new<T>(args: &CreateContextArgs, dir_resolver: T) -> Self where T : DirectoryResolver + 'static {
+        Self {
+            args: args.clone(),
+            dir_resolver: Box::new(dir_resolver)
+        }
     }
 }
 
@@ -36,24 +28,17 @@ impl Command for CreateContextCommand {
     type Output = tcproxy_core::Result<()>;
 
     fn handle(&mut self) -> Self::Output {
-        let dir = match self.get_config_dir() {
-            Some(dir) => dir,
-            None => return Err("Couldnt access config folder".into()),
-        };
-
-        let path = dir.config_dir();
-        let mut path_buf = PathBuf::from(&path);
-        path_buf.push("config.yaml");
-
-        let final_path = match path_buf.to_str() {
-            Some(path) => path,
-            None => return Err(format!("couldnt access {:?}", path_buf).into()),
-        };
+        let config_path = self.dir_resolver.get_config_folder()?;
 
         let context = AppContext::new(&self.args.name, &self.args.host);
-        let mut config = AppConfig::load(&final_path)?;
+        let mut config = AppConfig::load(&config_path)?;
 
         config.push_context(&context)?;
+
+        if !config.has_default_context() {
+            config.set_default_context(&context);
+        }
+
         Ok(())
     }
 }
