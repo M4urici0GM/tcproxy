@@ -22,14 +22,23 @@ impl CreateContextCommand {
             dir_resolver: Box::new(dir_resolver)
         }
     }
+
+    fn get_full_config_path(&self) -> Result<String> {
+        let config_path = self.dir_resolver.get_config_folder()?;
+        let mut path_buf = PathBuf::from(&config_path);
+
+        path_buf.push(env::CONFIG_NAME);
+
+        let final_path = path_buf.into_os_string().into_string()?;
+        Ok(final_path)
+    }
 }
 
 impl Command for CreateContextCommand {
     type Output = tcproxy_core::Result<()>;
 
     fn handle(&mut self) -> Self::Output {
-        let config_path = self.dir_resolver.get_config_folder()?;
-
+        let config_path = self.get_full_config_path()?;
         let context = AppContext::new(&self.args.name, &self.args.host);
         let mut config = AppConfig::load(&config_path)?;
 
@@ -43,7 +52,11 @@ impl Command for CreateContextCommand {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn should_create_file_if_doesnt_exist() {
 
+    }
 }
