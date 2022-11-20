@@ -22,7 +22,6 @@ pub enum ServerAddrType {
 pub struct ServerAddr {
     host: String,
     port: u16,
-    raw_str: String,
     addr_type: ServerAddrType,
 }
 
@@ -36,7 +35,6 @@ impl ServerAddr {
         Self {
             host: host.to_owned(),
             port: port.to_owned(),
-            raw_str: raw_str.to_owned(),
             addr_type
         }
     }

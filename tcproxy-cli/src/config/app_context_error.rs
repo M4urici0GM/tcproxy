@@ -15,7 +15,7 @@ impl Display for AppContextError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let msg = match self {
             AppContextError::DoesntExist(ctx_name) => format!("context {} doesn't exists.", ctx_name),
-            AppContextError::AlreadyExists(ctx) => format!("context {} with ip {} already exists", ctx.name(), ctx.ip()),
+            AppContextError::AlreadyExists(ctx) => format!("context {} with ip {} already exists", ctx.name(), ctx.host()),
             AppContextError::Other(err) => format!("unexpected error: {}", err),
         };
 

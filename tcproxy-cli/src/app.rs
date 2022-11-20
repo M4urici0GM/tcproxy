@@ -9,7 +9,7 @@ use tracing::debug;
 use tcproxy_core::Result;
 use tcproxy_core::{AsyncCommand, Command};
 
-use crate::ClientArgs;
+use crate::{ClientArgs};
 use crate::commands::ListenCommand;
 use crate::commands::contexts::{CreateContextCommand, DirectoryResolver};
 use crate::{AppCommandType, ContextCommands};
@@ -40,10 +40,11 @@ impl DirectoryResolver for DefaultDirectoryResolver {
         let project_dir = DefaultDirectoryResolver::get_config_dir()?;
         let config_dir = project_dir.config_dir();
 
-        let mut path_buf = PathBuf::from(&config_dir);
-        path_buf.push("config.yaml");
+        if !config_dir.exists() {
+            std::fs::create_dir_all(&config_dir)?;
+        }
 
-        Ok(path_buf)
+        Ok(PathBuf::from(&config_dir))
     }
 }
 

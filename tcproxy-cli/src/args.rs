@@ -42,7 +42,19 @@ pub struct DeleteContextArgs {
 #[derive(Parser, Debug)]
 pub struct CreateContextArgs {
     name: String,
+
+    #[clap(value_parser = parse_server_addr)]
     host: ServerAddr,
+}
+
+impl CreateContextArgs {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn host(&self) -> &ServerAddr {
+        &self.host
+    }
 }
 
 #[derive(Parser, Debug)]
@@ -82,8 +94,8 @@ impl ListenArgs {
 impl Clone for CreateContextArgs {
     fn clone(&self) -> Self {
         Self {
-            host: self.host,
-            name: self.name.clone(),
+            host: self.host().clone(),
+            name: self.name().to_owned(),
         }
     }
 }
@@ -98,6 +110,13 @@ impl Clone for ListenArgs {
         }
     }
 }
+
+
+fn parse_server_addr(given_str: &str) -> Result<ServerAddr> {
+    let result = ServerAddr::from_str(given_str)?;
+    Ok(result)
+}
+
 
 fn parse_ping_interval(s: &str) -> Result<u8> {
     let parsed_value = match s.parse::<u8>() {

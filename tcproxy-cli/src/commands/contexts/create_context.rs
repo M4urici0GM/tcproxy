@@ -38,15 +38,14 @@ impl Command for CreateContextCommand {
 
     fn handle(&mut self) -> Self::Output {
         let config_path = self.get_full_config_path()?;
-        let context = AppContext::new(&self.args.name, &self.args.host);
+
+        let context_addr = self.args.host();
+        let context = AppContext::new(&self.args.name(), context_addr.host(), context_addr.port());
         let mut config = AppConfig::load(&config_path)?;
 
         config.push_context(&context)?;
 
-        if !config.has_default_context() {
-            config.set_default_context(&context);
-        }
-
+        AppConfig::save_to_file(&config, &config_path)?;
         Ok(())
     }
 }

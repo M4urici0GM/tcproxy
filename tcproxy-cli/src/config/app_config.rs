@@ -10,10 +10,11 @@ use crate::config::{AppConfigError, AppContext, AppContextError};
 
 type Result<T> = std::result::Result<T, AppConfigError>;
 
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct AppConfig {
     default_context: String,
-    contexts: HashMap<String, AppContext>,
+    contexts: Vec<AppContext>,
 }
 
 impl AppConfig {
@@ -44,17 +45,25 @@ impl AppConfig {
         &self.default_context
     }
 
-    pub fn contexts(&self) -> &HashMap<String, AppContext> {
-        &self.contexts
+    pub fn contexts(&self) -> HashMap<String, AppContext> {
+        let mut mapped_ctxs = HashMap::new();
+        for ctx in self.contexts.iter() {
+            mapped_ctxs.insert(ctx.name().to_owned(), ctx.clone());
+        }
+
+
+        mapped_ctxs
     }
 
     pub fn ctx_exists(&self, context: &AppContext) -> bool {
-        self.contexts.contains_key(context.name())
+        self.contexts
+            .iter()
+            .any(|ctx| ctx == context)
     }
 
     pub fn set_default_context(&mut self, context: &AppContext) -> bool {
         if !self.ctx_exists(&context) {
-            self.contexts.insert(context.name().to_owned(), context.clone());
+            self.contexts.push(context.clone());
         }
 
         self.default_context = context.name().to_owned();
@@ -70,7 +79,7 @@ impl AppConfig {
             return Err(AppContextError::AlreadyExists(context.clone()))
         }
 
-        self.contexts.insert(context.name().to_owned(), context.clone());
+        self.contexts.push(context.clone());
         if !self.has_default_context() {
             self.set_default_context(context);
         }
@@ -110,7 +119,7 @@ impl AppConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            contexts: HashMap::default(),
+            contexts: Vec::default(),
             default_context: String::default(),
         }
     }
@@ -119,7 +128,7 @@ impl Default for AppConfig {
 #[cfg(test)]
 mod tests {
     use std::fs;
-    use std::net::{IpAddr, SocketAddr};
+    use std::net::IpAddr;
     use std::path::Path;
     use uuid::Uuid;
     use crate::config::{AppConfig, AppContext};
@@ -128,9 +137,10 @@ mod tests {
     fn should_write_to_disk() {
         let file_path = format!("./{}.yaml", Uuid::new_v4());
         let file_path = Path::new(&file_path);
+        let (host, port) = create_socket_addr();
 
         let mut config = AppConfig::default();
-        let context = AppContext::new("context1", &create_socket_addr());
+        let context = AppContext::new("context1", &host, &port);
 
         config.set_default_context(&context);
 
@@ -159,7 +169,8 @@ mod tests {
     #[test]
     fn push_context_should_return_err_if_ctx_exists() {
         let mut config = AppConfig::default();
-        let context = AppContext::new("contex1", &create_socket_addr());
+        let (host, port) = create_socket_addr();
+        let context = AppContext::new("contex1", &host, &port);
 
         config.push_context(&context).unwrap();
 
@@ -173,9 +184,9 @@ mod tests {
     #[test]
     fn set_default_context_should_push_if_not_existent() {
         let mut config = AppConfig::default();
-        let socket_addr = create_socket_addr();
+        let (host, port) = create_socket_addr();
 
-        let context = AppContext::new("context1", &socket_addr);
+        let context = AppContext::new("context1", &host, &port);
 
         // Act
         config.set_default_context(&context);
@@ -208,9 +219,8 @@ mod tests {
         // Arrange
         let mut default_config = AppConfig::default();
 
-        let target_ip = IpAddr::from([127, 0, 0, 1]);
-        let socket_addr = SocketAddr::new(target_ip, 8080);
-        let context = AppContext::new("test-context", &socket_addr);
+        let (host, port) = create_socket_addr();
+        let context = AppContext::new("test-context", &host, &port);
 
         default_config.push_context(&context).unwrap();
 
@@ -222,11 +232,10 @@ mod tests {
     pub fn setting_first_context_should_set_default_context() {
         // Arrange
         let mut default_config = AppConfig::default();
+        let (host, port) = create_socket_addr();
 
-        let target_ip = IpAddr::from([127, 0, 0, 1]);
-        let socket_addr = SocketAddr::new(target_ip, 8080);
-        let context = AppContext::new("test-context", &socket_addr);
-        let context2 = AppContext::new("test-context2", &socket_addr);
+        let context = AppContext::new("test-context", &host, &port);
+        let context2 = AppContext::new("test-context2", &host, &port);
 
         default_config.push_context(&context).unwrap();
 
@@ -258,9 +267,10 @@ mod tests {
         remove_file(&file_path);
     }
 
-    fn create_socket_addr() -> SocketAddr {
+    fn create_socket_addr() -> (String, u16) {
         let ip = IpAddr::from([127, 0, 0, 1]);
-        SocketAddr::new(ip, 80)
+
+        (ip.to_string(), 80)
     }
 
     fn create_file_name() -> String {
