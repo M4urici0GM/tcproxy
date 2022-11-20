@@ -1,4 +1,3 @@
-use std::net::{IpAddr, SocketAddr};
 use std::{
     net::{Ipv4Addr, SocketAddrV4},
     str::FromStr,
@@ -6,6 +5,8 @@ use std::{
 
 use clap::Parser;
 use tcproxy_core::Result;
+
+use crate::server_addr::ServerAddr;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -40,8 +41,8 @@ pub struct DeleteContextArgs {
 
 #[derive(Parser, Debug)]
 pub struct CreateContextArgs {
-    pub(crate) name: String,
-    pub(crate) host: SocketAddr,
+    name: String,
+    host: ServerAddr,
 }
 
 #[derive(Parser, Debug)]

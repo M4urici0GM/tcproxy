@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
-use resolve_path::PathResolveExt;
+use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 use crate::config::{AppConfigError, AppContext, AppContextError};
@@ -17,28 +17,16 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    pub fn load(path: &str) -> Result<Self> {
-        let actual_path = AppConfig::canonicalize_path(&path)?;
-        if !AppConfig::exists(&actual_path) {
-            return Err(AppConfigError::NotFound);
+    pub fn load(path: &Path) -> Result<Self> {
+        if !AppConfig::exists(&path) {
+            AppConfig::create_default(&path)?;
         }
 
         let config = AppConfig::read_from_file(&path)?;
         Ok(config)
     }
 
-    pub fn load_or_create(path: &str) -> Result<Self> {
-        let actual_path = AppConfig::canonicalize_path(&path)?;
-        if !AppConfig::exists(&actual_path) {
-            AppConfig::create_default(&actual_path)?;
-        }
-
-        let config = AppConfig::read_from_file(&path)?;
-        Ok(config)
-    }
-
-    pub fn save_to_file(config: &Self, path: &str) -> Result<()> {
-        let path = AppConfig::canonicalize_path(&path)?;
+    pub fn save_to_file(config: &Self, path: &Path) -> Result<()> {
         let mut file = OpenOptions::new()
             .write(true)
             .append(false)
@@ -90,14 +78,7 @@ impl AppConfig {
         Ok(())
     }
 
-    fn canonicalize_path(path: &str) -> Result<String> {
-        let resolved_path = path.resolve();
-        let path_buf = resolved_path.display().to_string();
-
-        Ok(String::from(path_buf))
-    }
-
-    fn create_default(path: &str) -> Result<()> {
+    fn create_default(path: &Path) -> Result<()> {
         let default_config = AppConfig::default();
         let config_str = serde_yaml::to_string(&default_config).unwrap();
         let mut file = OpenOptions::new()
@@ -112,8 +93,7 @@ impl AppConfig {
         Ok(())
     }
 
-    fn read_from_file(path: &str) -> Result<Self> {
-        let path = path.resolve();
+    fn read_from_file(path: &Path) -> Result<Self> {
         let file = OpenOptions::new()
             .read(true)
             .open(&path)?;
@@ -122,7 +102,7 @@ impl AppConfig {
         Ok(contents)
     }
 
-    fn exists(path: &str) -> bool {
+    fn exists(path: &Path) -> bool {
         fs::metadata(&path).is_ok()
     }
 }
@@ -140,12 +120,15 @@ impl Default for AppConfig {
 mod tests {
     use std::fs;
     use std::net::{IpAddr, SocketAddr};
+    use std::path::Path;
     use uuid::Uuid;
     use crate::config::{AppConfig, AppContext};
 
     #[test]
     fn should_write_to_disk() {
         let file_path = format!("./{}.yaml", Uuid::new_v4());
+        let file_path = Path::new(&file_path);
+
         let mut config = AppConfig::default();
         let context = AppContext::new("context1", &create_socket_addr());
 
@@ -166,8 +149,9 @@ mod tests {
     #[test]
     fn should_return_err_if_path_doesnt_exist() {
         let path = format!("~/{}.test", Uuid::new_v4());
+        let file_path = Path::new(&path);
         let config = AppConfig::default();
-        let result = AppConfig::save_to_file(&config, &path);
+        let result = AppConfig::save_to_file(&config, &file_path);
 
         assert!(result.is_err());
     }
@@ -188,8 +172,7 @@ mod tests {
 
     #[test]
     fn set_default_context_should_push_if_not_existent() {
-        let file_name = create_file_name();
-        let mut config = create_default_config(&file_name);
+        let mut config = AppConfig::default();
         let socket_addr = create_socket_addr();
 
         let context = AppContext::new("context1", &socket_addr);
@@ -207,15 +190,17 @@ mod tests {
     fn should_read_from_file() {
         let file_name = create_file_name();
         let config = create_default_config(&file_name);
+        let path = format!("./{}", &file_name);
+        let file_path = Path::new(&path);
 
         // Act
-        let read_config = AppConfig::load(&file_name).unwrap();
+        let read_config = AppConfig::load(&file_path).unwrap();
 
         // Assert
         assert_eq!(config.default_context(), read_config.default_context());
         assert_eq!(&config.contexts(), &read_config.contexts());
 
-        remove_file(&file_name);
+        remove_file(&file_path);
     }
 
     #[test]
@@ -255,9 +240,11 @@ mod tests {
     pub fn should_create_file_if_doesnt_exist() {
         // Arrange
         let file_name = create_file_name();
+        let path = format!("./{}", &file_name);
+        let file_path = Path::new(&path);
 
         // Act
-        let read_config = AppConfig::load(&file_name);
+        let read_config = AppConfig::load(&file_path);
 
         println!("{:?}", read_config);
 
@@ -268,7 +255,7 @@ mod tests {
         assert!(read_config.contexts().is_empty());
         assert_eq!(read_config.default_context(), String::default());
 
-        remove_file(&file_name);
+        remove_file(&file_path);
     }
 
     fn create_socket_addr() -> SocketAddr {
@@ -292,7 +279,7 @@ mod tests {
     }
 
     /// Util function for removing file after test.
-    fn remove_file(file_name: &str) {
+    fn remove_file(file_name: &Path) {
         std::fs::remove_file(&file_name).unwrap();
     }
 }

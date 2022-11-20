@@ -8,7 +8,8 @@ use tcproxy_core::transport::TransportReader;
 use tcproxy_core::AsyncCommand;
 use tcproxy_core::{Result, TcpFrame};
 
-use crate::{ClientState, DataPacketCommand, IncomingSocketCommand, ListenArgs, RemoteDisconnectedCommand, Shutdown};
+use crate::{ClientState, ListenArgs, Shutdown};
+use crate::commands::{DataPacketCommand, IncomingSocketCommand, RemoteDisconnectedCommand};
 
 pub struct TcpFrameReader {
     sender: Sender<TcpFrame>,

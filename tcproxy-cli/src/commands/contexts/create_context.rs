@@ -1,10 +1,10 @@
-use directories::{self, ProjectDirs};
-use std::path::{PathBuf};
+use std::path::PathBuf;
 
 use tcproxy_core::{Command, Result};
 use crate::config::{AppConfig, AppContext};
-use crate::contexts::DirectoryResolver;
 use crate::CreateContextArgs;
+
+use super::DirectoryResolver;
 
 pub mod env {
     pub const CONFIG_NAME: &str = "config.yaml";
@@ -23,14 +23,13 @@ impl CreateContextCommand {
         }
     }
 
-    fn get_full_config_path(&self) -> Result<String> {
+    fn get_full_config_path(&self) -> Result<PathBuf> {
         let config_path = self.dir_resolver.get_config_folder()?;
         let mut path_buf = PathBuf::from(&config_path);
 
         path_buf.push(env::CONFIG_NAME);
 
-        let final_path = path_buf.into_os_string().into_string()?;
-        Ok(final_path)
+        Ok(path_buf)
     }
 }
 

@@ -1,20 +1,20 @@
 mod app;
 mod args;
 mod client_state;
-mod commands;
 mod console_updater;
 mod frame_reader;
 mod frame_writer;
 mod local_connection;
 mod ping_sender;
+mod shutdown;
+mod server_addr;
 
 pub mod config;
-mod shutdown;
+pub mod commands;
 
 pub use app::*;
 pub use args::*;
 pub use client_state::*;
-pub use commands::*;
 pub use console_updater::*;
 pub use frame_reader::*;
 pub use frame_writer::*;

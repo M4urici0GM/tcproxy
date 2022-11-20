@@ -1,7 +1,6 @@
 use std::future::Future;
 use std::path::PathBuf;
 use std::sync::Arc;
-use clap::builder::Str;
 use directories::ProjectDirs;
 use tokio::sync::{mpsc, broadcast};
 
@@ -10,9 +9,9 @@ use tracing::debug;
 use tcproxy_core::Result;
 use tcproxy_core::{AsyncCommand, Command};
 
-use crate::contexts::{CreateContextCommand, DirectoryResolver};
 use crate::ClientArgs;
-use crate::ListenCommand;
+use crate::commands::ListenCommand;
+use crate::commands::contexts::{CreateContextCommand, DirectoryResolver};
 use crate::{AppCommandType, ContextCommands};
 
 /// represents main app logic.
@@ -37,17 +36,14 @@ impl DirectoryResolver for DefaultDirectoryResolver {
         todo!()
     }
 
-    fn get_config_folder(&self) -> Result<String> {
+    fn get_config_folder(&self) -> Result<PathBuf> {
         let project_dir = DefaultDirectoryResolver::get_config_dir()?;
         let config_dir = project_dir.config_dir();
 
         let mut path_buf = PathBuf::from(&config_dir);
         path_buf.push("config.yaml");
 
-        match path_buf.to_str() {
-            Some(path) => Ok(path.to_owned()),
-            None => return Err(format!("couldnt access {:?}", path_buf).into()),
-        }
+        Ok(path_buf)
     }
 }
 
