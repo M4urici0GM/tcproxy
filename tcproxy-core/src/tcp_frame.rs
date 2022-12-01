@@ -129,7 +129,7 @@ impl TcpFrame {
 
                 Ok(())
             }
-            actual => Err(format!("proto error. invalid frame type. {}", actual).into()),
+            actual => Err(format!("proto error. invalid frame type when checking for packet. {}", actual).into()),
         }
     }
 
@@ -197,7 +197,7 @@ impl TcpFrame {
 
                 Ok(TcpFrame::HostPacket(packet_data))
             }
-            actual => Err(format!("proto error. invalid frame type. {}", actual).into()),
+            actual => Err(format!("proto error. invalid frame type  invalid frame type when parsing packet {}", actual).into()),
         }
     }
 
