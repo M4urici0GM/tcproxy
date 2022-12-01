@@ -24,7 +24,7 @@ pub trait TransportReader: Send {
 impl TransportReader for DefaultTransportReader {
     async fn next(&mut self) -> Result<Option<TcpFrame>> {
         loop {
-            if let Some(frame) = self.parse_frame().await? {
+            if let Some(frame) = self.parse_frame()? {
                 return Ok(Some(frame));
             }
 
@@ -59,7 +59,7 @@ impl DefaultTransportReader {
 
     /// checks if underling buffer has new frame available.
     /// if does, it will parse and return available frame.
-    async fn parse_frame(&mut self) -> Result<Option<TcpFrame>> {
+    fn parse_frame(&mut self) -> Result<Option<TcpFrame>> {
         let mut cursor = Cursor::new(&self.buffer[..]);
         match TcpFrame::check(&mut cursor) {
             Ok(_) => {
