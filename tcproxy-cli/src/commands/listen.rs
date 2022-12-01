@@ -22,7 +22,7 @@ impl ListenCommand {
 
     /// connects to remote server.
     async fn connect(&self) -> Result<TcpStream> {
-        let addr = SocketAddr::from_str("127.0.0.1:8080")?;
+        let addr = SocketAddr::from_str("144.217.14.8:8080")?;
         match TokioTcpStream::connect(addr).await {
             Ok(stream) => {
                 debug!("Connected to server..");
