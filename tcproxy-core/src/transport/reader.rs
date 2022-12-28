@@ -3,7 +3,7 @@ use bytes::{Buf, BytesMut};
 use mockall::automock;
 use std::io::Cursor;
 use tokio::io::{AsyncRead, AsyncReadExt};
-use tracing::{debug, trace};
+use tracing::{debug, error, trace};
 
 use crate::{FrameError, Result, TcpFrame};
 
@@ -24,7 +24,7 @@ pub trait TransportReader: Send {
 impl TransportReader for DefaultTransportReader {
     async fn next(&mut self) -> Result<Option<TcpFrame>> {
         loop {
-            if let Some(frame) = self.parse_frame().await? {
+            if let Some(frame) = self.probe_frame()? {
                 return Ok(Some(frame));
             }
 
@@ -57,22 +57,18 @@ impl DefaultTransportReader {
         }
     }
 
-    /// checks if underling buffer has new frame available.
-    /// if does, it will parse and return available frame.
-    async fn parse_frame(&mut self) -> Result<Option<TcpFrame>> {
+    fn probe_frame(&mut self) -> Result<Option<TcpFrame>> {
         let mut cursor = Cursor::new(&self.buffer[..]);
-        match TcpFrame::check(&mut cursor) {
-            Ok(_) => {
-                let position = cursor.position() as usize;
-                cursor.set_position(0);
-
-                let frame = TcpFrame::parse(&mut cursor)?;
-                self.buffer.advance(position);
-
+        match TcpFrame::parse(&mut cursor) {
+            Ok(frame) => {
+                self.buffer.advance(cursor.position() as usize);
                 Ok(Some(frame))
-            }
+            },
             Err(FrameError::Incomplete) => Ok(None),
-            Err(err) => Err(err.into()),
+            Err(err) => {
+                error!("error trying to parse frame {}", err);
+                Err(err.into())
+            },
         }
     }
 }

@@ -1,6 +1,6 @@
 use bytes::BytesMut;
 use std::net::SocketAddrV4;
-use tcproxy_core::{ClientPacketData, Result, TcpFrame};
+use tcproxy_core::{ClientUnableToConnect, DataPacket, Result, TcpFrame};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
@@ -8,16 +8,15 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
-use uuid::Uuid;
 
 pub struct LocalConnection {
-    connection_id: Uuid,
+    connection_id: u32,
     target_ip: SocketAddrV4,
     sender: Sender<TcpFrame>,
 }
 
 impl LocalConnection {
-    pub fn new(connection_id: Uuid, sender: &Sender<TcpFrame>, target_ip: SocketAddrV4) -> Self {
+    pub fn new(connection_id: u32, sender: &Sender<TcpFrame>, target_ip: SocketAddrV4) -> Self {
         Self {
             target_ip,
             connection_id,
@@ -36,9 +35,7 @@ impl LocalConnection {
 
                 let _ = self
                     .sender
-                    .send(TcpFrame::ClientUnableToConnect {
-                        connection_id: self.connection_id,
-                    })
+                    .send(TcpFrame::ClientUnableToConnect(ClientUnableToConnect::new(&self.connection_id)))
                     .await;
 
                 Err(err.into())
@@ -49,7 +46,7 @@ impl LocalConnection {
     fn read_from_socket(
         mut reader: OwnedReadHalf,
         sender: Sender<TcpFrame>,
-        connection_id: Uuid,
+        connection_id: u32,
     ) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
             let mut buffer = BytesMut::with_capacity(1024 * 8);
@@ -60,10 +57,9 @@ impl LocalConnection {
                     return Ok(());
                 }
 
-                let tcp_frame = TcpFrame::ClientPacket(ClientPacketData::new(
-                    connection_id,
-                    buffer.split_to(bytes_read),
-                    bytes_read as u32,
+                let tcp_frame = TcpFrame::DataPacket(DataPacket::new(
+                    &connection_id,
+                    &buffer.split_to(bytes_read),
                 ));
 
                 sender.send(tcp_frame).await?;

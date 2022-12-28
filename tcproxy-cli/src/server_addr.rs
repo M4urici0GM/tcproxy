@@ -1,4 +1,4 @@
-use std::{str::FromStr, error::Error, fmt::Display, num::ParseIntError, net::{IpAddr, Ipv4Addr}};
+use std::{str::FromStr, error::Error, fmt::Display, num::ParseIntError};
 
 use regex::Regex;
 
@@ -26,7 +26,7 @@ pub struct ServerAddr {
 }
 
 impl ServerAddr {
-    pub fn new(host: &str, port: &u16, raw_str: &str) -> Self {
+    pub fn new(host: &str, port: &u16) -> Self {
         let addr_type = match Self::is_ip(host) {
             true => ServerAddrType::IpAddr,
             _ => ServerAddrType::DomainName,
@@ -62,7 +62,7 @@ impl FromStr for ServerAddr {
     type Err = ServerAddrError;
 
     fn from_str(given_str: &str) -> Result<Self, Self::Err> {
-        let groups: Vec<&str> = given_str.split(":").collect();
+        let groups: Vec<&str> = given_str.split(':').collect();
         if 2 != groups.len() {
             return Err(ServerAddrError::InvalidString);
         }
@@ -73,7 +73,7 @@ impl FromStr for ServerAddr {
             Err(_) => return Err(ServerAddrError::InvalidPort),
         };
 
-        let obj = ServerAddr::new(host, &port, given_str);
+        let obj = ServerAddr::new(host, &port);
 
         Ok(obj)
     }
@@ -86,8 +86,8 @@ impl Error for ServerAddrError {
 impl Display for ServerAddrError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let msg = match self {
-            ServerAddrError::InvalidPort => format!("invalid port."),
-            ServerAddrError::InvalidString => format!("invalid host string"),
+            ServerAddrError::InvalidPort => "invalid port.".to_string(),
+            ServerAddrError::InvalidString => "invalid host string".to_string(),
             ServerAddrError::Other(err) => format!("unexpected error: {}", err),
         };
 

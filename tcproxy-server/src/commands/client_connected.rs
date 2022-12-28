@@ -3,7 +3,7 @@ use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
 use tcproxy_core::tcp::{SocketListener, TcpListener};
-use tcproxy_core::{AsyncCommand, Result, TcpFrame};
+use tcproxy_core::{AsyncCommand, ClientConnectedAck, FailedToCreateProxy, PortLimitReached, Result, TcpFrame};
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error};
@@ -51,7 +51,7 @@ impl ClientConnectedCommand {
             Ok(port) => Ok(port),
             Err(PortError::PortLimitReached(err)) => {
                 debug!("server cannot listen to more ports. port limit reached.");
-                self.client_sender.send(TcpFrame::PortLimitReached).await?;
+                self.client_sender.send(TcpFrame::PortLimitReached(PortLimitReached)).await?;
                 Err(err)
             }
             Err(err) => {
@@ -75,13 +75,14 @@ impl AsyncCommand for ClientConnectedCommand {
                 error!("error when trying to spawn tcp proxy listener. {}", err);
                 let _ = self
                     .client_sender
-                    .send(TcpFrame::FailedToCreateProxy)
+                    .send(TcpFrame::FailedToCreateProxy(FailedToCreateProxy))
                     .await;
 
                 return Err(err);
             }
         };
 
+        debug!("spawned proxy server at {}", target_ip);
         let proxy_server = ProxyServer {
             target_port,
             listener: Box::new(listener),
@@ -93,9 +94,7 @@ impl AsyncCommand for ClientConnectedCommand {
         let _ = proxy_server.spawn();
         let _ = self
             .client_sender
-            .send(TcpFrame::ClientConnectedAck {
-                port: target_port,
-            })
+            .send(TcpFrame::ClientConnectedAck(ClientConnectedAck::new(&target_port)))
             .await;
 
         Ok(())

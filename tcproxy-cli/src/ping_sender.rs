@@ -1,7 +1,7 @@
 use chrono::Utc;
 use std::sync::Arc;
 use std::time::Duration;
-use tcproxy_core::{Result, TcpFrame};
+use tcproxy_core::{Ping, Result, TcpFrame};
 use tokio::sync::mpsc::Sender;
 use tokio::time;
 use tokio::{task::JoinHandle, time::Instant};
@@ -50,7 +50,7 @@ impl PingSender {
         loop {
             debug!("Waiting for next ping to occur");
             time::sleep_until(Instant::now() + Duration::from_secs(self.interval)).await;
-            match self.sender.send(TcpFrame::Ping).await {
+            match self.sender.send(TcpFrame::Ping(Ping)).await {
                 Ok(_) => {
                     let time = Utc::now();
                     self.state.update_last_sent_ping(time);

@@ -26,7 +26,7 @@ impl DefaultDirectoryResolver {
         let project_dir = ProjectDirs::from("", "m4urici0gm", "tcproxy");
         match project_dir {
             Some(dir) => Ok(dir),
-            None => return Err("Couldnt access config folder".into()),
+            None => Err("Couldnt access config folder".into()),
         }
     }
 }

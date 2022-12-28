@@ -5,7 +5,7 @@ use tokio::{sync::mpsc::Sender, task::JoinHandle};
 use tracing::debug;
 
 use tcproxy_core::transport::TransportReader;
-use tcproxy_core::AsyncCommand;
+use tcproxy_core::{AsyncCommand};
 use tcproxy_core::{Result, TcpFrame};
 
 use crate::{ClientState, ListenArgs, Shutdown};
@@ -65,27 +65,26 @@ impl TcpFrameReader {
 
             debug!("received new frame from server: {}", msg);
             let mut command: Box<dyn AsyncCommand<Output = Result<()>>> = match msg {
-                TcpFrame::HostPacket(data) => Box::new(DataPacketCommand::new(
+                TcpFrame::DataPacket(data) => Box::new(DataPacketCommand::new(
                     data.connection_id(),
                     data.buffer(),
-                    data.buffer_size(),
                     &self.state,
                 )),
-                TcpFrame::IncomingSocket { connection_id } => Box::new(IncomingSocketCommand::new(
-                    connection_id,
+                TcpFrame::IncomingSocket(data) => Box::new(IncomingSocketCommand::new(
+                    data.connection_id(),
                     &self.sender,
                     &self.state,
                     &self.args,
                 )),
-                TcpFrame::RemoteSocketDisconnected { connection_id } => {
-                    Box::new(RemoteDisconnectedCommand::new(connection_id, &self.state))
+                TcpFrame::RemoteSocketDisconnected(data) => {
+                    Box::new(RemoteDisconnectedCommand::new(data.connection_id(), &self.state))
                 }
-                TcpFrame::ClientConnectedAck { port } => {
-                    debug!("Remote proxy listening in {}:{}", "127.0.0.1", port);
-                    self.state.update_remote_ip(&port.to_string());
+                TcpFrame::ClientConnectedAck(data) => {
+                    debug!("Remote proxy listening in {}:{}", "127.0.0.1", data.port());
+                    self.state.update_remote_ip(&data.port().to_string());
                     continue;
                 }
-                TcpFrame::Pong => {
+                TcpFrame::Pong(_) => {
                     let time = Utc::now();
                     self.state.update_last_ping(time);
 

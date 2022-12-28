@@ -1,4 +1,3 @@
-use bytes::BytesMut;
 use std::net::SocketAddr;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 use tokio::sync::mpsc::Receiver;
@@ -8,12 +7,12 @@ use tcproxy_core::Result;
 
 pub struct RemoteConnectionWriter {
     connection_addr: SocketAddr,
-    receiver: Receiver<BytesMut>,
+    receiver: Receiver<Vec<u8>>,
 }
 
 /// Writes buffers into remote connection.
 impl RemoteConnectionWriter {
-    pub fn new(receiver: Receiver<BytesMut>, connection_addr: SocketAddr) -> Self {
+    pub fn new(receiver: Receiver<Vec<u8>>, connection_addr: SocketAddr) -> Self {
         Self {
             connection_addr,
             receiver,
@@ -24,9 +23,8 @@ impl RemoteConnectionWriter {
     where
         T: AsyncWrite + Unpin,
     {
-        while let Some(mut buffer) = self.receiver.recv().await {
-            let mut buffer = buffer.split();
-            match writer.write_buf(&mut buffer).await {
+        while let Some(buffer) = self.receiver.recv().await {
+            match writer.write(&buffer).await {
                 Ok(written) => {
                     trace!("written {} bytes to {}", written, self.connection_addr)
                 }
@@ -54,7 +52,6 @@ mod tests {
     };
 
     use super::*;
-    use bytes::BytesMut;
     use mockall::mock;
     use std::io;
     use std::io::Cursor;
@@ -80,12 +77,12 @@ mod tests {
 
         let mut bytes_buff: Vec<u8> = vec![];
         let cursor = Cursor::new(&mut bytes_buff);
-        let (sender, receiver) = mpsc::channel::<BytesMut>(1);
+        let (sender, receiver) = mpsc::channel::<Vec<u8>>(1);
 
         let addr = SocketAddr::new(IpAddr::from([127, 0, 0, 1]), 0);
         let mut connection_writer = RemoteConnectionWriter::new(receiver, addr);
 
-        let _ = sender.send(BytesMut::from(&random_buffer[..])).await;
+        let _ = sender.send(random_buffer[..].to_vec()).await;
         drop(sender);
 
         let result = connection_writer.start(Box::new(cursor)).await;
@@ -100,7 +97,7 @@ mod tests {
 
         let ip = Ipv4Addr::new(127, 0, 0, 1);
         let addr = SocketAddr::new(std::net::IpAddr::V4(ip), 80);
-        let (sender, receiver) = mpsc::channel::<BytesMut>(10);
+        let (sender, receiver) = mpsc::channel::<Vec<u8>>(10);
 
         let mut mocked_stream = MockWriter::new();
         let mut connection_writer = RemoteConnectionWriter::new(receiver, addr);
@@ -109,7 +106,7 @@ mod tests {
             .expect_poll_write()
             .returning(|_, _| Poll::Ready(Err(std::io::Error::new(ErrorKind::Other, ""))));
 
-        let result = sender.send(BytesMut::from(&random_buffer[..])).await;
+        let result = sender.send(random_buffer[..].to_vec()).await;
         assert!(result.is_ok());
 
         let result = connection_writer.start(Box::new(mocked_stream)).await;

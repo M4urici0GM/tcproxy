@@ -1,17 +1,16 @@
 use async_trait::async_trait;
 use bytes::BytesMut;
 use std::sync::Arc;
-use tcproxy_core::{AsyncCommand, Result, TcpFrame};
+use tcproxy_core::{AsyncCommand, LocalConnectionDisconnected, Result, TcpFrame};
 use tokio::sync::mpsc::{self, Sender};
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
-use uuid::Uuid;
 
 use crate::{client_state::ClientState, ListenArgs, LocalConnection};
 
 /// issued when a remote socket connects to server.
 pub struct IncomingSocketCommand {
-    connection_id: Uuid,
+    connection_id: u32,
     client_sender: Sender<TcpFrame>,
     state: Arc<ClientState>,
     args: Arc<ListenArgs>,
@@ -19,13 +18,13 @@ pub struct IncomingSocketCommand {
 
 impl IncomingSocketCommand {
     pub fn new(
-        id: Uuid,
+        id: &u32,
         sender: &Sender<TcpFrame>,
         state: &Arc<ClientState>,
         args: &Arc<ListenArgs>,
     ) -> Self {
         Self {
-            connection_id: id,
+            connection_id: *id,
             args: args.clone(),
             state: state.clone(),
             client_sender: sender.clone(),
@@ -44,7 +43,7 @@ impl AsyncCommand for IncomingSocketCommand {
         let cancellation_token = token.child_token();
 
         self.state
-            .insert_connection(self.connection_id, connection_sender, token);
+            .insert_connection(&self.connection_id, connection_sender, token);
 
         let target_ip = self.args.parse_socket_addr();
         let connection_id = self.connection_id;
@@ -59,7 +58,7 @@ impl AsyncCommand for IncomingSocketCommand {
 
             debug!("Local connection socket finished.");
             let _ = sender
-                .send(TcpFrame::LocalClientDisconnected { connection_id })
+                .send(TcpFrame::LocalConnectionDisconnected(LocalConnectionDisconnected::new(&connection_id)))
                 .await;
         });
 

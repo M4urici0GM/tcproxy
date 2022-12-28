@@ -1,13 +1,12 @@
-use bytes::BytesMut;
 use std::sync::Arc;
-use tcproxy_core::TcpFrame;
+use rand::random;
+use tcproxy_core::{IncomingSocket, TcpFrame};
 use tokio::sync::{mpsc, OwnedSemaphorePermit};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Semaphore;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error};
-use uuid::Uuid;
 
 use tcproxy_core::tcp::{SocketListener, TcpStream};
 use tcproxy_core::Result;
@@ -71,11 +70,11 @@ impl ProxyServer {
 
             let connection = self.accept_connection().await?;
 
-            let connection_id = Uuid::new_v4();
-            let (connection_sender, connection_receiver) = mpsc::channel::<BytesMut>(100);
+            let connection_id = random();
+            let (connection_sender, connection_receiver) = mpsc::channel::<Vec<u8>>(100);
 
             connection_manager.insert_connection(
-                connection_id,
+                &connection_id,
                 connection_sender,
                 CancellationToken::new(),
             );
@@ -88,17 +87,17 @@ impl ProxyServer {
         &mut self,
         permit: OwnedSemaphorePermit,
         connection: TcpStream,
-        connection_id: Uuid,
-        connection_receiver: Receiver<BytesMut>,
+        connection_id: u32,
+        connection_receiver: Receiver<Vec<u8>>,
     ) -> Result<()> {
         self.client_sender
-            .send(TcpFrame::IncomingSocket { connection_id })
+            .send(TcpFrame::IncomingSocket(IncomingSocket::new(&connection_id)))
             .await?;
 
         let mut remote_connection = RemoteConnection::new(
             permit,
             connection.addr,
-            connection_id,
+            &connection_id,
             &self.client_sender);
 
         tokio::spawn(async move {

@@ -11,7 +11,7 @@ use crate::config::{AppConfigError, AppContext, AppContextError};
 type Result<T> = std::result::Result<T, AppConfigError>;
 
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppConfig {
     default_context: String,
     contexts: Vec<AppContext>,
@@ -19,11 +19,11 @@ pub struct AppConfig {
 
 impl AppConfig {
     pub fn load(path: &Path) -> Result<Self> {
-        if !AppConfig::exists(&path) {
-            AppConfig::create_default(&path)?;
+        if !AppConfig::exists(path) {
+            AppConfig::create_default(path)?;
         }
 
-        let config = AppConfig::read_from_file(&path)?;
+        let config = AppConfig::read_from_file(path)?;
         Ok(config)
     }
 
@@ -36,7 +36,7 @@ impl AppConfig {
 
         let self_contents = serde_yaml::to_string(&config)?;
 
-        file.write_all(&self_contents.as_bytes())?;
+        file.write_all(self_contents.as_bytes())?;
         file.flush()?;
         Ok(())
     }
@@ -62,7 +62,7 @@ impl AppConfig {
     }
 
     pub fn set_default_context(&mut self, context: &AppContext) -> bool {
-        if !self.ctx_exists(&context) {
+        if !self.ctx_exists(context) {
             self.contexts.push(context.clone());
         }
 
@@ -96,7 +96,7 @@ impl AppConfig {
             .append(false)
             .open(&path)?;
 
-        file.write_all(&config_str.as_bytes())?;
+        file.write_all(config_str.as_bytes())?;
         file.flush()?;
 
         Ok(())
@@ -145,14 +145,14 @@ mod tests {
         config.set_default_context(&context);
 
         // Act
-        AppConfig::save_to_file(&config, &file_path).unwrap();
+        AppConfig::save_to_file(&config, file_path).unwrap();
 
-        let created_config = AppConfig::load(&file_path).unwrap();
+        let created_config = AppConfig::load(file_path).unwrap();
 
         // Assert
         assert_eq!(created_config, config);
 
-        remove_file(&file_path);
+        remove_file(file_path);
     }
 
 
@@ -161,7 +161,7 @@ mod tests {
         let path = format!("~/{}.test", Uuid::new_v4());
         let file_path = Path::new(&path);
         let config = AppConfig::default();
-        let result = AppConfig::save_to_file(&config, &file_path);
+        let result = AppConfig::save_to_file(&config, file_path);
 
         assert!(result.is_err());
     }
@@ -205,13 +205,13 @@ mod tests {
         let file_path = Path::new(&path);
 
         // Act
-        let read_config = AppConfig::load(&file_path).unwrap();
+        let read_config = AppConfig::load(file_path).unwrap();
 
         // Assert
         assert_eq!(config.default_context(), read_config.default_context());
         assert_eq!(&config.contexts(), &read_config.contexts());
 
-        remove_file(&file_path);
+        remove_file(file_path);
     }
 
     #[test]
@@ -253,7 +253,7 @@ mod tests {
         let file_path = Path::new(&path);
 
         // Act
-        let read_config = AppConfig::load(&file_path);
+        let read_config = AppConfig::load(file_path);
 
         println!("{:?}", read_config);
 
@@ -264,7 +264,7 @@ mod tests {
         assert!(read_config.contexts().is_empty());
         assert_eq!(read_config.default_context(), String::default());
 
-        remove_file(&file_path);
+        remove_file(file_path);
     }
 
     fn create_socket_addr() -> (String, u16) {
@@ -302,7 +302,7 @@ impl Display for AppConfigError {
             AppConfigError::YamlErr(err) => format!("Error when serializing/deserializing Yaml: {}", err),
             AppConfigError::IOError(err) => format!("IO error occurred: {}", err),
             AppConfigError::Other(err) => format!("Unexpected error! {}", err),
-            AppConfigError::NotFound => format!("AppConfig was not found.."),
+            AppConfigError::NotFound => "AppConfig was not found..".to_string(),
         };
 
         write!(f, "{}", msg)

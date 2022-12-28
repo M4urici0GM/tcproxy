@@ -40,7 +40,7 @@ impl Command for CreateContextCommand {
         let config_path = self.get_full_config_path()?;
 
         let context_addr = self.args.host();
-        let context = AppContext::new(&self.args.name(), context_addr.host(), context_addr.port());
+        let context = AppContext::new(self.args.name(), context_addr.host(), context_addr.port());
         let mut config = AppConfig::load(&config_path)?;
 
         config.push_context(&context)?;

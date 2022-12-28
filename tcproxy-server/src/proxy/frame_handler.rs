@@ -48,17 +48,17 @@ impl FrameHandler for DefaultFrameHandler {
         cancellation_token: CancellationToken,
     ) -> Result<Option<TcpFrame>> {
         let mut command_handler: Box<dyn AsyncCommand<Output = Result<()>>> = match frame {
-            TcpFrame::Ping => Box::new(PingCommand::new(&self.sender)),
-            TcpFrame::LocalClientDisconnected { connection_id } => {
-                LocalClientDisconnectedCommand::boxed_new(connection_id, &self.state)
+            TcpFrame::Ping(_) => Box::new(PingCommand::new(&self.sender)),
+            TcpFrame::LocalConnectionDisconnected(data) => {
+                LocalClientDisconnectedCommand::boxed_new(data.connection_id(), &self.state)
             },
-            TcpFrame::ClientPacket(data) => {
+            TcpFrame::DataPacket(data) => {
                 DataPacketClientCommand::boxed_new(
                     data.buffer(),
                     data.connection_id(),
                     &self.state)
             }
-            TcpFrame::ClientConnected => {
+            TcpFrame::ClientConnected(_) => {
                 let listen_ip = self.feature_manager
                     .get_config()
                     .get_listen_ip();

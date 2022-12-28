@@ -1,21 +1,20 @@
 use tcproxy_core::tcp::StreamReader;
 use tokio::sync::mpsc::Sender;
 use tracing::{error, trace};
-use uuid::Uuid;
 
-use tcproxy_core::TcpFrame;
-use tcproxy_core::{HostPacketData, Result};
+use tcproxy_core::{DataPacket, TcpFrame};
+use tcproxy_core::{Result};
 
 pub struct RemoteConnectionReader {
-    connection_id: Uuid,
+    connection_id: u32,
     client_sender: Sender<TcpFrame>,
 }
 
 
 impl RemoteConnectionReader {
-    pub fn new(connection_id: Uuid, sender: &Sender<TcpFrame>) -> Self {
+    pub fn new(connection_id: &u32, sender: &Sender<TcpFrame>) -> Self {
         Self {
-            connection_id,
+            connection_id: *connection_id,
             client_sender: sender.clone(),
         }
     }
@@ -25,11 +24,9 @@ impl RemoteConnectionReader {
         T: StreamReader,
     {
         while let Some(buffer) = reader.read().await? {
-            let buffer_size = buffer.len() as u32;
-            let frame = TcpFrame::HostPacket(HostPacketData::new(
-                self.connection_id,
-                buffer,
-                buffer_size,
+            let frame = TcpFrame::DataPacket(DataPacket::new(
+                &self.connection_id,
+                &buffer,
             ));
 
             match self.client_sender.send(frame).await {
@@ -50,8 +47,9 @@ impl RemoteConnectionReader {
 mod tests {
     use bytes::{BufMut, BytesMut};
     use mockall::Sequence;
+    use rand::random;
     use tokio::sync::mpsc;
-    use uuid::Uuid;
+    
 
     use crate::tests::utils::generate_random_buffer;
     use tcproxy_core::{TcpFrame, tcp::MockStreamReader};
@@ -61,9 +59,9 @@ mod tests {
     #[tokio::test]
     async fn should_stop_if_read_none() {
         // Arrange
-        let uuid = Uuid::new_v4();
+        let connection_id = random::<u32>();
         let (sender, mut receiver) = mpsc::channel::<TcpFrame>(1);
-        let mut connection_reader = RemoteConnectionReader::new(uuid, &sender);
+        let mut connection_reader = RemoteConnectionReader::new(&connection_id, &sender);
         let mut reader = MockStreamReader::new();
 
         reader.expect_read()
@@ -89,12 +87,12 @@ mod tests {
     #[tokio::test]
     async fn should_read_correctly() {
         // Arrange
-        let uuid = Uuid::new_v4();
+        let connection_id = random::<u32>();
         let expected_buff_size = 1024 * 6;
         let random_buffer = generate_random_buffer(expected_buff_size);
         let (sender, mut receiver) = mpsc::channel::<TcpFrame>(3);
 
-        let mut connection_reader = RemoteConnectionReader::new(uuid, &sender);
+        let mut connection_reader = RemoteConnectionReader::new(&connection_id, &sender);
 
         let mut reader = MockStreamReader::new();
         let mut sequence = Sequence::new();
@@ -126,8 +124,8 @@ mod tests {
         for _ in 0..2 {
             if let Some(frame) = receiver.recv().await {
                 match frame {
-                    TcpFrame::HostPacket(data) => {
-                        final_buff.put_slice(&data.buffer()[..]);
+                    TcpFrame::DataPacket(data) => {
+                        final_buff.put_slice(data.buffer());
                     }
                     value => {
                         panic!("didnt expected {value}");
