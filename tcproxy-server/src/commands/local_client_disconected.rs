@@ -2,24 +2,23 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use tcproxy_core::{AsyncCommand, Result};
 use tracing::{debug, warn};
-use uuid::Uuid;
 
 use crate::ClientState;
 
 pub struct LocalClientDisconnectedCommand {
-    connection_id: Uuid,
+    connection_id: u32,
     proxy_state: Arc<ClientState>,
 }
 
 impl LocalClientDisconnectedCommand {
-    pub fn new(connection_id: Uuid, proxy_state: &Arc<ClientState>) -> Self {
+    pub fn new(connection_id: &u32, proxy_state: &Arc<ClientState>) -> Self {
         Self {
-            connection_id,
+            connection_id: *connection_id,
             proxy_state: proxy_state.clone(),
         }
     }
 
-    pub fn boxed_new(connection_id: Uuid, state: &Arc<ClientState>) -> Box<Self> {
+    pub fn boxed_new(connection_id: &u32, state: &Arc<ClientState>) -> Box<Self> {
         let local_self = LocalClientDisconnectedCommand::new(connection_id, state);
         Box::new(local_self)
     }
@@ -34,7 +33,7 @@ impl AsyncCommand for LocalClientDisconnectedCommand {
 
         match self.proxy_state
             .get_connection_manager()
-            .remove_connection(self.connection_id)
+            .remove_connection(&self.connection_id)
         {
             Some((_, token)) => {
                 token.cancel();

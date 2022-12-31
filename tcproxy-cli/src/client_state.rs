@@ -7,14 +7,13 @@ use std::sync::Mutex;
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
-use uuid::Uuid;
 
 pub struct ClientState {
     console_sender: Sender<i32>,
     remote_ip: Mutex<String>,
     last_sent_ping: Mutex<u32>,
     last_ping: Mutex<u32>,
-    connections: Mutex<HashMap<Uuid, (Sender<BytesMut>, CancellationToken)>>,
+    connections: Mutex<HashMap<u32, (Sender<BytesMut>, CancellationToken)>>,
 }
 
 pub struct ConsoleStatus {
@@ -22,6 +21,7 @@ pub struct ConsoleStatus {
     pub ping: f64,
     pub connections: i32,
 }
+
 
 impl ClientState {
     pub fn new(console_sender: &Sender<i32>) -> Self {
@@ -34,7 +34,7 @@ impl ClientState {
         }
     }
 
-    pub fn update_last_sent_ping(&self, time: DateTime<Utc>) {
+    pub fn update_last_sent_ping(&self, time: &DateTime<Utc>) {
         let mut last_sent_ping = self.last_sent_ping.lock().unwrap();
         *last_sent_ping = time.timestamp_subsec_millis();
     }
@@ -64,9 +64,6 @@ impl ClientState {
         let remote_ip_str = remote_ip.clone();
         let connections_len = connections.len();
 
-        drop(remote_ip);
-        drop(connections);
-
         let remote_ip = match remote_ip_str.as_str() {
             "" => SocketAddr::new(
                 std::net::IpAddr::V4(Ipv4Addr::from_str("0.0.0.0").unwrap()),
@@ -87,20 +84,20 @@ impl ClientState {
 
     pub fn insert_connection(
         &self,
-        connection_id: Uuid,
+        connection_id: &u32,
         sender: Sender<BytesMut>,
         cancellation_token: CancellationToken,
     ) {
         let mut lock = self.connections.lock().unwrap();
-        lock.insert(connection_id, (sender, cancellation_token));
+        lock.insert(*connection_id, (sender, cancellation_token));
         drop(lock);
 
         self.notify_console_update();
     }
 
-    pub fn get_connection(&self, id: Uuid) -> Option<(Sender<BytesMut>, CancellationToken)> {
+    pub fn get_connection(&self, id: &u32) -> Option<(Sender<BytesMut>, CancellationToken)> {
         let lock = self.connections.lock().unwrap();
-        match lock.get(&id) {
+        match lock.get(id) {
             Some((sender, token)) => Some((sender.clone(), token.clone())),
             None => {
                 debug!("connection {} not found", id);
@@ -109,15 +106,14 @@ impl ClientState {
         }
     }
 
-    pub fn remove_connection(&self, id: Uuid) -> Option<(Sender<BytesMut>, CancellationToken)> {
+    pub fn remove_connection(&self, id: &u32) -> Option<(Sender<BytesMut>, CancellationToken)> {
         debug!("removing connection {}", id);
         let mut lock = self.connections.lock().unwrap();
-        if !lock.contains_key(&id) {
+        if !lock.contains_key(id) {
             return None;
         }
 
-        let result = lock.remove(&id).unwrap();
-        drop(lock);
+        let result = lock.remove(id).unwrap();
 
         self.notify_console_update();
         Some(result)

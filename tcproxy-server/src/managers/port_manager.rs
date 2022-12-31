@@ -32,7 +32,7 @@ impl PortManager {
         let mut mutex_lock = self.used_ports.lock().unwrap();
         mutex_lock.retain(|port| *port != target_port);
 
-        debug!("removed port {} from available proxies.", target_port);
+        debug!("removed port {} from used proxies.", target_port);
     }
 
     pub async fn get_port(&self) -> std::result::Result<u16, PortError> {

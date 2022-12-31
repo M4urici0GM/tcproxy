@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
 /// represents a issued command.
-pub trait Command: Sync + Send {
+pub trait Command {
     type Output;
 
     /// handles command request.

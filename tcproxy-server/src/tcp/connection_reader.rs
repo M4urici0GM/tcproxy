@@ -1,57 +1,32 @@
-use bytes::BytesMut;
-use tokio::io::AsyncRead;
-use tokio::io::AsyncReadExt;
+use tcproxy_core::tcp::StreamReader;
 use tokio::sync::mpsc::Sender;
 use tracing::{error, trace};
-use uuid::Uuid;
+use tcproxy_core::framing::DataPacket;
 
 use tcproxy_core::TcpFrame;
-use tcproxy_core::{HostPacketData, Result};
+use tcproxy_core::Result;
 
 pub struct RemoteConnectionReader {
-    connection_id: Uuid,
+    connection_id: u32,
     client_sender: Sender<TcpFrame>,
+    reader: Box<dyn StreamReader>
 }
 
+
 impl RemoteConnectionReader {
-    pub fn new(connection_id: Uuid, sender: &Sender<TcpFrame>) -> Self {
+    pub fn new<T>(connection_id: &u32, sender: &Sender<TcpFrame>, reader: T) -> Self  where T : StreamReader + 'static {
         Self {
-            connection_id,
+            connection_id: *connection_id,
             client_sender: sender.clone(),
+            reader: Box::new(reader),
         }
     }
 
-    pub async fn start<T>(&mut self, mut reader: T) -> Result<()>
-    where
-        T: AsyncRead + Unpin,
-    {
-        let mut buffer = BytesMut::with_capacity(1024 * 4);
-        loop {
-            let bytes_read = match reader.read_buf(&mut buffer).await {
-                Ok(read) => read,
-                Err(err) => {
-                    trace!(
-                        "failed to read from connection {}: {}",
-                        self.connection_id,
-                        err
-                    );
-                    return Err(err.into());
-                }
-            };
-
-            trace!("read {} bytes from connection.", bytes_read);
-            if 0 == bytes_read {
-                trace!(
-                    "reached end of stream from connection {}",
-                    self.connection_id
-                );
-                break;
-            }
-
-            let frame = TcpFrame::HostPacket(HostPacketData::new(
-                self.connection_id,
-                buffer.split_to(bytes_read),
-                bytes_read as u32,
+    pub async fn start(&mut self) -> Result<()> {
+        while let Some(buffer) = self.reader.read().await? {
+            let frame = TcpFrame::DataPacket(DataPacket::new(
+                &self.connection_id,
+                &buffer,
             ));
 
             match self.client_sender.send(frame).await {
@@ -71,27 +46,33 @@ impl RemoteConnectionReader {
 #[cfg(test)]
 mod tests {
     use bytes::{BufMut, BytesMut};
-    use std::io::Cursor;
+    use mockall::Sequence;
+    use rand::random;
+    use tokio::sync::mpsc;
+    
 
     use crate::tests::utils::generate_random_buffer;
-    use tcproxy_core::TcpFrame;
-    use tokio::sync::mpsc;
-    use uuid::Uuid;
+    use tcproxy_core::{TcpFrame, tcp::MockStreamReader};
 
-    use super::RemoteConnectionReader;
+    use super::*;
 
     #[tokio::test]
-    async fn should_stop_if_read_zero_bytes() {
+    async fn should_stop_if_read_none() {
         // Arrange
-        let uuid = Uuid::new_v4();
+        let connection_id = random::<u32>();
         let (sender, mut receiver) = mpsc::channel::<TcpFrame>(1);
+        let mut reader = MockStreamReader::new();
 
-        let empty_vec: Vec<u8> = vec![];
-        let cursor = Cursor::new(&empty_vec[..]);
-        let mut connection_reader = RemoteConnectionReader::new(uuid, &sender);
+        reader.expect_read()
+            .returning(|| {
+                Ok(None)
+            });
+
+        let mut connection_reader = RemoteConnectionReader::new(&connection_id, &sender, reader);
+
 
         // Act
-        let result = connection_reader.start(cursor).await;
+        let result = connection_reader.start().await;
 
         // drops sender and connection_reader for receiver.recv() to resolve.
         drop(sender);
@@ -100,30 +81,56 @@ mod tests {
         let receiver_result = receiver.recv().await;
 
         // Assert
-        assert_eq!(true, result.is_ok());
-        assert_eq!(true, receiver_result.is_none());
+        assert!(result.is_ok());
+        assert!(receiver_result.is_none());
     }
 
     #[tokio::test]
     async fn should_read_correctly() {
         // Arrange
-        let uuid = Uuid::new_v4();
+        let connection_id = random::<u32>();
         let expected_buff_size = 1024 * 6;
         let random_buffer = generate_random_buffer(expected_buff_size);
         let (sender, mut receiver) = mpsc::channel::<TcpFrame>(3);
 
-        let mut reader = RemoteConnectionReader::new(uuid, &sender);
-        let cursor = Cursor::new(&random_buffer[..]);
+
+        let mut reader = MockStreamReader::new();
+        let mut sequence = Sequence::new();
+        let buff_clone = random_buffer.clone();
+        reader.expect_read()
+            .times(1)
+            .returning(move || {
+                Ok(Some(BytesMut::from(&buff_clone[..(buff_clone.len()/2)])))
+            })
+            .in_sequence(&mut sequence);
+
+        let buff_clone = random_buffer.clone();
+        reader.expect_read()
+            .times(1)
+            .returning(move || {
+                Ok(Some(BytesMut::from(&buff_clone[(buff_clone.len()/2)..])))
+            })
+            .in_sequence(&mut sequence);
+
+        reader.expect_read()
+            .times(1)
+            .returning(|| Ok(None))
+            .in_sequence(&mut sequence);
+
+        let mut connection_reader = RemoteConnectionReader::new(
+            &connection_id,
+            &sender,
+            reader);
 
         // At this point stream is already closed, but underlying buffer still there for reading.
-        let _ = reader.start(cursor).await;
+        let _ = connection_reader.start().await;
 
         let mut final_buff = BytesMut::with_capacity(expected_buff_size as usize);
         for _ in 0..2 {
             if let Some(frame) = receiver.recv().await {
                 match frame {
-                    TcpFrame::HostPacket(data) => {
-                        final_buff.put_slice(&data.buffer()[..]);
+                    TcpFrame::DataPacket(data) => {
+                        final_buff.put_slice(data.buffer());
                     }
                     value => {
                         panic!("didnt expected {value}");

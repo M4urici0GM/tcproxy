@@ -3,26 +3,36 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::net::TcpStream as TokioTcpStream;
-use tokio::sync::mpsc;
-use tracing::{debug, error};
+use tokio::sync::mpsc::{self, Sender};
+use tokio::sync::broadcast;
+
+use tracing::{debug, error, info};
 
 use tcproxy_core::tcp::TcpStream;
 use tcproxy_core::{transport::TcpFrameTransport, AsyncCommand, Result, TcpFrame};
+use tcproxy_core::framing::{ClientConnected, Ping};
 
-use crate::{ClientState, ConsoleUpdater, ListenArgs, PingSender, TcpFrameReader, TcpFrameWriter};
+use crate::{ClientState, ConsoleUpdater, ListenArgs, PingSender, Shutdown, TcpFrameReader, TcpFrameWriter};
+
 
 pub struct ListenCommand {
     args: Arc<ListenArgs>,
+    pub(crate) _shutdown_complete_tx: Sender<()>,
+    pub(crate) _notify_shutdown: broadcast::Sender<()>,
 }
 
 impl ListenCommand {
-    pub fn new(args: Arc<ListenArgs>) -> Self {
-        Self { args }
+    pub fn new(args: Arc<ListenArgs>, shutdown_complete_tx: Sender<()>, notify_shutdown: broadcast::Sender<()>) -> Self {
+        Self {
+            args,
+            _notify_shutdown: notify_shutdown,
+            _shutdown_complete_tx: shutdown_complete_tx
+        }
     }
 
     /// connects to remote server.
     async fn connect(&self) -> Result<TcpStream> {
-        let addr = SocketAddr::from_str("144.217.14.8:8080")?;
+        let addr = SocketAddr::from_str("144.22.179.129:8080")?;
         match TokioTcpStream::connect(addr).await {
             Ok(stream) => {
                 debug!("Connected to server..");
@@ -48,34 +58,37 @@ impl AsyncCommand for ListenCommand {
             tracing_subscriber::fmt::init();
         }
 
+        info!("Trying to connect...");
+
         let connection = self.connect().await?;
         let (console_sender, console_receiver) = mpsc::channel::<i32>(10);
         let (sender, receiver) = mpsc::channel::<TcpFrame>(10000);
         let (reader, mut writer) = TcpFrameTransport::new(connection).split();
 
+        info!("Connected to server, trying handshake...");
+
         let state = Arc::new(ClientState::new(&console_sender));
 
-        writer.send(TcpFrame::ClientConnected).await?;
-        writer.send(TcpFrame::Ping).await?;
+        writer.send(TcpFrame::ClientConnected(ClientConnected)).await?;
 
-        let ping_task = PingSender::new(&sender, &state, self.args.ping_interval()).spawn();
-        let console_task = ConsoleUpdater::new(console_receiver, &state, &self.args).spawn();
-        let receive_task = TcpFrameWriter::new(receiver, writer).spawn();
-        let foward_task = TcpFrameReader::new(&sender, &state, reader, &self.args).spawn();
+        let ping_task = PingSender::new(&sender, &state, self.args.ping_interval(), &self._shutdown_complete_tx);
+        let console_task = ConsoleUpdater::new(console_receiver, &state, &self.args, &self._shutdown_complete_tx);
+        let receive_task = TcpFrameWriter::new(receiver, writer, &self._shutdown_complete_tx);
+        let forward_task = TcpFrameReader::new(&sender, &state, reader, &self.args, &self._shutdown_complete_tx);
+
+        info!("Connected to server, spawning required tasks...");
 
         tokio::select! {
-            res = console_task => {
-                println!("{:?}", res);
-                debug!("console task finished.");
+            res = console_task.spawn(Shutdown::new(self._notify_shutdown.subscribe())) => {
+                debug!("console task finished. {:?}", res);
             }
-            _ = receive_task => {
+            _ = receive_task.spawn(Shutdown::new(self._notify_shutdown.subscribe())) => {
                 debug!("receive task finished.");
             },
-
-            res = foward_task => {
+            res = forward_task.spawn(Shutdown::new(self._notify_shutdown.subscribe())) => {
                 debug!("forward to server task finished. {:?}", res);
             },
-            _ = ping_task => {
+            _ = ping_task.spawn(Shutdown::new(self._notify_shutdown.subscribe())) => {
                 debug!("ping task finished.");
             }
         };
