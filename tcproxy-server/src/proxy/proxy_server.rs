@@ -1,12 +1,13 @@
 use std::sync::Arc;
 use rand::random;
-use tcproxy_core::{IncomingSocket, TcpFrame};
+use tcproxy_core::{TcpFrame};
 use tokio::sync::{mpsc, OwnedSemaphorePermit};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Semaphore;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error};
+use tcproxy_core::framing::IncomingSocket;
 
 use tcproxy_core::tcp::{SocketListener, TcpStream};
 use tcproxy_core::Result;

@@ -14,7 +14,8 @@ use tracing::debug;
 use uuid::Bytes;
 
 use tcproxy_core::tcp::{SocketListener, TcpListener};
-use tcproxy_core::{ClientConnected, DataPacket, FrameError, Ping, TcpFrame};
+use tcproxy_core::{FrameDecodeError, TcpFrame};
+use tcproxy_core::framing::{ClientConnected, DataPacket, Ping};
 use tcproxy_server::{extract_enum_value, AppArguments, Server, ServerConfig};
 use tcproxy_server::managers::DefaultFeatureManager;
 
@@ -38,7 +39,7 @@ async fn should_answer_ping() {
     assert!(result.is_ok());
 
     let mut stream = result.unwrap();
-    let ping_frame = TcpFrame::Ping(Ping);
+    let ping_frame = TcpFrame::Ping(Ping::new());
     let mut ping_buffer = TcpFrame::to_buffer(&ping_frame);
 
     let write_result = stream.write_buf(&mut ping_buffer).await;
@@ -58,7 +59,7 @@ async fn should_answer_client_connected() {
     assert!(result.is_ok());
 
     let mut stream = result.unwrap();
-    let ping_frame = TcpFrame::ClientConnected(ClientConnected);
+    let ping_frame = TcpFrame::ClientConnected(ClientConnected::new());
     let mut ping_buffer = TcpFrame::to_buffer(&ping_frame);
 
     let write_result = stream.write_buf(&mut ping_buffer).await;
@@ -217,7 +218,7 @@ async fn read_frame(
                 buffer.advance(cursor.position() as usize);
                 return Ok(frame);
             }
-            Err(FrameError::Incomplete) => {
+            Err(FrameDecodeError::Incomplete) => {
                 continue;
             }
             Err(err) => {

@@ -5,7 +5,7 @@ use std::io::Cursor;
 use tokio::io::{AsyncRead, AsyncReadExt};
 use tracing::{debug, error, trace};
 
-use crate::{FrameError, Result, TcpFrame};
+use crate::{FrameDecodeError, Result, TcpFrame};
 
 /// represents TcpFrame transport reader
 /// read new frames from underlying buffer.
@@ -64,7 +64,7 @@ impl DefaultTransportReader {
                 self.buffer.advance(cursor.position() as usize);
                 Ok(Some(frame))
             },
-            Err(FrameError::Incomplete) => Ok(None),
+            Err(FrameDecodeError::Incomplete) => Ok(None),
             Err(err) => {
                 error!("error trying to parse frame {}", err);
                 Err(err.into())

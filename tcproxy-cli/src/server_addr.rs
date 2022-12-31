@@ -1,4 +1,5 @@
-use std::{str::FromStr, error::Error, fmt::Display, num::ParseIntError};
+use std::{str::FromStr, fmt::Display, num::ParseIntError};
+use std::error::Error;
 
 use regex::Regex;
 
@@ -26,23 +27,23 @@ pub struct ServerAddr {
 }
 
 impl ServerAddr {
-    pub fn new(host: &str, port: &u16) -> Self {
-        let addr_type = match Self::is_ip(host) {
-            true => ServerAddrType::IpAddr,
-            _ => ServerAddrType::DomainName,
-        };
-
-        Self {
+    pub fn new(host: &str, port: &u16) -> Result<Self, ServerAddrError> {
+        Ok(Self {
             host: host.to_owned(),
             port: port.to_owned(),
-            addr_type
+            addr_type: Self::parse_type(host)?
+        })
+    }
+
+    fn parse_type(host: &str) -> Result<ServerAddrType, ServerAddrError> {
+        match Self::is_ip(host)? {
+            true => Ok(ServerAddrType::IpAddr),
+            _ => Ok(ServerAddrType::DomainName),
         }
     }
 
-    pub fn is_ip(host: &str) -> bool {
-        Regex::new(IP_REGEX)
-            .unwrap()
-            .is_match(host)
+    fn is_ip(host: &str) -> Result<bool, ServerAddrError> {
+        Ok(Regex::new(IP_REGEX)?.is_match(host))
     }
 
     pub fn host(&self) -> &str {
@@ -73,7 +74,7 @@ impl FromStr for ServerAddr {
             Err(_) => return Err(ServerAddrError::InvalidPort),
         };
 
-        let obj = ServerAddr::new(host, &port);
+        let obj = ServerAddr::new(host, &port)?;
 
         Ok(obj)
     }
@@ -81,6 +82,18 @@ impl FromStr for ServerAddr {
 
 impl Error for ServerAddrError {
     
+}
+
+impl From<ParseIntError> for ServerAddrError {
+    fn from(err: ParseIntError) -> Self {
+        Self::Other(err.into())
+    }
+}
+
+impl From<regex::Error> for ServerAddrError {
+    fn from(err: regex::Error) -> Self {
+        Self::Other(err.into())
+    }
 }
 
 impl Display for ServerAddrError {
@@ -92,11 +105,5 @@ impl Display for ServerAddrError {
         };
 
         write!(f, "{}", msg)
-    }
-}
-
-impl From<ParseIntError> for ServerAddrError {
-    fn from(err: ParseIntError) -> Self {
-        ServerAddrError::Other(err.into())
     }
 }

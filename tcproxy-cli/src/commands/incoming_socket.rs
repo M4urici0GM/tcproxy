@@ -1,10 +1,11 @@
 use async_trait::async_trait;
 use bytes::BytesMut;
 use std::sync::Arc;
-use tcproxy_core::{AsyncCommand, LocalConnectionDisconnected, Result, TcpFrame};
+use tcproxy_core::{AsyncCommand, Result, TcpFrame};
 use tokio::sync::mpsc::{self, Sender};
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
+use tcproxy_core::framing::LocalConnectionDisconnected;
 
 use crate::{client_state::ClientState, ListenArgs, LocalConnection};
 
@@ -55,6 +56,7 @@ impl AsyncCommand for IncomingSocketCommand {
             let _ = local_connection
                 .read_from_local_connection(reader, cancellation_token.child_token())
                 .await;
+
 
             debug!("Local connection socket finished.");
             let _ = sender

@@ -3,14 +3,15 @@ use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
 use tcproxy_core::tcp::{SocketListener, TcpListener};
-use tcproxy_core::{AsyncCommand, ClientConnectedAck, FailedToCreateProxy, PortLimitReached, Result, TcpFrame};
+use tcproxy_core::{AsyncCommand, Result, TcpFrame};
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error};
+use tcproxy_core::framing::{ClientConnectedAck, Error, Reason};
 
-use crate::proxy::ProxyServer;
 use crate::ClientState;
 use crate::managers::PortError;
+use crate::proxy::ProxyServer;
 
 pub struct ClientConnectedCommand {
     target_ip: IpAddr,
@@ -51,7 +52,12 @@ impl ClientConnectedCommand {
             Ok(port) => Ok(port),
             Err(PortError::PortLimitReached(err)) => {
                 debug!("server cannot listen to more ports. port limit reached.");
-                self.client_sender.send(TcpFrame::PortLimitReached(PortLimitReached)).await?;
+
+                let error_frame = TcpFrame::Error(Error::new(&Reason::PortLimitReached, &vec![]));
+                self.client_sender
+                    .send(error_frame)
+                    .await?;
+
                 Err(err)
             }
             Err(err) => {
@@ -73,9 +79,9 @@ impl AsyncCommand for ClientConnectedCommand {
             Ok(listener) => listener,
             Err(err) => {
                 error!("error when trying to spawn tcp proxy listener. {}", err);
-                let _ = self
-                    .client_sender
-                    .send(TcpFrame::FailedToCreateProxy(FailedToCreateProxy))
+                let error_frame = TcpFrame::Error(Error::new(&Reason::FailedToCreateProxy, &vec![]));
+                let _ = self.client_sender
+                    .send(error_frame)
                     .await;
 
                 return Err(err);

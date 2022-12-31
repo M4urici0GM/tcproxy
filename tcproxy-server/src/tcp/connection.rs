@@ -1,12 +1,13 @@
 use std::net::SocketAddr;
 
 use tcproxy_core::tcp::{SocketConnection, DefaultStreamReader};
-use tcproxy_core::{RemoteSocketDisconnected, TcpFrame};
+use tcproxy_core::TcpFrame;
 use tokio::io::{AsyncWrite, AsyncRead};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::OwnedSemaphorePermit;
 use tokio::task::JoinHandle;
 use tracing::debug;
+use tcproxy_core::framing::RemoteSocketDisconnected;
 
 use tcproxy_core::Result;
 

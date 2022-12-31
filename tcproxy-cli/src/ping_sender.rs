@@ -1,12 +1,13 @@
 use chrono::Utc;
 use std::sync::Arc;
 use std::time::Duration;
-use tcproxy_core::{Ping, Result, TcpFrame};
+use tcproxy_core::{Result, TcpFrame};
 use tokio::sync::mpsc::Sender;
 use tokio::time;
 use tokio::{task::JoinHandle, time::Instant};
 
 use tracing::{debug, error};
+use tcproxy_core::framing::Ping;
 
 use crate::{ClientState, Shutdown};
 

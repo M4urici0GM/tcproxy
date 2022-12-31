@@ -9,7 +9,8 @@ use tokio::sync::broadcast;
 use tracing::{debug, error, info};
 
 use tcproxy_core::tcp::TcpStream;
-use tcproxy_core::{transport::TcpFrameTransport, AsyncCommand, Result, TcpFrame, ClientConnected, Ping};
+use tcproxy_core::{transport::TcpFrameTransport, AsyncCommand, Result, TcpFrame};
+use tcproxy_core::framing::{ClientConnected, Ping};
 
 use crate::{ClientState, ConsoleUpdater, ListenArgs, PingSender, Shutdown, TcpFrameReader, TcpFrameWriter};
 
@@ -31,7 +32,7 @@ impl ListenCommand {
 
     /// connects to remote server.
     async fn connect(&self) -> Result<TcpStream> {
-        let addr = SocketAddr::from_str("127.0.0.1:8080")?;
+        let addr = SocketAddr::from_str("144.22.179.129:8080")?;
         match TokioTcpStream::connect(addr).await {
             Ok(stream) => {
                 debug!("Connected to server..");

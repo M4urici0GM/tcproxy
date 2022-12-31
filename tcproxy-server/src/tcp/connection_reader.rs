@@ -1,9 +1,10 @@
 use tcproxy_core::tcp::StreamReader;
 use tokio::sync::mpsc::Sender;
 use tracing::{error, trace};
+use tcproxy_core::framing::DataPacket;
 
-use tcproxy_core::{DataPacket, TcpFrame};
-use tcproxy_core::{Result};
+use tcproxy_core::TcpFrame;
+use tcproxy_core::Result;
 
 pub struct RemoteConnectionReader {
     connection_id: u32,
@@ -68,7 +69,6 @@ mod tests {
             .returning(|| {
                 Ok(None)
             });
-
 
         // Act
         let result = connection_reader.start(reader).await;
