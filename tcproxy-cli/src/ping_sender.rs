@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use std::time::Duration;
 use tcproxy_core::{Result, TcpFrame};
@@ -48,23 +48,30 @@ impl PingSender {
     }
 
     async fn start(&mut self) -> Result<()> {
+        let timestamp = self.send_ping().await?;
+        self.state.update_last_sent_ping(&timestamp);
+
         loop {
             debug!("Waiting for next ping to occur");
             time::sleep_until(Instant::now() + Duration::from_secs(self.interval)).await;
-            match self.sender.send(TcpFrame::Ping(Ping)).await {
-                Ok(_) => {
-                    let time = Utc::now();
-                    self.state.update_last_sent_ping(time);
+            match self.send_ping().await {
+                Ok(timestamp) => {
+                    self.state.update_last_sent_ping(&timestamp);
 
                     debug!("Sent ping frame..");
                 }
                 Err(err) => {
                     error!("Failed to send ping. aborting. {}", err);
-                    break;
                 }
             };
         }
+    }
 
-        Ok(())
+    async fn send_ping(&self) -> Result<DateTime<Utc>> {
+        let ping = Ping::new();
+        let timestamp = ping.timestamp().to_owned();
+        self.sender.send(TcpFrame::Ping(ping)).await?;
+
+        Ok(timestamp)
     }
 }

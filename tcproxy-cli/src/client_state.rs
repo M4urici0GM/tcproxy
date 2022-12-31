@@ -34,7 +34,7 @@ impl ClientState {
         }
     }
 
-    pub fn update_last_sent_ping(&self, time: DateTime<Utc>) {
+    pub fn update_last_sent_ping(&self, time: &DateTime<Utc>) {
         let mut last_sent_ping = self.last_sent_ping.lock().unwrap();
         *last_sent_ping = time.timestamp_subsec_millis();
     }
@@ -70,7 +70,7 @@ impl ClientState {
                 8080u16,
             ),
             value => SocketAddr::new(
-                std::net::IpAddr::V4(Ipv4Addr::from_str(value).unwrap()),
+                std::net::IpAddr::V4(Ipv4Addr::from_str("0.0.0.0").unwrap()),
                 value.parse::<u16>().unwrap(),
             ),
         };

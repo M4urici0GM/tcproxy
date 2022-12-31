@@ -70,7 +70,6 @@ impl AsyncCommand for ListenCommand {
         let state = Arc::new(ClientState::new(&console_sender));
 
         writer.send(TcpFrame::ClientConnected(ClientConnected)).await?;
-        writer.send(TcpFrame::Ping(Ping)).await?;
 
         let ping_task = PingSender::new(&sender, &state, self.args.ping_interval(), &self._shutdown_complete_tx);
         let console_task = ConsoleUpdater::new(console_receiver, &state, &self.args, &self._shutdown_complete_tx);
