@@ -16,11 +16,11 @@ impl ClientState {
         })
     }
 
-    pub fn get_port_manager(&self) -> Arc<PortManager> {
-        self.port_manager.clone()
+    pub fn get_port_manager(&self) -> &Arc<PortManager> {
+        &self.port_manager
     }
 
-    pub fn get_connection_manager(&self) -> Arc<ConnectionsManager> {
-        self.connection_manager.clone()
+    pub fn get_connection_manager(&self) -> &Arc<ConnectionsManager> {
+        &self.connection_manager
     }
 }

@@ -27,18 +27,15 @@ impl ClientFrameReader {
         }
     }
 
-    pub fn start_reading(
-        mut self,
-        cancellation_token: CancellationToken,
-    ) -> JoinHandle<Result<()>> {
+    pub fn spawn(self, cancellation_token: CancellationToken) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
-            let _ = ClientFrameReader::start(&mut self, cancellation_token.child_token()).await;
+            let _ = self.start(cancellation_token.child_token()).await;
             Ok(())
         })
     }
 
     /// Start listening for frames, and handling them.
-    async fn start(&mut self, cancellation_token: CancellationToken) -> Result<()> {
+    async fn start(mut self, cancellation_token: CancellationToken) -> Result<()> {
         while !cancellation_token.is_cancelled() {
             let maybe_frame = self.reader.next().await?;
             let frame = match maybe_frame {

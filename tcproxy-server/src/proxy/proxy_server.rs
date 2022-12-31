@@ -1,33 +1,45 @@
 use std::sync::Arc;
-use rand::random;
 use tcproxy_core::{TcpFrame};
 use tokio::sync::{mpsc, OwnedSemaphorePermit};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Semaphore;
-use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error};
-use tcproxy_core::framing::IncomingSocket;
+use tracing::debug;
 
+use tcproxy_core::framing::{IncomingSocket};
 use tcproxy_core::tcp::{SocketListener, TcpStream};
 use tcproxy_core::Result;
 
-use crate::tcp::RemoteConnection;
+use crate::tcp::{RemoteConnection};
 use crate::ClientState;
 
 pub struct ProxyServer {
-    pub(crate) listener: Box<dyn SocketListener>,
-    pub(crate) target_port: u16,
-    pub(crate) proxy_state: Arc<ClientState>,
-    pub(crate) client_sender: Sender<TcpFrame>,
-    pub(crate) cancellation_token: CancellationToken,
+    target_port: u16,
+    listener: Box<dyn SocketListener + 'static>,
+    proxy_state: Arc<ClientState>,
+    client_sender: Sender<TcpFrame>,
 }
 
 impl ProxyServer {
-    pub fn spawn(mut self) -> JoinHandle<Result<()>> {
+    pub fn new<T>(
+        target_port: &u16,
+        state: &Arc<ClientState>,
+        sender: &Sender<TcpFrame>,
+        listener: T,
+    ) -> Self
+        where T: SocketListener + 'static {
+        Self {
+            target_port: *target_port,
+            proxy_state: state.clone(),
+            client_sender: sender.clone(),
+            listener: Box::new(listener),
+        }
+    }
+
+    pub fn spawn(mut self, cancellation_token: CancellationToken) {
         tokio::spawn(async move {
-            let port_manager = self.proxy_state.get_port_manager();
-            let token = self.cancellation_token.child_token();
+            let port_manager = self.proxy_state.get_port_manager().clone();
+            let token = cancellation_token.child_token();
 
             tokio::select! {
                 _ = self.start() => {},
@@ -36,32 +48,11 @@ impl ProxyServer {
 
             debug!("proxy server finished.");
             port_manager.remove_port(self.target_port);
-            Ok(())
-        })
-    }
-
-    async fn accept_connection(&mut self) -> Result<TcpStream> {
-        match self.listener.accept().await {
-            Ok(stream) => {
-                debug!(
-                    "received new connection on proxy {} from {}",
-                    self.listener.listen_ip()?,
-                    stream.addr
-                );
-                Ok(stream)
-            },
-            Err(err) => {
-                let ip = self.listener.listen_ip()?;
-                error!("failed to accept socket. {}: {}", ip, err);
-                debug!("closing proxy listener {}: {}", ip, err);
-                Err(err)
-            }
-        }
+        });
     }
 
     async fn start(&mut self) -> Result<()> {
         let semaphore = Arc::new(Semaphore::new(120));
-        let connection_manager = self.proxy_state.get_connection_manager();
 
         loop {
             let permit = semaphore.clone()
@@ -69,46 +60,49 @@ impl ProxyServer {
                 .await
                 .unwrap();
 
-            let connection = self.accept_connection().await?;
-
-            let connection_id = random();
-            let (connection_sender, connection_receiver) = mpsc::channel::<Vec<u8>>(100);
-
-            connection_manager.insert_connection(
-                &connection_id,
-                connection_sender,
-                CancellationToken::new(),
-            );
-
-            self.spawn_remote_connection(permit, connection, connection_id, connection_receiver).await?;
+            let connection = self.listener.accept().await?;
+            self.spawn_remote_connection(connection, permit).await?;
         }
     }
 
     async fn spawn_remote_connection(
-        &mut self,
-        permit: OwnedSemaphorePermit,
+        &self,
         connection: TcpStream,
-        connection_id: u32,
-        connection_receiver: Receiver<Vec<u8>>,
+        permit: OwnedSemaphorePermit,
     ) -> Result<()> {
-        self.client_sender
-            .send(TcpFrame::IncomingSocket(IncomingSocket::new(&connection_id)))
-            .await?;
-
-        let mut remote_connection = RemoteConnection::new(
-            permit,
-            connection.addr,
+        let (connection_id, receiver) = self.create_connection_state();
+        let remote_connection = RemoteConnection::new(
             &connection_id,
+            permit,
             &self.client_sender);
 
         tokio::spawn(async move {
-            let _ = remote_connection
-                .start(connection, connection_receiver)
-                .await;
-
-            debug!("Remote connection task was cancelled.")
+            let _ = remote_connection.start(connection, receiver).await;
         });
+
+        self.send_incoming_connection_frame(&connection_id).await?;
+        Ok(())
+    }
+
+    async fn send_incoming_connection_frame(&self, connection_id: &u32) -> Result<()>{
+        self.client_sender
+            .send(TcpFrame::IncomingSocket(IncomingSocket::new(connection_id)))
+            .await?;
 
         Ok(())
     }
+
+    fn create_connection_state(&self) -> (u32, Receiver<Vec<u8>>) {
+        let connection_manager = self.proxy_state.get_connection_manager();
+
+        let (connection_sender, connection_receiver) = mpsc::channel::<Vec<u8>>(100);
+        let connection_id = connection_manager.insert_connection(
+            connection_sender,
+            CancellationToken::new());
+
+        (connection_id, connection_receiver)
+    }
 }
+
+
+

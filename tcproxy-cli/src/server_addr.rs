@@ -68,15 +68,12 @@ impl FromStr for ServerAddr {
             return Err(ServerAddrError::InvalidString);
         }
 
-        let host = groups[0];
         let port = match groups[1].parse::<u16>() {
             Ok(port) => port,
             Err(_) => return Err(ServerAddrError::InvalidPort),
         };
 
-        let obj = ServerAddr::new(host, &port)?;
-
-        Ok(obj)
+        Ok(ServerAddr::new(groups[0], &port)?)
     }
 }
 

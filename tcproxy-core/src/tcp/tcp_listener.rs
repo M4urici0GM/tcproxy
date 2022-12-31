@@ -34,7 +34,7 @@ impl SocketListener for TcpListener {
                     return Ok(TcpStream::new(inner, addr));
                 }
                 Err(err) => {
-                    error!("Failed to accept new socket. retrying.. {}", err);
+                    error!("Failed to accept new socket at listener {}. retrying.. {}", self.inner.local_addr()?, err);
                     if backoff > 64 {
                         error!("Failed to accept new socket. aborting.. {}", err);
                         return Err(err.into());

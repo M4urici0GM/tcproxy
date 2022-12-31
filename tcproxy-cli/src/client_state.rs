@@ -70,7 +70,7 @@ impl ClientState {
                 8080u16,
             ),
             value => SocketAddr::new(
-                std::net::IpAddr::V4(Ipv4Addr::from_str("0.0.0.0").unwrap()),
+                std::net::IpAddr::V4(Ipv4Addr::from_str(value).unwrap()),
                 value.parse::<u16>().unwrap(),
             ),
         };
@@ -114,7 +114,6 @@ impl ClientState {
         }
 
         let result = lock.remove(id).unwrap();
-        drop(lock);
 
         self.notify_console_update();
         Some(result)

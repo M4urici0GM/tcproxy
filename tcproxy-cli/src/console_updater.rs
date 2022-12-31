@@ -11,9 +11,9 @@ use crate::{ClientState, ListenArgs, Shutdown};
 macro_rules! MSG {
     () => {
         "
-            :rocket: Server running at {} -> {}\n
-            :dizzy: Ping: {:.2}ms\n
-            :anchor: Connections: {}
+:rocket: Server running at {} -> {}
+:dizzy: Ping: {:.2}ms
+:anchor: Connections: {}
         "
     }
 }

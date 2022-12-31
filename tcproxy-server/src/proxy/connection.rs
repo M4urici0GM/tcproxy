@@ -36,22 +36,20 @@ impl ClientConnection {
     where
         T: SocketConnection,
     {
-        let transport = TcpFrameTransport::new(tcp_stream);
         let local_cancellation_token = CancellationToken::new();
+        let (transport_reader, transport_writer) = TcpFrameTransport::new(tcp_stream).split();
 
-        let (transport_reader, transport_writer) = transport.split();
         let (frame_tx, frame_rx) = mpsc::channel::<TcpFrame>(10000);
 
         let frame_handler = DefaultFrameHandler::new(&self.server_config, &frame_tx, &self.state);
         let client_reader = ClientFrameReader::new(&frame_tx, transport_reader, frame_handler);
-        let proxy_writer =
-            ClientFrameWriter::new(frame_rx, transport_writer, &local_cancellation_token);
+        let proxy_writer = ClientFrameWriter::new(frame_rx, transport_writer, &local_cancellation_token);
 
         tokio::select! {
-            res = proxy_writer.start_writing() => {
+            res = proxy_writer.spawn() => {
                 debug!("ProxyClientStreamWriter::start_writing task completed with {:?}", res)
             },
-            res = client_reader.start_reading(local_cancellation_token.child_token()) => {
+            res = client_reader.spawn(local_cancellation_token.child_token()) => {
                 debug!("ProxyClientStreamWriter::start_reading task completed with {:?}", res);
             },
             _ = cancellation_token.cancelled() => {

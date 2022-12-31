@@ -9,22 +9,21 @@ use tcproxy_core::Result;
 pub struct RemoteConnectionReader {
     connection_id: u32,
     client_sender: Sender<TcpFrame>,
+    reader: Box<dyn StreamReader>
 }
 
 
 impl RemoteConnectionReader {
-    pub fn new(connection_id: &u32, sender: &Sender<TcpFrame>) -> Self {
+    pub fn new<T>(connection_id: &u32, sender: &Sender<TcpFrame>, reader: T) -> Self  where T : StreamReader + 'static {
         Self {
             connection_id: *connection_id,
             client_sender: sender.clone(),
+            reader: Box::new(reader),
         }
     }
 
-    pub async fn start<T>(&mut self, mut reader: T) -> Result<()>
-    where
-        T: StreamReader,
-    {
-        while let Some(buffer) = reader.read().await? {
+    pub async fn start(&mut self) -> Result<()> {
+        while let Some(buffer) = self.reader.read().await? {
             let frame = TcpFrame::DataPacket(DataPacket::new(
                 &self.connection_id,
                 &buffer,
@@ -62,7 +61,6 @@ mod tests {
         // Arrange
         let connection_id = random::<u32>();
         let (sender, mut receiver) = mpsc::channel::<TcpFrame>(1);
-        let mut connection_reader = RemoteConnectionReader::new(&connection_id, &sender);
         let mut reader = MockStreamReader::new();
 
         reader.expect_read()
@@ -70,8 +68,11 @@ mod tests {
                 Ok(None)
             });
 
+        let mut connection_reader = RemoteConnectionReader::new(&connection_id, &sender, reader);
+
+
         // Act
-        let result = connection_reader.start(reader).await;
+        let result = connection_reader.start().await;
 
         // drops sender and connection_reader for receiver.recv() to resolve.
         drop(sender);
@@ -92,7 +93,6 @@ mod tests {
         let random_buffer = generate_random_buffer(expected_buff_size);
         let (sender, mut receiver) = mpsc::channel::<TcpFrame>(3);
 
-        let mut connection_reader = RemoteConnectionReader::new(&connection_id, &sender);
 
         let mut reader = MockStreamReader::new();
         let mut sequence = Sequence::new();
@@ -117,8 +117,13 @@ mod tests {
             .returning(|| Ok(None))
             .in_sequence(&mut sequence);
 
+        let mut connection_reader = RemoteConnectionReader::new(
+            &connection_id,
+            &sender,
+            reader);
+
         // At this point stream is already closed, but underlying buffer still there for reading.
-        let _ = connection_reader.start(reader).await;
+        let _ = connection_reader.start().await;
 
         let mut final_buff = BytesMut::with_capacity(expected_buff_size as usize);
         for _ in 0..2 {

@@ -25,7 +25,7 @@ impl ClientFrameWriter {
         }
     }
 
-    pub fn start_writing(mut self) -> JoinHandle<Result<()>> {
+    pub fn spawn(mut self) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
             let res = self.start().await;
             debug!("writer finished with {:?}", res);

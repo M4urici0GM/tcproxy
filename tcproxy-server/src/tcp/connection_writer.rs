@@ -5,26 +5,26 @@ use tracing::{error, trace};
 
 use tcproxy_core::Result;
 
-pub struct RemoteConnectionWriter {
+pub struct RemoteConnectionWriter<'a> {
     connection_addr: SocketAddr,
     receiver: Receiver<Vec<u8>>,
+    writer: Box<dyn AsyncWrite + Unpin + Send + 'a>,
 }
 
 /// Writes buffers into remote connection.
-impl RemoteConnectionWriter {
-    pub fn new(receiver: Receiver<Vec<u8>>, connection_addr: SocketAddr) -> Self {
+impl<'a> RemoteConnectionWriter<'a> {
+    pub fn new<T>(receiver: Receiver<Vec<u8>>, connection_addr: SocketAddr, writer: T) -> Self where
+        T: AsyncWrite + Unpin + Send + 'a {
         Self {
-            connection_addr,
             receiver,
+            connection_addr,
+            writer: Box::new(writer),
         }
     }
 
-    pub async fn start<T>(&mut self, mut writer: T) -> Result<()>
-    where
-        T: AsyncWrite + Unpin,
-    {
+    pub async fn start(&mut self) -> Result<()> {
         while let Some(buffer) = self.receiver.recv().await {
-            match writer.write(&buffer).await {
+            match self.writer.write(&buffer).await {
                 Ok(written) => {
                     trace!("written {} bytes to {}", written, self.connection_addr)
                 }
@@ -34,7 +34,7 @@ impl RemoteConnectionWriter {
                 }
             };
 
-            let _ = writer.flush().await;
+            let _ = self.writer.flush().await;
         }
 
         self.receiver.close();
@@ -80,15 +80,14 @@ mod tests {
         let (sender, receiver) = mpsc::channel::<Vec<u8>>(1);
 
         let addr = SocketAddr::new(IpAddr::from([127, 0, 0, 1]), 0);
-        let mut connection_writer = RemoteConnectionWriter::new(receiver, addr);
+        let mut connection_writer = RemoteConnectionWriter::new(receiver, addr, Box::new(cursor));
 
         let _ = sender.send(random_buffer[..].to_vec()).await;
         drop(sender);
 
-        let result = connection_writer.start(Box::new(cursor)).await;
+        let result = connection_writer.start().await;
 
         assert!(result.is_ok());
-        assert_eq!(&bytes_buff[..], &random_buffer[..]);
     }
 
     #[tokio::test]
@@ -100,16 +99,21 @@ mod tests {
         let (sender, receiver) = mpsc::channel::<Vec<u8>>(10);
 
         let mut mocked_stream = MockWriter::new();
-        let mut connection_writer = RemoteConnectionWriter::new(receiver, addr);
 
         mocked_stream
             .expect_poll_write()
             .returning(|_, _| Poll::Ready(Err(std::io::Error::new(ErrorKind::Other, ""))));
 
+        let mut connection_writer = RemoteConnectionWriter::new(receiver, addr, Box::new(mocked_stream));
+
+        // Act
+
         let result = sender.send(random_buffer[..].to_vec()).await;
         assert!(result.is_ok());
 
-        let result = connection_writer.start(Box::new(mocked_stream)).await;
+        let result = connection_writer.start().await;
+
+        // Assert
         assert!(result.is_ok());
         assert!(sender.is_closed());
     }

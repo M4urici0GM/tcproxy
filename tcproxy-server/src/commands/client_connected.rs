@@ -88,20 +88,16 @@ impl AsyncCommand for ClientConnectedCommand {
             }
         };
 
-        debug!("spawned proxy server at {}", target_ip);
-        let proxy_server = ProxyServer {
-            target_port,
-            listener: Box::new(listener),
-            client_sender: self.client_sender.clone(),
-            proxy_state: self.state.clone(),
-            cancellation_token: self.cancellation_token.child_token(),
-        };
+        let proxy_server = ProxyServer::new(
+            &target_port,
+            &self.state,
+            &self.client_sender,
+            listener);
 
-        let _ = proxy_server.spawn();
-        let _ = self
-            .client_sender
+        proxy_server.spawn(self.cancellation_token.child_token());
+        self.client_sender
             .send(TcpFrame::ClientConnectedAck(ClientConnectedAck::new(&target_port)))
-            .await;
+            .await?;
 
         Ok(())
     }

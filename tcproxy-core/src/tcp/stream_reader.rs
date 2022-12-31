@@ -9,7 +9,7 @@ use crate::Result;
 
 #[automock]
 #[async_trait]
-pub trait StreamReader {
+pub trait StreamReader: Send {
     async fn read(&mut self) -> Result<Option<BytesMut>>;
 }
 
