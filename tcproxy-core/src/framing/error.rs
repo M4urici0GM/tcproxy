@@ -4,7 +4,8 @@ use std::io::Cursor;
 use bytes::BufMut;
 use crate::{Frame, FrameDecodeError};
 use crate::framing::frame_types::ERROR;
-use crate::io::{get_buffer, get_u16, get_u32};
+use crate::framing::utils::assert_connection_type;
+use crate::io::{get_buffer, get_u16, get_u32, get_u8};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Reason {
@@ -53,6 +54,8 @@ impl Error {
 
 impl Frame for Error {
     fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError> where Self: Sized {
+        assert_connection_type(&get_u8(buffer)?, &ERROR)?;
+
         let value = get_u16(buffer)?;
         let reason = Error::decode_reason(&value)?;
 

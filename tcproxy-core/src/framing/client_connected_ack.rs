@@ -2,7 +2,8 @@ use std::io::Cursor;
 use bytes::BufMut;
 use crate::{Frame, FrameDecodeError};
 use crate::framing::frame_types::CLIENT_CONNECTED_ACK;
-use crate::io::get_u16;
+use crate::framing::utils::assert_connection_type;
+use crate::io::{get_u16, get_u8};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ClientConnectedAck {
@@ -23,6 +24,8 @@ impl ClientConnectedAck {
 
 impl Frame for ClientConnectedAck {
     fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError> where Self : Sized {
+        assert_connection_type(&get_u8(buffer)?, &CLIENT_CONNECTED_ACK)?;
+
         let port = get_u16(buffer)?;
         Ok(Self { port })
     }

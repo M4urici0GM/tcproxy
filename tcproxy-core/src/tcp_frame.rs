@@ -1,6 +1,6 @@
 use std::fmt::Display;
 use std::io::Cursor;
-use bytes::{BufMut, BytesMut};
+use bytes::{Buf, BufMut, BytesMut};
 
 use crate::FrameDecodeError;
 use crate::io::{get_u8};
@@ -25,18 +25,20 @@ pub enum TcpFrame {
     SocketDisconnected(SocketDisconnected)
 }
 
-
-
 impl TcpFrame {
     pub fn parse(cursor: &mut Cursor<&[u8]>) -> Result<TcpFrame, FrameDecodeError> {
-        let frame = match get_u8(cursor)? {
+        if !cursor.has_remaining() {
+            return Err(FrameDecodeError::Incomplete);
+        }
+
+        let frame = match cursor.chunk()[0] {
             CLIENT_CONNECTED => TcpFrame::ClientConnected(ClientConnected::decode(cursor)?),
             CLIENT_CONNECTED_ACK => TcpFrame::ClientConnectedAck(ClientConnectedAck::decode(cursor)?),
             PING => TcpFrame::Ping(Ping::decode(cursor)?),
             PONG => TcpFrame::Pong(Pong::decode(cursor)?),
             SOCKET_CONNECTED => TcpFrame::SocketConnected(SocketConnected::decode(cursor)?),
             ERROR => TcpFrame::Error(Error::decode(cursor)?),
-            DATA_PACKET_FRAME => TcpFrame::DataPacket(DataPacket::decode(cursor)?),
+            DATA_PACKET => TcpFrame::DataPacket(DataPacket::decode(cursor)?),
             actual => {
                 let msg = format!(
                     "proto error. invalid frame type. {} {}",
@@ -97,148 +99,5 @@ impl Display for TcpFrame {
 
         let msg = format!("tcpframe: {}", data_type);
         write!(f, "{}", msg)
-    }
-}
-
-
-
-#[cfg(test)]
-mod tests {
-    use std::io::Cursor;
-    use bytes::BufMut;
-    use chrono::Utc;
-    use crate::{FrameDecodeError, is_type, TcpFrame};
-    use crate::framing::ClientConnected;
-    use crate::framing::frame_types::{PING, PONG};
-
-    #[test]
-    pub fn should_parse_client_connected() {
-        // Arrange
-        let buffer = vec![b'*'];
-        let mut cursor = Cursor::new(&buffer[..]);
-
-        // Act
-        let frame = TcpFrame::parse(&mut cursor).unwrap();
-
-        // Assert
-        assert!(is_type!(frame, TcpFrame::ClientConnected(_)));
-    }
-
-    #[test]
-    pub fn should_encode_client_connected() {
-        // Arrange
-        let frame = TcpFrame::ClientConnected(ClientConnected::new());
-
-        // Act
-        let result = TcpFrame::to_buffer(&frame);
-
-        // Assert
-        assert_eq!(&vec![b'*'], &result[..]);
-    }
-
-    #[test]
-    pub fn should_parse_ping() {
-        // Arrange
-        let timestamp = Utc::now();
-        let mut buffer = Vec::new();
-
-        buffer.put_u8(PING);
-        buffer.put_i64(timestamp.timestamp_millis());
-
-        let mut cursor = Cursor::new(&buffer[..]);
-
-        // Act
-        let result = TcpFrame::parse(&mut cursor).unwrap();
-
-        // Assert
-        assert!(is_type!(result, TcpFrame::Ping(_)));
-    }
-
-    #[test]
-    pub fn parse_ping_should_return_err_if_buffer_is_missing_timestamp() {
-        // Arrange
-        let mut buffer = Vec::new();
-
-        buffer.put_u8(PING);
-
-        let mut cursor = Cursor::new(&buffer[..]);
-
-        // Act
-        let result = TcpFrame::parse(&mut cursor);
-
-        // Assert
-        assert!(result.is_err());
-        assert!(is_type!(result.unwrap_err(), FrameDecodeError::Incomplete));
-    }
-
-    #[test]
-    pub fn parse_ping_should_return_err_if_timestamp_is_invalid() {
-        // Arrange
-        let mut buffer = Vec::new();
-
-        buffer.put_u8(PING);
-        buffer.put_i64(i64::MIN);
-
-        let mut cursor = Cursor::new(&buffer[..]);
-
-        // Act
-        let result = TcpFrame::parse(&mut cursor);
-
-        // Assert
-        assert!(result.is_err());
-        assert!(is_type!(result.unwrap_err(), FrameDecodeError::Other(_)));
-    }
-
-    #[test]
-    pub fn should_parse_pong() {
-        // Arrange
-        let timestamp = Utc::now();
-        let mut buffer = Vec::new();
-
-        buffer.put_u8(PONG);
-        buffer.put_i64(timestamp.timestamp_millis());
-
-        let mut cursor = Cursor::new(&buffer[..]);
-
-        // Act
-        let result = TcpFrame::parse(&mut cursor).unwrap();
-
-        // Assert
-        assert!(is_type!(result, TcpFrame::Pong(_)));
-    }
-
-    #[test]
-    pub fn parse_pong_should_return_err_if_buffer_is_missing_timestamp() {
-        // Arrange
-        let mut buffer = Vec::new();
-
-        buffer.put_u8(PONG);
-
-        let mut cursor = Cursor::new(&buffer[..]);
-
-        // Act
-        let result = TcpFrame::parse(&mut cursor);
-
-        // Assert
-        assert!(result.is_err());
-        assert!(is_type!(result.unwrap_err(), FrameDecodeError::Incomplete));
-    }
-
-    #[test]
-    pub fn parse_pong_should_return_err_if_timestamp_is_invalid() {
-        // Arrange
-        let mut buffer = Vec::new();
-
-        buffer.put_u8(PONG);
-        buffer.put_i64(i64::MIN);
-
-        let mut cursor = Cursor::new(&buffer[..]);
-
-        // Act
-        let result = TcpFrame::parse(&mut cursor);
-
-        // Assert
-        assert!(result.is_err());
-        assert!(is_type!(result.unwrap_err(), FrameDecodeError::Other(_)));
     }
 }

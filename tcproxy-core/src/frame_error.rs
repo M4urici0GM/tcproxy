@@ -3,6 +3,7 @@ use std::{num::TryFromIntError, string::FromUtf8Error};
 #[derive(Debug)]
 pub enum FrameDecodeError {
     Incomplete,
+    UnexpectedFrameType(u8),
     Other(crate::Error),
 }
 
@@ -37,6 +38,7 @@ impl std::fmt::Display for FrameDecodeError {
         match self {
             FrameDecodeError::Incomplete => "stream ended early".fmt(fmt),
             FrameDecodeError::Other(err) => err.fmt(fmt),
+            FrameDecodeError::UnexpectedFrameType(f_type) => format!("unexpected frame_type: {}", f_type).fmt(fmt),
         }
     }
 }

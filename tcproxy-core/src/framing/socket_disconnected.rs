@@ -1,7 +1,8 @@
 use std::io::Cursor;
 use crate::{Frame, FrameDecodeError};
-use crate::framing::frame_types::SOCKET_DISCONNECTED;
-use crate::io::get_u32;
+use crate::framing::frame_types::{SOCKET_CONNECTED, SOCKET_DISCONNECTED};
+use crate::framing::utils::assert_connection_type;
+use crate::io::{get_u32, get_u8};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct SocketDisconnected {
@@ -21,8 +22,10 @@ impl SocketDisconnected {
 }
 
 impl Frame for SocketDisconnected {
-    fn decode(cursor: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError> where Self : Sized {
-        let connection_id = get_u32(cursor)?;
+    fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError> where Self : Sized {
+        assert_connection_type(&get_u8(buffer)?, &SOCKET_DISCONNECTED)?;
+
+        let connection_id = get_u32(buffer)?;
         Ok(Self { connection_id })
     }
 
