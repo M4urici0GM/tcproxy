@@ -1,6 +1,7 @@
 use std::io::Cursor;
 use bytes::BufMut;
 use crate::FrameDecodeError;
+use crate::framing::frame_types::DATA_PACKET_FRAME;
 use crate::io::{get_buffer, get_u32};
 use crate::tcp_frame::Frame;
 
@@ -40,7 +41,7 @@ impl Frame for DataPacket {
 
     fn encode(&self) -> Vec<u8> {
         let mut final_buff = Vec::new();
-        final_buff.put_u8(b'!');
+        final_buff.put_u8(DATA_PACKET_FRAME);
         final_buff.put_u32(self.connection_id);
         final_buff.put_u32(self.buffer_size);
         final_buff.put_slice(&self.buffer[..]);

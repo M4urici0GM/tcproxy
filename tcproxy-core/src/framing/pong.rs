@@ -3,6 +3,7 @@ use bytes::BufMut;
 use crate::{Frame, FrameDecodeError};
 
 use chrono::{DateTime, NaiveDateTime, Utc};
+use crate::framing::frame_types::PONG;
 use crate::io::get_i64;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -36,7 +37,7 @@ impl Frame for Pong {
     fn encode(&self) -> Vec<u8> {
         let mut buffer = Vec::new();
 
-        buffer.put_u8(b'+');
+        buffer.put_u8(PONG);
         buffer.put_i64(self.timestamp.timestamp_millis());
 
         return buffer;

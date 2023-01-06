@@ -1,6 +1,7 @@
 use std::io::Cursor;
 use bytes::BufMut;
 use crate::{Frame, FrameDecodeError};
+use crate::framing::frame_types::CLIENT_CONNECTED_ACK;
 use crate::io::get_u16;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -29,7 +30,7 @@ impl Frame for ClientConnectedAck {
     fn encode(&self) -> Vec<u8> {
         let mut vec = Vec::new();
 
-        vec.put_u8(b'^');
+        vec.put_u8(CLIENT_CONNECTED_ACK);
         vec.put_u16(self.port);
 
         vec

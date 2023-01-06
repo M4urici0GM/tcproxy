@@ -5,7 +5,7 @@ use tcproxy_core::{AsyncCommand, Result, TcpFrame};
 use tokio::sync::mpsc::{self, Sender};
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
-use tcproxy_core::framing::LocalConnectionDisconnected;
+use tcproxy_core::framing::SocketDisconnected;
 
 use crate::{client_state::ClientState, ListenArgs, LocalConnection};
 
@@ -60,7 +60,7 @@ impl AsyncCommand for IncomingSocketCommand {
 
             debug!("Local connection socket finished.");
             let _ = sender
-                .send(TcpFrame::LocalConnectionDisconnected(LocalConnectionDisconnected::new(&connection_id)))
+                .send(TcpFrame::SocketDisconnected(SocketDisconnected::new(&connection_id)))
                 .await;
         });
 

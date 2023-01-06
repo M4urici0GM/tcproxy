@@ -35,8 +35,8 @@ impl AsyncCommand for DataPacketClientCommand {
 
     async fn handle(&mut self) -> Self::Output {
         let connection_manager = self.proxy_state.get_connection_manager();
-        let (connection_sender, _) = match connection_manager.get_connection(&self.connection_id)
-        {
+        let (connection_sender, _) = match connection_manager
+            .get_connection(&self.connection_id) {
             Some(sender) => sender,
             None => return Ok(()),
         };

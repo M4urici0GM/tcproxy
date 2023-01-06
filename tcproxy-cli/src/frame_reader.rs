@@ -63,13 +63,13 @@ impl TcpFrameReader {
                         data.buffer(),
                         &self.state,
                     )),
-                    TcpFrame::IncomingSocket(data) => Box::new(IncomingSocketCommand::new(
+                    TcpFrame::SocketConnected(data) => Box::new(IncomingSocketCommand::new(
                         data.connection_id(),
                         &self.sender,
                         &self.state,
                         &self.args,
                     )),
-                    TcpFrame::RemoteSocketDisconnected(data) => {
+                    TcpFrame::SocketDisconnected(data) => {
                         debug!("remote socket disconnected");
                         Box::new(RemoteDisconnectedCommand::new(data.connection_id(), &self.state))
                     }

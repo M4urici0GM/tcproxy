@@ -85,7 +85,7 @@ async fn should_listen_in_ack_port() {
 
     let mut stream = result.unwrap();
     let ping_frame = TcpFrame::ClientConnected(ClientConnected);
-    let mut ping_buffer = ping_frame.to_buffer();
+    let mut ping_buffer = TcpFrame::to_buffer(&ping_frame);
 
     let _ = stream.write_buf(&mut ping_buffer).await.unwrap();
 
@@ -102,7 +102,7 @@ async fn should_listen_in_ack_port() {
 
     let frame = receive_frame(&mut stream, &mut buffer).await;
     assert!(frame.is_ok());
-    assert!(matches!(frame.unwrap(), TcpFrame::IncomingSocket { .. }));
+    assert!(matches!(frame.unwrap(), TcpFrame::SocketConnected { .. }));
 }
 
 #[cfg(test)]
@@ -126,7 +126,7 @@ async fn should_forward_data_successfully() {
 
     let frame = receive_frame(&mut stream, &mut buffer).await;
     assert!(frame.is_ok());
-    assert!(matches!(frame.unwrap(), TcpFrame::IncomingSocket { .. }));
+    assert!(matches!(frame.unwrap(), TcpFrame::SocketConnected { .. }));
 
     let mut remote_stream = remote_stream.unwrap();
     let expected_buffer = generate_random_buffer(1024 * 2);
@@ -164,7 +164,7 @@ async fn should_receive_data_successfully() -> Result<(), Box<dyn Error>> {
     let mut remote_stream = TcpStream::connect(target_ip).await?;
     let connection_id = extract_enum_value!(
         read_frame(&mut stream, &mut buffer).await?,
-        TcpFrame::IncomingSocket(data) => *data.connection_id());
+        TcpFrame::SocketConnected(data) => *data.connection_id());
 
     let expected_buffer = generate_random_buffer(1024 * 4);
     let frame = TcpFrame::DataPacket(DataPacket::new(&connection_id, &expected_buffer));
@@ -182,7 +182,8 @@ async fn should_receive_data_successfully() -> Result<(), Box<dyn Error>> {
 
 #[cfg(test)]
 async fn write_tcp_frame(stream: &mut TcpStream, frame: TcpFrame) {
-    let result = stream.write_all(&frame.to_buffer()).await;
+    let buffer = TcpFrame::to_buffer(&frame);
+    let result = stream.write_all(&buffer).await;
     assert!(result.is_ok());
 }
 

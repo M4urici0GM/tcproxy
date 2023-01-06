@@ -1,13 +1,14 @@
 use std::io::Cursor;
 use crate::{Frame, FrameDecodeError};
+use crate::framing::frame_types::SOCKET_DISCONNECTED;
 use crate::io::get_u32;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct RemoteSocketDisconnected {
+pub struct SocketDisconnected {
     connection_id: u32,
 }
 
-impl RemoteSocketDisconnected {
+impl SocketDisconnected {
     pub fn new(connection_id: &u32) -> Self {
         Self {
             connection_id: *connection_id
@@ -19,7 +20,7 @@ impl RemoteSocketDisconnected {
     }
 }
 
-impl Frame for RemoteSocketDisconnected {
+impl Frame for SocketDisconnected {
     fn decode(cursor: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError> where Self : Sized {
         let connection_id = get_u32(cursor)?;
         Ok(Self { connection_id })
@@ -27,7 +28,7 @@ impl Frame for RemoteSocketDisconnected {
 
     fn encode(&self) -> Vec<u8> {
         let mut buff = Vec::new();
-        buff.push(b'$');
+        buff.push(SOCKET_DISCONNECTED);
         buff.extend_from_slice(&self.connection_id.to_be_bytes());
 
         buff

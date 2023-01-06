@@ -6,7 +6,6 @@ use tracing::trace;
 
 use crate::Result;
 
-
 #[automock]
 #[async_trait]
 pub trait StreamReader: Send {

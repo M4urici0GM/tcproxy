@@ -1,9 +1,8 @@
-use std::net::SocketAddr;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::OwnedSemaphorePermit;
 use tracing::debug;
 
-use tcproxy_core::framing::RemoteSocketDisconnected;
+use tcproxy_core::framing::{SocketDisconnected};
 use tcproxy_core::tcp::{DefaultStreamReader, SocketConnection};
 use tcproxy_core::TcpFrame;
 use tcproxy_core::Result;
@@ -55,7 +54,7 @@ impl RemoteConnection {
         };
 
             debug!("received stop signal from connection {}. aborting..", self.connection_id);
-            let frame = TcpFrame::RemoteSocketDisconnected(RemoteSocketDisconnected::new(&self.connection_id));
+            let frame = TcpFrame::SocketDisconnected(SocketDisconnected::new(&self.connection_id));
             let _ = self.client_sender.send(frame).await;
         });
 

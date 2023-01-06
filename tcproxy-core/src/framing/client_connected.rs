@@ -1,5 +1,6 @@
 use std::io::Cursor;
 use crate::{Frame, FrameDecodeError};
+use crate::framing::frame_types::CLIENT_CONNECTED;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ClientConnected;
@@ -16,6 +17,6 @@ impl Frame for ClientConnected {
     }
 
     fn encode(&self) -> Vec<u8> {
-        return vec![b'*'];
+        return vec![CLIENT_CONNECTED];
     }
 }
