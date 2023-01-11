@@ -1,19 +1,11 @@
 use std::fmt::Display;
 use std::io::Cursor;
-use bytes::{BufMut, BytesMut};
+use bytes::{Buf, BufMut, BytesMut};
 
 use crate::FrameDecodeError;
 use crate::io::{get_u8};
-use crate::framing::{
-    ClientConnected,
-    ClientConnectedAck,
-    DataPacket,
-    Error,
-    IncomingSocket,
-    LocalConnectionDisconnected,
-    Ping,
-    Pong,
-    RemoteSocketDisconnected};
+use crate::framing::frame_types::*;
+use crate::framing::{ClientConnected, ClientConnectedAck, DataPacket, Error, SocketConnected, Ping, Pong, SocketDisconnected};
 
 
 pub trait Frame {
@@ -27,45 +19,52 @@ pub enum TcpFrame {
     Pong(Pong),
     Error(Error),
     DataPacket(DataPacket),
-    LocalConnectionDisconnected(LocalConnectionDisconnected),
-    IncomingSocket(IncomingSocket),
+    SocketConnected(SocketConnected),
     ClientConnectedAck(ClientConnectedAck),
     ClientConnected(ClientConnected),
-    RemoteSocketDisconnected(RemoteSocketDisconnected),
+    SocketDisconnected(SocketDisconnected)
 }
 
 impl TcpFrame {
     pub fn parse(cursor: &mut Cursor<&[u8]>) -> Result<TcpFrame, FrameDecodeError> {
-        match get_u8(cursor)? {
-            b'*' => Ok(TcpFrame::ClientConnected(ClientConnected::decode(cursor)?)),
-            b'-' => Ok(TcpFrame::Ping(Ping::decode(cursor)?)),
-            b'+' => Ok(TcpFrame::Pong(Pong::decode(cursor)?)),
-            b'^' => Ok(TcpFrame::ClientConnectedAck(ClientConnectedAck::decode(cursor)?)),
-            b'$' => Ok(TcpFrame::RemoteSocketDisconnected(RemoteSocketDisconnected::decode(cursor)?)),
-            b'#' => Ok(TcpFrame::IncomingSocket(IncomingSocket::decode(cursor)?)),
-            b'@' => Ok(TcpFrame::Error(Error::decode(cursor)?)),
-            b'(' => Ok(TcpFrame::LocalConnectionDisconnected(LocalConnectionDisconnected::decode(cursor)?)),
-            b'!' => Ok(TcpFrame::DataPacket(DataPacket::decode(cursor)?)),
-            actual => Err(format!("proto error. invalid frame type. {} {}", actual, String::from_utf8(vec![actual])?).into()),
+        if !cursor.has_remaining() {
+            return Err(FrameDecodeError::Incomplete);
         }
+
+        let frame = match cursor.chunk()[0] {
+            CLIENT_CONNECTED => TcpFrame::ClientConnected(ClientConnected::decode(cursor)?),
+            CLIENT_CONNECTED_ACK => TcpFrame::ClientConnectedAck(ClientConnectedAck::decode(cursor)?),
+            PING => TcpFrame::Ping(Ping::decode(cursor)?),
+            PONG => TcpFrame::Pong(Pong::decode(cursor)?),
+            SOCKET_CONNECTED => TcpFrame::SocketConnected(SocketConnected::decode(cursor)?),
+            ERROR => TcpFrame::Error(Error::decode(cursor)?),
+            DATA_PACKET => TcpFrame::DataPacket(DataPacket::decode(cursor)?),
+            actual => {
+                let msg = format!(
+                    "proto error. invalid frame type. {} {}",
+                    actual,
+                    String::from_utf8(vec![actual])?);
+
+                return Err(msg.into())
+            },
+        };
+
+        Ok(frame)
     }
 
     pub fn to_buffer(&self) -> BytesMut {
-        let mut final_buff = BytesMut::new();
-
-        match self {
-            TcpFrame::ClientConnected(data) => final_buff.put_slice(&data.encode()),
-            TcpFrame::Ping(data) => final_buff.put_slice(&data.encode()),
-            TcpFrame::Pong(data) => final_buff.put_slice(&data.encode()),
-            TcpFrame::ClientConnectedAck(data) => final_buff.put_slice(&data.encode()),
-            TcpFrame::RemoteSocketDisconnected(data) => final_buff.put_slice(&data.encode()),
-            TcpFrame::IncomingSocket(data) => final_buff.put_slice(&data.encode()),
-            TcpFrame::Error(data) => final_buff.put_slice(&data.encode()),
-            TcpFrame::LocalConnectionDisconnected(data) => final_buff.put_slice(&data.encode()),
-            TcpFrame::DataPacket(data) => final_buff.put_slice(&data.encode()),
+        let buffer = match self {
+            TcpFrame::ClientConnected(data) => data.encode(),
+            TcpFrame::ClientConnectedAck(data) => data.encode(),
+            TcpFrame::Ping(data) => data.encode(),
+            TcpFrame::Pong(data) => data.encode(),
+            TcpFrame::SocketConnected(data) => data.encode(),
+            TcpFrame::SocketDisconnected(data) => data.encode(),
+            TcpFrame::Error(data) => data.encode(),
+            TcpFrame::DataPacket(data) => data.encode(),
         };
 
-        final_buff
+        BytesMut::from(&buffer[..])
     }
 }
 
@@ -84,18 +83,15 @@ impl Display for TcpFrame {
             TcpFrame::ClientConnectedAck(data) => {
                 format!("ClientConnectedACK ({})", data.port())
             }
-            TcpFrame::RemoteSocketDisconnected(data) => {
-                format!("RemoteSocketDisconnected ({})", data.connection_id())
-            }
-            TcpFrame::IncomingSocket(data) => {
+            TcpFrame::SocketConnected(data) => {
                 format!("IncomingSocket ({})", data.connection_id())
+            }
+            TcpFrame::SocketDisconnected(data) => {
+                format!("Socket Disconnected ({})", data.connection_id())
             }
             TcpFrame::DataPacket(data) => {
                 format!("DataPacketHost, {}, size: {}", data.connection_id(), data.buffer().len())
             }
-            TcpFrame::LocalConnectionDisconnected(data) => {
-                format!("LocalClientDisconnected ({})", data.connection_id())
-            },
             TcpFrame::Error(data) => {
                 format!("Error[reason = {}]", data.reason())
             }
@@ -105,6 +101,3 @@ impl Display for TcpFrame {
         write!(f, "{}", msg)
     }
 }
-
-#[cfg(test)]
-mod tests {}

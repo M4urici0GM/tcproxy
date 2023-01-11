@@ -6,7 +6,7 @@ use tokio::sync::Semaphore;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
-use tcproxy_core::framing::{IncomingSocket};
+use tcproxy_core::framing::{SocketConnected};
 use tcproxy_core::tcp::{SocketListener, TcpStream};
 use tcproxy_core::Result;
 
@@ -86,7 +86,7 @@ impl ProxyServer {
 
     async fn send_incoming_connection_frame(&self, connection_id: &u32) -> Result<()>{
         self.client_sender
-            .send(TcpFrame::IncomingSocket(IncomingSocket::new(connection_id)))
+            .send(TcpFrame::SocketConnected(SocketConnected::new(connection_id)))
             .await?;
 
         Ok(())

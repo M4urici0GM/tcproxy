@@ -49,7 +49,7 @@ impl FrameHandler for DefaultFrameHandler {
     ) -> Result<Option<TcpFrame>> {
         let mut command_handler: Box<dyn AsyncCommand<Output = Result<()>>> = match frame {
             TcpFrame::Ping(_) => Box::new(PingCommand::new(&self.sender)),
-            TcpFrame::LocalConnectionDisconnected(data) => {
+            TcpFrame::SocketDisconnected(data) => {
                 LocalClientDisconnectedCommand::boxed_new(data.connection_id(), &self.state)
             },
             TcpFrame::DataPacket(data) => {
