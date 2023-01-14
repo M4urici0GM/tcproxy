@@ -1,2 +1,2 @@
 [workspace]
-members = ["tcproxy-cli", "tcproxy-server", "tcproxy-core"]
+members = ["tcproxy-cli", "tcproxy-server", "tcproxy-core", "tcproxy-management/tcproxy-management-api"]
