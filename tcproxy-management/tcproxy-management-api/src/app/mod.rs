@@ -2,6 +2,8 @@ mod users;
 
 pub mod bson;
 pub mod data;
+pub mod core;
+pub mod web;
 
 use actix_web::web::ServiceConfig;
 use mongodb::Database;
@@ -11,5 +13,5 @@ pub fn register_urls(config: &mut ServiceConfig) {
 }
 
 pub fn register_services(config: &mut ServiceConfig, database: &Database) {
-    users::register_user_services(config, &database);
+    users::register_user_services(config, database);
 }

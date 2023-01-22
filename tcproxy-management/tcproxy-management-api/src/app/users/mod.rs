@@ -1,16 +1,17 @@
-mod requests;
-mod services;
-mod urls;
-mod data;
-mod model;
+pub mod requests;
+pub mod urls;
+pub mod data;
+pub mod model;
+pub mod commands;
+pub mod queries;
 
 use actix_web::web::{Data, ServiceConfig};
 use mongodb::Database;
-pub use requests::*;
-pub use services::*;
-pub use urls::*;
-pub use data::*;
-pub use model::*;
+use crate::app::users::commands::create::CreateUserCommandHandler;
+
+use crate::app::users::data::{UserRepositoryReaderImpl, UserRepositoryWriterImpl};
+use crate::app::users::queries::GetUserRequestHandler;
+use crate::app::users::urls::{create_user, get_user};
 
 pub fn register_user_urls(config: &mut ServiceConfig) {
     let user_scopes = actix_web::web::scope("/users")
@@ -21,5 +22,12 @@ pub fn register_user_urls(config: &mut ServiceConfig) {
 }
 
 pub fn register_user_services(config: &mut ServiceConfig, database: &Database) {
-    config.app_data(Data::new(UserRepository::new(&database)));
+    let repository_writer = UserRepositoryWriterImpl::new(database);
+    let repository_reader = UserRepositoryReaderImpl::new(database);
+
+    let get_user_handler = GetUserRequestHandler::new(&repository_reader);
+    let create_user_handler = CreateUserCommandHandler::new(&repository_reader, &repository_writer);
+
+    config.app_data(Data::new(create_user_handler));
+    config.app_data(Data::new(get_user_handler));
 }

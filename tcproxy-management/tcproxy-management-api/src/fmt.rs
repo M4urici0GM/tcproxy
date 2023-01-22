@@ -1,16 +1,16 @@
 use tracing::Subscriber;
 use tracing::subscriber::set_global_default;
-use tracing_bunyan_formatter::JsonStorageLayer;
+use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_log::LogTracer;
 use tracing_subscriber::{Registry, EnvFilter};
 use tracing_subscriber::{prelude::*};
 
 fn get_subscriber(
-    name: String,
+    _name: String,
     env_filter: String
 ) -> impl Subscriber + Send + Sync {
     let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or(EnvFilter::new(env_filter));
+        .unwrap_or_else(|_| EnvFilter::new(env_filter));
 
     Registry::default()
         .with(env_filter)

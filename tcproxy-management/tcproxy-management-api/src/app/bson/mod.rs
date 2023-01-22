@@ -1,12 +1,13 @@
+use std::error::Error;
 use mongodb::bson::{Bson, Uuid};
 use tracing::error;
 
 pub trait IntoUuid {
-    fn into_uuid(&self) -> tcproxy_core::Result<Uuid>;
+    fn into_uuid(&self) -> Result<Uuid, Box<dyn Error>>;
 }
 
 impl IntoUuid for Bson {
-    fn into_uuid(&self) -> tcproxy_core::Result<Uuid> {
+    fn into_uuid(&self) -> Result<Uuid, Box<dyn Error>> {
         if let Bson::String(value) = self {
             return Ok(Uuid::parse_str(value)?);
         }

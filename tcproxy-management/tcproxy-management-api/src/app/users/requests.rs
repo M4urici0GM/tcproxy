@@ -1,7 +1,9 @@
 use lazy_static::lazy_static;
 use fancy_regex::Regex;
+use mongodb::bson::Uuid;
 use serde::{Deserialize, Serialize};
 use crate::{ValidationError, ValidationErrorDetails, Validator};
+use crate::app::users::model::User;
 
 lazy_static! {
     static ref USERNAME_REGEX: Regex = Regex::new(r"^(?!.*\.\.)(?!.*\.$)[^\W][\w.]{0,29}$").unwrap();
@@ -14,7 +16,7 @@ const INVALID_PASSWORD_MSG: &str = "Password must have at least 6 and maximum of
 const INVALID_EMAIL_MSG: &str = "Invalid email address.";
 const INVALID_NAME_MSG: &str = "Invalid name, must have at least 3 chars.";
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CreateUserRequest {
     #[serde(default)]
     name: String,
@@ -24,6 +26,25 @@ pub struct CreateUserRequest {
     username: String,
     #[serde(default)]
     password: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct UserDto {
+    id: Uuid,
+    name: String,
+    username: String,
+    email_address: String,
+}
+
+impl From<User> for UserDto {
+    fn from(user: User) -> Self {
+        Self {
+            id: *user.id(),
+            name: String::from(user.name()),
+            username: String::from(user.username()),
+            email_address: String::from(user.email()),
+        }
+    }
 }
 
 impl CreateUserRequest {
@@ -59,10 +80,10 @@ impl Validator for CreateUserRequest {
             errors.push(ValidationErrorDetails::new("name", INVALID_NAME_MSG));
         }
 
-        if errors.len() > 0 {
+        if !errors.is_empty() {
             return Err(ValidationError::new("Create User validation failed.", &errors));
         }
 
-        return Ok(())
+        Ok(())
     }
 }

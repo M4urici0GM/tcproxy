@@ -75,6 +75,19 @@ impl AppError {
     }
 }
 
+impl Display for ValidationError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let validation_errors = self.errors
+            .to_vec()
+            .iter()
+            .fold(String::new(), |val, current| {
+                format!("{}[property={}, message={}], ", val, current.property_name, current.message)
+            });
+
+        write!(f, "validation failed = {}, errors = {}", self.message, validation_errors)
+    }
+}
+
 impl Display for AppError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let msg = match self.error_type {
@@ -93,7 +106,7 @@ impl Display for AppError {
             .to_vec()
             .iter()
             .fold(String::new(), |val, current| {
-                format!("{}, [property={}, message={}]", val, current.property_name, current.message)
+                format!("{}[property={}, message={}], ", val, current.property_name, current.message)
             });
 
         write!(
@@ -149,5 +162,9 @@ impl From<ValidationError> for AppError {
             Some(Vec::from(value.errors())),
         )
     }
+}
+
+impl std::error::Error for AppError {
+    
 }
 

@@ -28,4 +28,20 @@ impl User {
             password_hash: String::from(password_hash),
         }
     }
+
+    pub fn id(&self) -> &Uuid {
+        &self.id
+    }
+
+    pub fn username(&self) -> &str {
+        &self.username
+    }
+
+    pub fn email(&self) -> &str {
+        &self.email_address
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }

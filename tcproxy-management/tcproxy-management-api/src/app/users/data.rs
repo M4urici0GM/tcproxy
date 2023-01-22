@@ -1,32 +1,83 @@
-use futures_util::Stream;
-use mongodb::bson::{doc, Uuid};
+use mongodb::bson::{doc, Document, Uuid};
 use mongodb::{Collection, Database};
-use crate::app::bson::IntoUuid;
+use async_trait::async_trait;
 
-use crate::app::users::User;
-use crate::{AppError, AppErrorType};
+use crate::app::bson::IntoUuid;
+use crate::app::data::{RepositoryError, RepositoryReader, RepositoryResult, RepositoryWriter};
+use crate::app::users::model::User;
+
+#[async_trait]
+pub trait UserRepositoryReader: RepositoryReader<User> {
+    async fn exist_by_username_or_email(&self, username: &str, email: &str) -> RepositoryResult<bool>;
+}
 
 #[derive(Clone)]
-pub struct UserRepository {
+pub struct UserRepositoryWriterImpl {
     collection: Collection<User>
 }
 
-impl UserRepository {
-    pub fn new(mongodb: &Database) -> Self {
+#[derive(Clone)]
+pub struct UserRepositoryReaderImpl {
+    collection: Collection<User>
+}
+
+impl UserRepositoryWriterImpl {
+    pub fn new(db: &Database) -> Self {
         Self {
-            collection: mongodb.collection("users")
+            collection: db.collection("users")
+        }
+    }
+}
+
+impl UserRepositoryReaderImpl {
+    pub fn new(db: &Database) -> Self {
+        Self {
+            collection: db.collection("users")
+        }
+    }
+}
+
+#[async_trait]
+impl RepositoryWriter<User> for UserRepositoryWriterImpl {
+    async fn insert_one(&self, entity: &User) -> RepositoryResult<Uuid> {
+        let created_entity = self.collection
+            .insert_one(entity, None)
+            .await?;
+
+        match created_entity.inserted_id.into_uuid() {
+            Ok(id) => Ok(id),
+            Err(err) => Err(RepositoryError::Other(err)),
+        }
+    }
+}
+
+#[async_trait]
+impl RepositoryReader<User> for UserRepositoryReaderImpl {
+    async fn find_by_id(&self, entity_id: Uuid) -> RepositoryResult<User> {
+        let query = doc! { "_id": entity_id };
+        let user = self.collection.find_one(Some(query), None).await?;
+
+        match user {
+            Some(user) => Ok(user),
+            None => Err(RepositoryError::NotFound {
+                message: format!("User {} not found", entity_id)
+            })
         }
     }
 
-    pub async fn new_user(&self, user: User) -> Result<Uuid, AppError> {
-        let created_user = self.collection
-            .insert_one(&user, None)
-            .await?;
+    async fn find_one(&self, query: Document) -> RepositoryResult<User> {
+        let user = self.collection.find_one(Some(query), None).await?;
 
-        Ok(created_user.inserted_id.into_uuid()?)
+        match user {
+            Some(user) => Ok(user),
+            None => Err(RepositoryError::NotFound { message: String::from("User not found") })
+        }
     }
+}
 
-    pub async fn exist_by_username_or_email(&self, username: &str, email: &str) -> Result<bool, AppError> {
+#[async_trait]
+impl UserRepositoryReader for UserRepositoryReaderImpl {
+    async fn exist_by_username_or_email(&self, username: &str, email: &str) -> RepositoryResult<bool> {
         let query = doc! {
             "$or": [
                 { "username": username },
@@ -39,19 +90,6 @@ impl UserRepository {
             .await?;
 
         Ok(result.is_some())
-    }
-
-    pub async fn get_user(&self, user_id: Uuid) -> Result<User, AppError> {
-        let query = doc! { "_id": user_id };
-        let user = self.collection.find_one(Some(query), None).await?;
-
-        match user {
-            Some(user) => Ok(user),
-            None => {
-                let msg = format!("user {} not found", user_id);
-                Err(AppError::new(&msg, AppErrorType::NotFoundError, None))
-            }
-        }
     }
 }
 
