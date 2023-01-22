@@ -1,6 +1,6 @@
 use std::io::Cursor;
 use crate::{Frame, FrameDecodeError};
-use crate::framing::frame_types::{SOCKET_CONNECTED, SOCKET_DISCONNECTED};
+use crate::framing::frame_types::{SOCKET_DISCONNECTED};
 use crate::framing::utils::assert_connection_type;
 use crate::io::{get_u32, get_u8};
 

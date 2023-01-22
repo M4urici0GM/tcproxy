@@ -79,9 +79,9 @@ impl Frame for Error {
 impl fmt::Display for Reason {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let msg = match self {
-            Reason::FailedToCreateProxy => format!("Failed to create proxy"),
-            Reason::PortLimitReached => format!("port limit reached"),
-            Reason::ClientUnableToConnect => format!("target host unable to connect")
+            Reason::FailedToCreateProxy => "Failed to create proxy".to_string(),
+            Reason::PortLimitReached => "port limit reached".to_string(),
+            Reason::ClientUnableToConnect => "target host unable to connect".to_string()
         };
 
         write!(f, "{}", format!("reason: {}", msg))

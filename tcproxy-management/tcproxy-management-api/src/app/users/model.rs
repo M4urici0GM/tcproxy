@@ -21,7 +21,7 @@ impl User {
         password_hash: &str,
         email_address: &str) -> Self {
         Self {
-            id: id.unwrap_or(Uuid::new()),
+            id: id.unwrap_or_default(),
             username: String::from(username),
             name: String::from(name),
             email_address: String::from(email_address),

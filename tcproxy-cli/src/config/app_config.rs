@@ -12,6 +12,7 @@ type Result<T> = std::result::Result<T, AppConfigError>;
 
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct AppConfig {
     default_context: String,
     contexts: Vec<AppContext>,
@@ -32,7 +33,7 @@ impl AppConfig {
             .write(true)
             .append(false)
             .create(true)
-            .open(&path)?;
+            .open(path)?;
 
         let self_contents = serde_yaml::to_string(&config)?;
 
@@ -94,7 +95,7 @@ impl AppConfig {
             .write(true)
             .create(true)
             .append(false)
-            .open(&path)?;
+            .open(path)?;
 
         file.write_all(config_str.as_bytes())?;
         file.flush()?;
@@ -105,25 +106,18 @@ impl AppConfig {
     fn read_from_file(path: &Path) -> Result<Self> {
         let file = OpenOptions::new()
             .read(true)
-            .open(&path)?;
+            .open(path)?;
 
         let contents = serde_yaml::from_reader::<File, Self>(file)?;
         Ok(contents)
     }
 
     fn exists(path: &Path) -> bool {
-        fs::metadata(&path).is_ok()
+        fs::metadata(path).is_ok()
     }
 }
 
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            contexts: Vec::default(),
-            default_context: String::default(),
-        }
-    }
-}
+
 
 #[cfg(test)]
 mod tests {
@@ -283,14 +277,14 @@ mod tests {
         let empty_config = AppConfig::default();
         let yaml_config = serde_yaml::to_string(&empty_config).unwrap();
 
-        let _ = fs::write(&path, &yaml_config);
+        let _ = fs::write(path, yaml_config);
 
         empty_config
     }
 
     /// Util function for removing file after test.
     fn remove_file(file_name: &Path) {
-        std::fs::remove_file(&file_name).unwrap();
+        std::fs::remove_file(file_name).unwrap();
     }
 }
 

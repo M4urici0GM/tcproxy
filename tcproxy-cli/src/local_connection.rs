@@ -78,7 +78,7 @@ impl LocalConnection {
         tokio::spawn(async move {
             loop {
                 let result = reader.recv().await;
-                if result == None {
+                if result.is_none() {
                     break;
                 }
 

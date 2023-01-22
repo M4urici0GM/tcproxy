@@ -358,7 +358,7 @@ mod tests {
 
     /// Util function for removing the file after each test.
     fn remove_file(file_name: &str) {
-        std::fs::remove_file(&file_name).unwrap();
+        std::fs::remove_file(file_name).unwrap();
     }
 
     /// Creates default file and writes it to disk.
@@ -372,7 +372,7 @@ mod tests {
             120);
 
         let config_str = serde_json::to_string(&config).unwrap();
-        std::fs::write(&file_name, &config_str).unwrap();
+        std::fs::write(file_name, config_str).unwrap();
 
         config
     }

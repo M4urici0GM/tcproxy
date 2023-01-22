@@ -53,7 +53,7 @@ impl ClientConnectedCommand {
             Err(PortError::PortLimitReached(err)) => {
                 debug!("server cannot listen to more ports. port limit reached.");
 
-                let error_frame = TcpFrame::Error(Error::new(&Reason::PortLimitReached, &vec![]));
+                let error_frame = TcpFrame::Error(Error::new(&Reason::PortLimitReached, &[]));
                 self.client_sender
                     .send(error_frame)
                     .await?;
@@ -79,7 +79,7 @@ impl AsyncCommand for ClientConnectedCommand {
             Ok(listener) => listener,
             Err(err) => {
                 error!("error when trying to spawn tcp proxy listener. {}", err);
-                let error_frame = TcpFrame::Error(Error::new(&Reason::FailedToCreateProxy, &vec![]));
+                let error_frame = TcpFrame::Error(Error::new(&Reason::FailedToCreateProxy, &[]));
                 let _ = self.client_sender
                     .send(error_frame)
                     .await;

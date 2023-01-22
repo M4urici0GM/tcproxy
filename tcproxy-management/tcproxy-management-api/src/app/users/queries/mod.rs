@@ -4,7 +4,7 @@ use mongodb::bson::Uuid;
 use crate::app::core::command::{Command, CommandHandler};
 use crate::app::data::RepositoryReader;
 use crate::app::users::model::User;
-use crate::AppErrorType;
+
 use crate::app::data::error::EntityError;
 
 #[derive(Debug)]

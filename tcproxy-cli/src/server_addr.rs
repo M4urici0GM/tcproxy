@@ -73,7 +73,7 @@ impl FromStr for ServerAddr {
             Err(_) => return Err(ServerAddrError::InvalidPort),
         };
 
-        Ok(ServerAddr::new(groups[0], &port)?)
+        ServerAddr::new(groups[0], &port)
     }
 }
 

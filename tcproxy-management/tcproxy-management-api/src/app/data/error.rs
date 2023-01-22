@@ -44,7 +44,7 @@ impl From<RepositoryError> for EntityError {
         match value {
             RepositoryError::NotFound { message } => Self::EntityNotFound { message },
             RepositoryError::Other(err) => Self::Other {
-                message: format!("Error when trying to interact with database: {}", err.to_string()),
+                message: format!("Error when trying to interact with database: {}", err),
                 cause: err,
             }
         }

@@ -16,11 +16,11 @@ impl ClientConnected {
 impl Frame for ClientConnected {
     fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError> where Self: Sized {
         assert_connection_type(&get_u8(buffer)?, &CLIENT_CONNECTED)?;
-        return Ok(Self);
+        Ok(Self)
     }
 
     fn encode(&self) -> Vec<u8> {
-        return vec![CLIENT_CONNECTED];
+        vec![CLIENT_CONNECTED]
     }
 }
 

@@ -41,7 +41,7 @@ impl DirectoryResolver for DefaultDirectoryResolver {
         let config_dir = project_dir.config_dir();
 
         if !config_dir.exists() {
-            std::fs::create_dir_all(&config_dir)?;
+            std::fs::create_dir_all(config_dir)?;
         }
 
         Ok(PathBuf::from(&config_dir))
