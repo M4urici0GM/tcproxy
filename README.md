@@ -1,25 +1,77 @@
-## Open source Reverse-proxy
+# Tcproxy
 
-This idea came out when i needed to expose some apps on the internet, but running them on my machine (like showing to my friends, for instance),
-and when researching for options, i've came across [ngrok](https://ngrok.com/), but with free account you can only expose single port,
-which wasnt enough for me at the time, so ive decided to write my own similar software as an open source solution.
+<!--- These are examples. See https://shields.io for others or to customize this set of shields. You might want to include dependencies, project status and licence info here --->
+![GitHub repo size](https://img.shields.io/github/repo-size/scottydocs/README-template.md)
+![GitHub contributors](https://img.shields.io/github/contributors/scottydocs/README-template.md)
+![GitHub stars](https://img.shields.io/github/stars/scottydocs/README-template.md?style=social)
+![GitHub forks](https://img.shields.io/github/forks/scottydocs/README-template.md?style=social)
 
-## :computer: Used Technologies
+Project name is a tool that allows port forwarding to your local machine, even behind NAT.
 
-- [RUST](https://www.rust-lang.org/)
+## Prerequisites
+
+Before you begin, ensure you have met the following requirements:
+<!--- These are just example requirements. Add, duplicate or remove as required --->
+- Rust 1.67 or later
+- Mongodb instance (Optional if only server)
+
+## Using Tcproxy Server
+
+To use ```tcproxy-server```, follow these steps:
+
+To see all options:
+```
+> tcproxy-server --help
+
+With Cargo:
+> cargo run --bin tcproxy-server -- --help
+```
+
+Starting the server listening on port 8080
+
+```
+> tcproxy --port 8080
+
+With Cargo:
+> cargo run --bin tcproxy-server -- --port 8080
+```
+
+Starting the server with a different port range available for proxy servers (default is from 15000-25000)
+```
+> tcproxy --port 8080
+
+With Cargo:
+> cargo run --bin tcproxy-server -- --port 8080
+```
 
 
-## Basic Start guide.
 
 
-## Deploying with Docker
+Add run commands and examples you think users will find useful. Provide an options reference for bonus points!
 
-## How it works
+## Contributing to <project_name>
+<!--- If your README is long or you have some specific process or steps you want contributors to follow, consider creating a separate CONTRIBUTING.md file--->
+To contribute to <project_name>, follow these steps:
 
-## :page_with_curl: License
+1. Fork this repository.
+2. Create a branch: `git checkout -b <branch_name>`.
+3. Make your changes and commit them: `git commit -m '<commit_message>'`
+4. Push to the original branch: `git push origin <project_name>/<location>`
+5. Create the pull request.
 
-That project is under MIT License, check the [LICENSE](LICENSE.md) file to read more.
+Alternatively see the GitHub documentation on [creating a pull request](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request).
 
----
+## Contributors
 
-Done with :heart:
+Thanks to the following people who have contributed to this project:
+
+* [@m4urici0gm](https://github.com/m4urici0gm) 📖
+
+## Contact
+
+If you want to contact me you can reach me at contact@mgbarbosa.dev
+
+## License
+<!--- If you're not sure which open license to use see https://choosealicense.com/--->
+
+This project uses the following license: [GPL-2.0](https://github.com/M4urici0GM/tcproxy/blob/main/LICENSE.md).
