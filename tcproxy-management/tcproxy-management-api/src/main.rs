@@ -30,7 +30,7 @@ use actix_web::middleware::{Logger};
 
 
 
-use tcproxy_management_api::app::{auth, register_services};
+use tcproxy_management_api::app::{register_services};
 
 
 // struct ErrorMiddlewareTransform;
