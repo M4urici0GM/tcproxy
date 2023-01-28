@@ -1,23 +1,27 @@
 # Tcproxy
 
-<!--- These are examples. See https://shields.io for others or to customize this set of shields. You might want to include dependencies, project status and licence info here --->
-![GitHub repo size](https://img.shields.io/github/repo-size/scottydocs/README-template.md)
-![GitHub contributors](https://img.shields.io/github/contributors/scottydocs/README-template.md)
-![GitHub stars](https://img.shields.io/github/stars/scottydocs/README-template.md?style=social)
-![GitHub forks](https://img.shields.io/github/forks/scottydocs/README-template.md?style=social)
-
-Project name is a tool that allows port forwarding to your local machine, even behind NAT.
+Project name is a tool that allows port forwarding to your local machine, even behind firewall.
 
 ## Prerequisites
 
 Before you begin, ensure you have met the following requirements:
-<!--- These are just example requirements. Add, duplicate or remove as required --->
 - Rust 1.67 or later
-- Mongodb instance (Optional if only server)
+
+## How it works
+The project is split into two parts, the server, and a client, whenever a new client
+connects to the server, the server spawns a new listening port, in which all traffic 
+will be routed to the client.
+The server uses a single TCP connection, multiplexing all traffic being forwarded to 
+the connected client.
+
+The following diagram shows a local TCP server (REST api, local db instance, etc..)
+that receives forwarded traffic from the remote (random) port on the server
+
+![img.png](img.png)
 
 ## Using Tcproxy Server
 
-To use ```tcproxy-server```, follow these steps:
+To spawn  ```tcproxy-server```, follow these steps:
 
 To see all options:
 ```
@@ -47,11 +51,8 @@ With Cargo:
 
 
 
-Add run commands and examples you think users will find useful. Provide an options reference for bonus points!
-
 ## Contributing to <project_name>
-<!--- If your README is long or you have some specific process or steps you want contributors to follow, consider creating a separate CONTRIBUTING.md file--->
-To contribute to <project_name>, follow these steps:
+To contribute to this project, follow these steps:
 
 1. Fork this repository.
 2. Create a branch: `git checkout -b <branch_name>`.
