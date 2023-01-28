@@ -20,8 +20,8 @@ pub trait RepositoryWriter<T>: Sync + Send {
 
 #[async_trait]
 pub trait RepositoryReader<T>: Sync + Send {
-    async fn find_by_id(&self, entity_id: Uuid) -> RepositoryResult<T>;
-    async fn find_one(&self, query: Document) -> RepositoryResult<T>;
+    async fn find_by_id(&self, entity_id: Uuid) -> RepositoryResult<Option<T>>;
+    async fn find_one(&self, query: Document) -> RepositoryResult<Option<T>>;
 }
 
 impl From<mongodb::error::Error> for RepositoryError {

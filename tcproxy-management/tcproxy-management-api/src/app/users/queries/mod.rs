@@ -42,9 +42,17 @@ impl Command for GetUserRequest {
 #[async_trait]
 impl CommandHandler<GetUserRequest> for GetUserRequestHandler {
     async fn execute_cmd(&self, cmd: GetUserRequest) -> Result<User, AppError> {
-        let user = self.reader
+        let user = match self.reader
             .find_by_id(cmd.user_id)
-            .await?;
+            .await?
+        {
+            Some(user) => user,
+            None => {
+                return Err(AppError::EntityNotFound {
+                    message: String::from("user not found.")
+                })
+            }
+        };
 
         Ok(user)
     }

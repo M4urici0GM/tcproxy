@@ -17,7 +17,6 @@ pub struct AuthenticateRequest {
     password: String,
 }
 
-
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct JwtTokenDto {
     token: String,
@@ -29,6 +28,17 @@ pub struct AuthenticateResponse {
     token: JwtTokenDto
 }
 
+// TODO: move this to more appropriate location
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct UserClaims {
+    aud: String,
+    exp: usize,          // Required (validate_exp defaults to true in validation). Expiration time (as UTC timestamp)
+    iat: usize,          // Optional. Issued at (as UTC timestamp)
+    iss: String,         // Optional. Issuer
+    nbf: usize,          // Optional. Not Before (as UTC timestamp)
+    sub: String,         // user's email
+    user_id: String,
+}
 
 impl AuthenticateRequest {
     pub fn username(&self) -> &str {

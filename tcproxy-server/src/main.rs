@@ -5,6 +5,7 @@ use tracing::{info, error};
 
 use tcproxy_core::tcp::{SocketListener, TcpListener};
 use tcproxy_core::Result;
+use tcproxy_core::config::ConfigLoader;
 use tcproxy_server::{AppArguments, Server, ServerConfig};
 use tcproxy_server::managers::DefaultFeatureManager;
 

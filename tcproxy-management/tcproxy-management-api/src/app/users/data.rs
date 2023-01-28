@@ -9,7 +9,7 @@ use crate::app::users::model::User;
 #[async_trait]
 pub trait UserRepositoryReader: RepositoryReader<User> {
     async fn exist_by_username_or_email(&self, username: &str, email: &str) -> RepositoryResult<bool>;
-    async fn find_by_username(&self, username: &str) -> RepositoryResult<User>;
+    async fn find_by_username(&self, username: &str) -> RepositoryResult<Option<User>>;
 }
 
 #[derive(Clone)]
@@ -54,25 +54,17 @@ impl RepositoryWriter<User> for UserRepositoryWriterImpl {
 
 #[async_trait]
 impl RepositoryReader<User> for UserRepositoryReaderImpl {
-    async fn find_by_id(&self, entity_id: Uuid) -> RepositoryResult<User> {
+    async fn find_by_id(&self, entity_id: Uuid) -> RepositoryResult<Option<User>> {
         let query = doc! { "_id": entity_id };
-        let user = self.collection.find_one(Some(query), None).await?;
-
-        match user {
-            Some(user) => Ok(user),
-            None => Err(RepositoryError::NotFound {
-                message: format!("User {} not found", entity_id)
-            })
-        }
+        Ok(self.collection
+            .find_one(Some(query), None)
+            .await?)
     }
 
-    async fn find_one(&self, query: Document) -> RepositoryResult<User> {
-        let user = self.collection.find_one(Some(query), None).await?;
-
-        match user {
-            Some(user) => Ok(user),
-            None => Err(RepositoryError::NotFound { message: String::from("User not found") })
-        }
+    async fn find_one(&self, query: Document) -> RepositoryResult<Option<User>> {
+        Ok(self.collection
+            .find_one(Some(query), None)
+            .await?)
     }
 }
 
@@ -93,9 +85,8 @@ impl UserRepositoryReader for UserRepositoryReaderImpl {
         Ok(result.is_some())
     }
 
-    async fn find_by_username(&self, username: &str) -> RepositoryResult<User> {
-        let user = self.find_one(doc!{ "username": username }).await?;
-        Ok(user)
+    async fn find_by_username(&self, username: &str) -> RepositoryResult<Option<User>> {
+        self.find_one(doc!{ "username": username }).await
     }
 }
 

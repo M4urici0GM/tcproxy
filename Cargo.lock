@@ -3298,6 +3298,8 @@ dependencies = [
  "chrono",
  "mockall",
  "rand 0.8.5",
+ "serde",
+ "serde_json",
  "tokio 1.23.0",
  "tokio-test",
  "tracing",

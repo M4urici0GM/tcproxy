@@ -6,6 +6,7 @@ pub mod tcp;
 pub mod transport;
 pub mod framing;
 pub mod io;
+pub mod config;
 
 pub use command::*;
 pub use frame_error::*;

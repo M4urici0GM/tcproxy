@@ -16,6 +16,8 @@ type Result<T> = std::result::Result<T, AppConfigError>;
 pub struct AppConfig {
     default_context: String,
     contexts: Vec<AppContext>,
+    #[serde(skip_serializing)]
+    current_context: AppContext,
 }
 
 impl AppConfig {

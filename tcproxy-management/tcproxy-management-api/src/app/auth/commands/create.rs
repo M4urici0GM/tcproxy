@@ -3,7 +3,6 @@ use bcrypt::verify;
 use crate::app::auth::requests::{AuthenticateRequest, AuthenticateResponse};
 use crate::app::core::command::{Command, CommandHandler};
 use crate::app::data::error::AppError;
-use crate::app::data::RepositoryError;
 use crate::app::users::data::UserRepositoryReader;
 use crate::Validator;
 
@@ -33,16 +32,13 @@ impl CommandHandler<AuthenticateRequest> for AuthenticateRequestHandler {
         // TODO: trying to create default implementations for each internal type.
         let user = match self.user_reader
             .find_by_username(cmd.username())
-            .await
+            .await?
         {
-            Ok(user ) => user,
-            Err(RepositoryError::NotFound { .. }) => {
+            Some(user) => user,
+            None => {
                 return Err(AppError::InvalidCredentials {
                     message: Some(String::from("Invalid username or password.")),
                 })
-            },
-            Err(err) => {
-                return Err(AppError::from(err));
             }
         };
 
