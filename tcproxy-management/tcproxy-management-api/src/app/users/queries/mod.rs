@@ -5,7 +5,7 @@ use crate::app::core::command::{Command, CommandHandler};
 use crate::app::data::RepositoryReader;
 use crate::app::users::model::User;
 
-use crate::app::data::error::EntityError;
+use crate::app::data::error::AppError;
 
 #[derive(Debug)]
 pub struct GetUserRequest {
@@ -36,12 +36,12 @@ impl GetUserRequest {
 }
 
 impl Command for GetUserRequest {
-    type Output = Result<User, EntityError>;
+    type Output = Result<User, AppError>;
 }
 
 #[async_trait]
 impl CommandHandler<GetUserRequest> for GetUserRequestHandler {
-    async fn execute_cmd(&self, cmd: GetUserRequest) -> Result<User, EntityError> {
+    async fn execute_cmd(&self, cmd: GetUserRequest) -> Result<User, AppError> {
         let user = self.reader
             .find_by_id(cmd.user_id)
             .await?;

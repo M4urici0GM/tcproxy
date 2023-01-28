@@ -1,18 +1,18 @@
 use std::fmt::{Display, Formatter};
-use actix_web::http::StatusCode;
-use actix_web::{HttpResponse, ResponseError};
+use actix_web::{http, HttpResponse, ResponseError};
 use serde::{Deserialize, Serialize};
-use crate::AppErrorType::InternalServerError;
 
 pub mod fmt;
 pub mod app;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum AppErrorType {
+pub enum StatusCode {
     InternalServerError,
     NotFoundError,
     ConflictError,
     BadRequestError,
+    Unauthorized,
+    Forbidden,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -22,10 +22,10 @@ pub struct ValidationErrorDetails {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct  AppError {
+pub struct HttpAppError {
     message: String,
     #[serde(skip_serializing)]
-    error_type: AppErrorType,
+    error_type: StatusCode,
     #[serde(skip_serializing_if = "Option::is_none")]
     validation_errors: Option<Vec<ValidationErrorDetails>>
 }
@@ -62,10 +62,10 @@ impl ValidationErrorDetails {
     }
 }
 
-impl AppError {
+impl HttpAppError {
     pub fn new(
         message: &str,
-        err_type: AppErrorType,
+        err_type: StatusCode,
         validation_err: Option<Vec<ValidationErrorDetails>>) -> Self {
         Self {
             message: String::from(message),
@@ -88,13 +88,16 @@ impl Display for ValidationError {
     }
 }
 
-impl Display for AppError {
+impl Display for HttpAppError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // same for this little bit.
         let msg = match self.error_type {
-            AppErrorType::NotFoundError => "not found",
-            AppErrorType::InternalServerError => "internal server error",
-            AppErrorType::ConflictError => "conflict",
-            AppErrorType::BadRequestError => "bad_request",
+            StatusCode::NotFoundError => "not found",
+            StatusCode::InternalServerError => "internal server error",
+            StatusCode::ConflictError => "conflict",
+            StatusCode::BadRequestError => "bad_request",
+            StatusCode::Forbidden => "forbidden",
+            StatusCode::Unauthorized => "unauthorized"
         };
 
         let validation_errors = match &self.validation_errors {
@@ -118,13 +121,16 @@ impl Display for AppError {
     }
 }
 
-impl ResponseError for AppError {
-    fn status_code(&self) -> StatusCode {
-        match &self.error_type {
-            AppErrorType::ConflictError => StatusCode::CONFLICT,
-            AppErrorType::NotFoundError => StatusCode::NOT_FOUND,
-            AppErrorType::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
-            AppErrorType::BadRequestError => StatusCode::BAD_REQUEST,
+impl ResponseError for HttpAppError {
+    fn status_code(&self) -> http::StatusCode {
+        // yeah, that's sounds a little bit redundant... maybe trying to use newtype here?
+        match self.error_type {
+            StatusCode::NotFoundError => http::StatusCode::NOT_FOUND ,
+            StatusCode::BadRequestError => http::StatusCode::BAD_REQUEST,
+            StatusCode::InternalServerError => http::StatusCode::INTERNAL_SERVER_ERROR,
+            StatusCode::ConflictError => http::StatusCode::CONFLICT,
+            StatusCode::Unauthorized => http::StatusCode::UNAUTHORIZED,
+            StatusCode::Forbidden => http::StatusCode::FORBIDDEN,
         }
     }
 
@@ -134,37 +140,37 @@ impl ResponseError for AppError {
     }
 }
 
-impl From<tcproxy_core::Error> for AppError {
+impl From<tcproxy_core::Error> for HttpAppError {
     fn from(_: tcproxy_core::Error) -> Self {
         Self {
             message: String::from("Internal Server Error"),
-            error_type: InternalServerError,
+            error_type: StatusCode::InternalServerError,
             validation_errors: None,
         }
     }
 }
 
-impl From<mongodb::error::Error> for AppError {
+impl From<mongodb::error::Error> for HttpAppError {
     fn from(_: mongodb::error::Error) -> Self {
         Self {
             message: String::from("Internal Server Error"),
-            error_type: InternalServerError,
+            error_type: StatusCode::InternalServerError,
             validation_errors: None,
         }
     }
 }
 
-impl From<ValidationError> for AppError {
+impl From<ValidationError> for HttpAppError {
     fn from(value: ValidationError) -> Self {
         Self::new(
             value.message(),
-            AppErrorType::BadRequestError,
+            StatusCode::BadRequestError,
             Some(Vec::from(value.errors())),
         )
     }
 }
 
-impl std::error::Error for AppError {
+impl std::error::Error for HttpAppError {
     
 }
 

@@ -11,10 +11,10 @@ lazy_static! {
     static ref EMAIL_REGEX: Regex = Regex::new(r"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?").unwrap();
 }
 
-const INVALID_USERNAME_MSG: &str = "Invalid username. Usernames must not contain special chars.";
-const INVALID_PASSWORD_MSG: &str = "Password must have at least 6 and maximum of 30 characters, at least one number and one special character.";
-const INVALID_EMAIL_MSG: &str = "Invalid email address.";
-const INVALID_NAME_MSG: &str = "Invalid name, must have at least 3 chars.";
+const INVALID_USERNAME_MSG: &str = "Invalid username. Usernames must only contain alphanumeric characters.";
+const INVALID_PASSWORD_MSG: &str = "Invalid password. Passwords must be between 6 and 30 characters long, and must contain at least one number and one special character.";
+const INVALID_EMAIL_MSG: &str = "Invalid email address. Please enter a valid email address";
+const INVALID_NAME_MSG: &str = "Invalid name. Names must be at least 3 characters long.";
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CreateUserRequest {

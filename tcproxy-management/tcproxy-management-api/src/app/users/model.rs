@@ -44,4 +44,6 @@ impl User {
     pub fn name(&self) -> &str {
         &self.name
     }
+
+    pub fn password_hash(&self) -> &str { &self.password_hash }
 }

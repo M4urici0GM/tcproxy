@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use bcrypt::{DEFAULT_COST, hash};
 
 use crate::app::core::command::{Command, CommandHandler};
-use crate::app::data::error::EntityError;
+use crate::app::data::error::AppError;
 use crate::app::data::RepositoryWriter;
 use crate::app::users::data::UserRepositoryReader;
 use crate::app::users::model::User;
@@ -15,7 +15,7 @@ pub struct CreateUserCommandHandler {
 }
 
 impl Command for CreateUserRequest {
-    type Output = Result<User, EntityError>;
+    type Output = Result<User, AppError>;
 }
 
 impl CreateUserCommandHandler {
@@ -33,14 +33,14 @@ impl CreateUserCommandHandler {
 
 #[async_trait]
 impl CommandHandler<CreateUserRequest> for CreateUserCommandHandler {
-    async fn execute_cmd(&self, cmd: CreateUserRequest) -> Result<User, EntityError> {
+    async fn execute_cmd(&self, cmd: CreateUserRequest) -> Result<User, AppError> {
         cmd.validate()?;
         let user_exists = self.reader
             .exist_by_username_or_email(cmd.username(), cmd.email())
             .await?;
 
         if user_exists {
-            return Err(EntityError::EntityAlreadyExists {
+            return Err(AppError::EntityAlreadyExists {
                 message: format!(
                     "User with email {} or username {} already exists.",
                     cmd.email(),

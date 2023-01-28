@@ -28,3 +28,5 @@ derive_builder = "0.12.0"
 bcrypt = "0.13"
 validator = "0.16.0"
 async-trait = "0.1.61"
+actix-web-httpauth = { git = "https://github.com/actix/actix-web-httpauth" }
+chrono = "0.4.23"

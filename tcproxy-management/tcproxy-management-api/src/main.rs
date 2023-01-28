@@ -30,7 +30,7 @@ use actix_web::middleware::{Logger};
 
 
 
-use tcproxy_management_api::app::register_services;
+use tcproxy_management_api::app::{auth, register_services};
 
 
 // struct ErrorMiddlewareTransform;
@@ -88,6 +88,8 @@ async fn main() -> std::io::Result<()>{
     dotenv().ok();
     tcproxy_management_api::fmt::init_subscriber();
 
+    // TODO: Implement a HttpServerConfig or something
+    // for centralizing config.
     let uri = match env::var("MONGOURI") {
         Ok(v) => v,
         Err(_) => "Error loading env variable".to_string(),

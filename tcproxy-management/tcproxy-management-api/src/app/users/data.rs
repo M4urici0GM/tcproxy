@@ -9,6 +9,7 @@ use crate::app::users::model::User;
 #[async_trait]
 pub trait UserRepositoryReader: RepositoryReader<User> {
     async fn exist_by_username_or_email(&self, username: &str, email: &str) -> RepositoryResult<bool>;
+    async fn find_by_username(&self, username: &str) -> RepositoryResult<User>;
 }
 
 #[derive(Clone)]
@@ -90,6 +91,11 @@ impl UserRepositoryReader for UserRepositoryReaderImpl {
             .await?;
 
         Ok(result.is_some())
+    }
+
+    async fn find_by_username(&self, username: &str) -> RepositoryResult<User> {
+        let user = self.find_one(doc!{ "username": username }).await?;
+        Ok(user)
     }
 }
 
