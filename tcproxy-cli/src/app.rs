@@ -87,6 +87,12 @@ impl App {
                 tokio::select! {
                     res = command.handle() => {
                         debug!("ListenCommand has been finished with {:?}", res);
+                        match res {
+                            Ok(_) => {},
+                            Err(err) => {
+                                println!("error: {:?}", err);
+                            }
+                        }
                     },
                     _ = shutdown_signal => {
                         debug!("app received stop signal..");
