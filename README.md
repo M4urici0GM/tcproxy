@@ -8,14 +8,11 @@ Before you begin, ensure you have met the following requirements:
 - Rust 1.67 or later
 
 ## How it works
-The project is split into two parts, the server, and a client, whenever a new client
-connects to the server, the server spawns a new listening port, in which all traffic 
-will be routed to the client.
-The server uses a single TCP connection, multiplexing all traffic being forwarded to 
-the connected client.
+This project uses multiplexing for redirecting all traffic from an public and exposed port
+to a local port in your machine, using a single tcp connection between server and your machine.
 
-The following diagram shows a local TCP server (REST api, local db instance, etc..)
-that receives forwarded traffic from the remote (random) port on the server
+The following diagram shows how the project would work when the server receives 3 connections, and redirects the traffic to the local machine, demuxing 
+the connections from the server.
 
 ![diagram.png](docs/imgs/diagram.png)
 
