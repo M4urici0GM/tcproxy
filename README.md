@@ -19,6 +19,18 @@ that receives forwarded traffic from the remote (random) port on the server
 
 ![diagram.png](docs/imgs/diagram.png)
 
+## Running it locally (dev environment)
+1. Fork the repository
+2. Start the server with ```cargo run --bin tcproxy-server -- --port 8080```
+3. In another terminal, create a new app context with ```cargo run --bin tcproxy-cli -- context create main 127.0.0.1:8080```
+4. Then Start the client with ```cargo run --bin tcproxy-cli -- listen 3338```
+
+You should be able to see something like this on your terminal:
+![terminal-screenshot.png](docs/imgs/terminal-screenshot.png)
+
+So now, every traffic sent to 127.0.0.1:21017 is going to be redirected
+to 127.0.0.1:3338
+
 ## Using Tcproxy Server
 
 To spawn  ```tcproxy-server```, follow these steps:
@@ -75,18 +87,6 @@ Setting an existing context as default:
 ```
 $ tcproxy-cli context set-default <name>
 ```
-
-## Running it locally (dev environment)
-1. Fork the repository
-2. Start the server with ```cargo run --bin tcproxy-server -- --port 8080```
-3. In another terminal, create a new app context with ```cargo run --bin tcproxy-cli -- context create main 127.0.0.1:8080```
-4. Then Start the client with ```cargo run --bin tcproxy-cli -- listen 3338```
-
-You should be able to see something like this on your terminal:
-![terminal-screenshot.png](docs/imgs/terminal-screenshot.png)
-
-So now, every traffic sent to 127.0.0.1:21017 is going to be redirected
-to 127.0.0.1:3338
 
 ## Contributing to tcproxy
 To contribute to this project, follow these steps:
