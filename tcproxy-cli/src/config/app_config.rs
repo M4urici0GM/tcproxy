@@ -10,7 +10,7 @@ use crate::config::{AppConfigError, AppContext, AppContextError};
 type Result<T> = std::result::Result<T, AppConfigError>;
 
 
-#[derive(Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Default, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     default_context: String,
     contexts: Vec<AppContext>,
