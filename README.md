@@ -88,7 +88,7 @@ You should be able to see something like this on your terminal:
 So now, every traffic sent to 127.0.0.1:21017 is going to be redirected
 to 127.0.0.1:3338
 
-## Contributing to <project_name>
+## Contributing to tcproxy
 To contribute to this project, follow these steps:
 
 1. Fork this repository.
