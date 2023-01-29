@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -11,7 +10,7 @@ use crate::config::{AppConfigError, AppContext, AppContextError};
 type Result<T> = std::result::Result<T, AppConfigError>;
 
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct AppConfig {
     default_context: String,
     contexts: Vec<AppContext>,
@@ -32,7 +31,7 @@ impl AppConfig {
             .write(true)
             .append(false)
             .create(true)
-            .open(&path)?;
+            .open(path)?;
 
         let self_contents = serde_yaml::to_string(&config)?;
 
@@ -47,8 +46,8 @@ impl AppConfig {
 
     pub fn contexts(&self) -> HashMap<String, AppContext> {
         let mut mapped_ctxs = HashMap::new();
-        for ctx in self.contexts.iter() {
-            mapped_ctxs.insert(ctx.name().to_owned(), ctx.clone());
+        for ctx in self.contexts.iter().cloned() {
+            mapped_ctxs.insert(ctx.name().to_owned(), ctx);
         }
 
 
@@ -74,6 +73,17 @@ impl AppConfig {
         self.default_context != String::default()
     }
 
+    pub fn get_default_context(&self) -> Option<AppContext> {
+        self.get_context(&self.default_context)
+    }
+
+    pub fn get_context(&self, name: &str) -> Option<AppContext> {
+        self.contexts
+            .iter()
+            .cloned()
+            .find(|item| { item.name() == name })
+    }
+
     pub fn push_context(&mut self, context: &AppContext) -> std::result::Result<(), AppContextError> {
         if self.ctx_exists(context) {
             return Err(AppContextError::AlreadyExists(context.clone()))
@@ -94,7 +104,7 @@ impl AppConfig {
             .write(true)
             .create(true)
             .append(false)
-            .open(&path)?;
+            .open(path)?;
 
         file.write_all(config_str.as_bytes())?;
         file.flush()?;
@@ -105,23 +115,14 @@ impl AppConfig {
     fn read_from_file(path: &Path) -> Result<Self> {
         let file = OpenOptions::new()
             .read(true)
-            .open(&path)?;
+            .open(path)?;
 
         let contents = serde_yaml::from_reader::<File, Self>(file)?;
         Ok(contents)
     }
 
     fn exists(path: &Path) -> bool {
-        fs::metadata(&path).is_ok()
-    }
-}
-
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            contexts: Vec::default(),
-            default_context: String::default(),
-        }
+        fs::metadata(path).is_ok()
     }
 }
 
@@ -291,20 +292,5 @@ mod tests {
     /// Util function for removing file after test.
     fn remove_file(file_name: &Path) {
         std::fs::remove_file(&file_name).unwrap();
-    }
-}
-
-impl std::error::Error for AppConfigError {}
-
-impl Display for AppConfigError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let msg = match self {
-            AppConfigError::YamlErr(err) => format!("Error when serializing/deserializing Yaml: {}", err),
-            AppConfigError::IOError(err) => format!("IO error occurred: {}", err),
-            AppConfigError::Other(err) => format!("Unexpected error! {}", err),
-            AppConfigError::NotFound => "AppConfig was not found..".to_string(),
-        };
-
-        write!(f, "{}", msg)
     }
 }

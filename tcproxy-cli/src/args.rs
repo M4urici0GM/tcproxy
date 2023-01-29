@@ -32,10 +32,16 @@ pub enum ContextCommands {
     List,
     Create(CreateContextArgs),
     Remove(DeleteContextArgs),
+    SetDefault(SetDefaultContextArgs),
 }
 
 #[derive(Parser, Debug)]
 pub struct DeleteContextArgs {
+    name: String,
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct SetDefaultContextArgs {
     name: String,
 }
 
@@ -45,6 +51,18 @@ pub struct CreateContextArgs {
 
     #[clap(value_parser = parse_server_addr)]
     host: ServerAddr,
+}
+
+impl SetDefaultContextArgs {
+    pub fn new(name: &str) -> Self {
+        Self {
+            name: String::from(name),
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 impl CreateContextArgs {

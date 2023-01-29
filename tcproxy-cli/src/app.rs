@@ -11,7 +11,7 @@ use tcproxy_core::{AsyncCommand, Command};
 
 use crate::{ClientArgs};
 use crate::commands::ListenCommand;
-use crate::commands::contexts::{CreateContextCommand, DirectoryResolver};
+use crate::commands::contexts::{CreateContextCommand, DirectoryResolver, ListContextsCommand, SetDefaultContextCommand};
 use crate::{AppCommandType, ContextCommands};
 
 /// represents main app logic.
@@ -37,15 +37,17 @@ impl DirectoryResolver for DefaultDirectoryResolver {
         let config_dir = project_dir.config_dir();
 
         if !config_dir.exists() {
-            std::fs::create_dir_all(&config_dir)?;
+            std::fs::create_dir_all(config_dir)?;
         }
 
         Ok(PathBuf::from(&config_dir))
     }
 
     fn get_config_file(&self) -> Result<PathBuf> {
-        let base_path = self.get_config_folder()?;
-        Ok(base_path.join("config.yaml"))
+        let mut base_path = self.get_config_folder()?;
+        base_path.push("config.yaml");
+
+        Ok(base_path)
     }
 }
 
@@ -88,13 +90,25 @@ impl App {
                 let _ = shutdown_complete_rx.recv().await;
             }
             AppCommandType::Context(args) => {
-                println!("received config command");
-                if let ContextCommands::Create(args) = args {
-                    let mut command = CreateContextCommand::new(args, DefaultDirectoryResolver);
-                    let result = command.handle();
-                    match result {
-                        Ok(_) => println!("Hello"),
-                        Err(err) => println!("{:?}", err),
+                let result = match args {
+                    ContextCommands::Create(args) => {
+                        CreateContextCommand::new(args, DefaultDirectoryResolver).handle()
+                    },
+                    ContextCommands::List => {
+                        ListContextsCommand::new(DefaultDirectoryResolver).handle()
+                    },
+                    ContextCommands::SetDefault(args) => {
+                        SetDefaultContextCommand::new(args, DefaultDirectoryResolver).handle()
+                    },
+                    _ => {
+                        todo!()
+                    }
+                };
+
+                match result {
+                    Ok(_) => {},
+                    Err(err) => {
+                        println!("Failed when running command: {}", err);
                     }
                 }
 

@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use tcproxy_core::{Command};
 use crate::config::{AppConfig, AppContext, AppContextError};
 use crate::CreateContextArgs;
@@ -18,24 +16,13 @@ impl CreateContextCommand {
             dir_resolver: Box::new(dir_resolver)
         }
     }
-
-    fn get_full_config_path(&self) -> Result<PathBuf, AppContextError> {
-        let config_path = match self.dir_resolver.get_config_folder() {
-            Ok(path) => path,
-            Err(err) => {
-                return Err(AppContextError::Other(err));
-            }
-        };
-
-        Ok(PathBuf::from(&config_path))
-    }
 }
 
 impl Command for CreateContextCommand {
     type Output = Result<(), AppContextError>;
 
     fn handle(&mut self) -> Self::Output {
-        let config_path = self.get_full_config_path()?;
+        let config_path = self.dir_resolver.get_config_file()?;
 
         let context_addr = self.args.host();
         let context = AppContext::new(self.args.name(), context_addr.host(), context_addr.port());
@@ -44,6 +31,8 @@ impl Command for CreateContextCommand {
         config.push_context(&context)?;
 
         AppConfig::save_to_file(&config, &config_path)?;
+
+        println!("created context {}", self.args.name());
         Ok(())
     }
 }
@@ -68,7 +57,7 @@ mod tests {
 
         {
             let file_path = file_path.clone();
-            dir_resolver.expect_get_config_folder().returning(move || { Ok(file_path.clone()) });
+            dir_resolver.expect_get_config_file().returning(move || { Ok(file_path.clone()) });
         }
 
         let server_addr = ServerAddr::new("127.0.0.1", &8080).unwrap();
@@ -93,7 +82,7 @@ mod tests {
 
         {
             let file_path = file_path.clone();
-            dir_resolver.expect_get_config_folder().returning(move || { Ok(file_path.clone()) });
+            dir_resolver.expect_get_config_file().returning(move || { Ok(file_path.clone()) });
         }
 
         let server_addr = ServerAddr::new("127.0.0.1", &8080).unwrap();

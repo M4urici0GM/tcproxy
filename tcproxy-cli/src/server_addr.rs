@@ -97,7 +97,7 @@ impl Display for ServerAddrError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let msg = match self {
             ServerAddrError::InvalidPort => "invalid port.".to_string(),
-            ServerAddrError::InvalidString => "invalid host string".to_string(),
+            ServerAddrError::InvalidString => "invalid host string should be IP:PORT".to_string(),
             ServerAddrError::Other(err) => format!("unexpected error: {}", err),
         };
 
