@@ -10,7 +10,7 @@ use tracing::{debug, error, info};
 
 use tcproxy_core::tcp::TcpStream;
 use tcproxy_core::{transport::TcpFrameTransport, AsyncCommand, Result, TcpFrame};
-use tcproxy_core::framing::{ClientConnected, Ping};
+use tcproxy_core::framing::ClientConnected;
 
 use crate::{ClientState, ConsoleUpdater, ListenArgs, PingSender, Shutdown, TcpFrameReader, TcpFrameWriter};
 

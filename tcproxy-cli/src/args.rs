@@ -48,6 +48,13 @@ pub struct CreateContextArgs {
 }
 
 impl CreateContextArgs {
+    pub fn new(name: &str, host: &ServerAddr) -> Self {
+        Self {
+            name: String::from(name),
+            host: host.clone(),
+        }
+    }
+
     pub fn name(&self) -> &str {
         &self.name
     }

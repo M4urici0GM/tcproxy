@@ -36,7 +36,7 @@ impl DataPacketCommand {
     }
 
     pub fn buffer_size(&self) -> usize {
-        self.buffer.len() as usize
+        self.buffer.len()
     }
 }
 

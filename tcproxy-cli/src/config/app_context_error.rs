@@ -1,11 +1,12 @@
 use std::fmt::{Display, Formatter};
 use tcproxy_core::Error;
-use crate::config::AppContext;
+use crate::config::{AppConfigError, AppContext};
 
 #[derive(Debug)]
 pub enum AppContextError {
     DoesntExist(String),
     AlreadyExists(AppContext),
+    ConfigError(Error),
     Other(Error),
 }
 
@@ -16,6 +17,7 @@ impl Display for AppContextError {
         let msg = match self {
             AppContextError::DoesntExist(ctx_name) => format!("context {} doesn't exists.", ctx_name),
             AppContextError::AlreadyExists(ctx) => format!("context {} with ip {} already exists", ctx.name(), ctx.host()),
+            AppContextError::ConfigError(err) => format!("config error: {}", err),
             AppContextError::Other(err) => format!("unexpected error: {}", err),
         };
 
@@ -32,5 +34,11 @@ impl From<String> for AppContextError {
 impl From<&str> for AppContextError {
     fn from(msg: &str) -> Self {
         AppContextError::Other(msg.into())
+    }
+}
+
+impl From<AppConfigError> for AppContextError {
+    fn from(value: AppConfigError) -> Self {
+        Self::ConfigError(value.into())
     }
 }

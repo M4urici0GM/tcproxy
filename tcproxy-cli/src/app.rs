@@ -32,10 +32,6 @@ impl DefaultDirectoryResolver {
 }
 
 impl DirectoryResolver for DefaultDirectoryResolver {
-    fn get_user_folder(&self) -> Result<String> {
-        todo!()
-    }
-
     fn get_config_folder(&self) -> Result<PathBuf> {
         let project_dir = DefaultDirectoryResolver::get_config_dir()?;
         let config_dir = project_dir.config_dir();
@@ -45,6 +41,11 @@ impl DirectoryResolver for DefaultDirectoryResolver {
         }
 
         Ok(PathBuf::from(&config_dir))
+    }
+
+    fn get_config_file(&self) -> Result<PathBuf> {
+        let base_path = self.get_config_folder()?;
+        Ok(base_path.join("config.yaml"))
     }
 }
 
