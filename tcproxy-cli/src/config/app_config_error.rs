@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use tcproxy_core::Error;
 
 #[derive(Debug)]
@@ -6,6 +7,21 @@ pub enum AppConfigError {
     YamlErr(serde_yaml::Error),
     IOError(std::io::Error),
     Other(Error)
+}
+
+impl std::error::Error for AppConfigError {}
+
+impl Display for AppConfigError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let msg = match self {
+            AppConfigError::YamlErr(err) => format!("Error when serializing/deserializing Yaml: {}", err),
+            AppConfigError::IOError(err) => format!("IO error occurred: {}", err),
+            AppConfigError::Other(err) => format!("Unexpected error! {}", err),
+            AppConfigError::NotFound => "AppConfig was not found..".to_string(),
+        };
+
+        write!(f, "{}", msg)
+    }
 }
 
 impl From<serde_yaml::Error> for AppConfigError {

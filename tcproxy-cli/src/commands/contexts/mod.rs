@@ -1,5 +1,6 @@
 mod create_context;
 mod list_contexts;
+mod set_default_context;
 
 use std::path::PathBuf;
 use mockall::automock;
@@ -14,4 +15,5 @@ pub trait DirectoryResolver: Send + Sync {
 
 pub use create_context::CreateContextCommand;
 pub use list_contexts::ListContextsCommand;
+pub use set_default_context::SetDefaultContextCommand;
 

@@ -32,6 +32,7 @@ pub enum ContextCommands {
     List,
     Create(CreateContextArgs),
     Remove(DeleteContextArgs),
+    SetDefault(SetDefaultContextArgs),
 }
 
 #[derive(Parser, Debug)]
@@ -39,12 +40,29 @@ pub struct DeleteContextArgs {
     name: String,
 }
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
+pub struct SetDefaultContextArgs {
+    name: String,
+}
+
+#[derive(Parser, Debug, Clone)]
 pub struct CreateContextArgs {
     name: String,
 
     #[clap(value_parser = parse_server_addr)]
     host: ServerAddr,
+}
+
+impl SetDefaultContextArgs {
+    pub fn new(name: &str) -> Self {
+        Self {
+            name: String::from(name),
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 impl CreateContextArgs {
@@ -64,7 +82,7 @@ impl CreateContextArgs {
     }
 }
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 pub struct ListenArgs {
     port: u16,
 
@@ -76,6 +94,9 @@ pub struct ListenArgs {
 
     #[clap(long, default_value = "5", value_parser = parse_ping_interval)]
     ping_interval: u8,
+
+    #[clap(long, short)]
+    app_context: Option<String>
 }
 
 impl ClientArgs {
@@ -96,28 +117,11 @@ impl ListenArgs {
     pub fn ping_interval(&self) -> u8 {
         self.ping_interval
     }
-}
 
-impl Clone for CreateContextArgs {
-    fn clone(&self) -> Self {
-        Self {
-            host: self.host().clone(),
-            name: self.name().to_owned(),
-        }
+    pub fn app_context(&self) -> Option<String> {
+        self.app_context.clone()
     }
 }
-
-impl Clone for ListenArgs {
-    fn clone(&self) -> Self {
-        Self {
-            verbose: self.verbose,
-            ip: self.ip,
-            ping_interval: self.ping_interval,
-            port: self.port,
-        }
-    }
-}
-
 
 fn parse_server_addr(given_str: &str) -> Result<ServerAddr> {
     let result = ServerAddr::from_str(given_str)?;

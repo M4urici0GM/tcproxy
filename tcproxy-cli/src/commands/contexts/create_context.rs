@@ -1,8 +1,7 @@
-use std::path::PathBuf;
-
 use tcproxy_core::{Command};
 use crate::config::{AppConfig, AppContext, AppContextError};
 use crate::CreateContextArgs;
+use crate::server_addr::ServerAddrType;
 
 use super::DirectoryResolver;
 
@@ -18,32 +17,28 @@ impl CreateContextCommand {
             dir_resolver: Box::new(dir_resolver)
         }
     }
-
-    fn get_full_config_path(&self) -> Result<PathBuf, AppContextError> {
-        let config_path = match self.dir_resolver.get_config_folder() {
-            Ok(path) => path,
-            Err(err) => {
-                return Err(AppContextError::Other(err));
-            }
-        };
-
-        Ok(PathBuf::from(&config_path))
-    }
 }
 
 impl Command for CreateContextCommand {
     type Output = Result<(), AppContextError>;
 
     fn handle(&mut self) -> Self::Output {
-        let config_path = self.get_full_config_path()?;
-
+        let config_path = self.dir_resolver.get_config_file()?;
         let context_addr = self.args.host();
+
+        // temporary! need to implement a dns resolver
+        if context_addr.addr_type() != ServerAddrType::IpAddr {
+            return Err(AppContextError::ValidationError("Cannot accept DNS hosts.".to_string()))
+        }
+
         let context = AppContext::new(self.args.name(), context_addr.host(), context_addr.port());
         let mut config = AppConfig::load(&config_path)?;
 
         config.push_context(&context)?;
 
         AppConfig::save_to_file(&config, &config_path)?;
+
+        println!("created context {}", self.args.name());
         Ok(())
     }
 }
@@ -61,6 +56,29 @@ mod tests {
     use crate::server_addr::ServerAddr;
 
     #[test]
+    fn should_return_err_when_host_is_not_ip() {
+        let mut dir_resolver = MockDirectoryResolver::new();
+        let file_path = create_random_file_path();
+
+        {
+            let file_path = file_path.clone();
+            dir_resolver.expect_get_config_file().returning(move || { Ok(file_path.clone()) });
+        }
+
+        let server_addr = ServerAddr::new("tcp.someserveraddress.io", &8080).unwrap();
+        let context_args = CreateContextArgs::new("test-name", &server_addr);
+        let mut command = CreateContextCommand::new(&context_args, dir_resolver);
+
+        // Act
+        let result = command.handle();
+
+        // Assert
+        assert!(result.is_err());
+        assert!(is_type!(result.unwrap_err(), AppContextError::ValidationError(_)));
+
+    }
+
+    #[test]
     fn should_create_file_if_doesnt_exist() {
         // Arrange
         let mut dir_resolver = MockDirectoryResolver::new();
@@ -68,7 +86,7 @@ mod tests {
 
         {
             let file_path = file_path.clone();
-            dir_resolver.expect_get_config_folder().returning(move || { Ok(file_path.clone()) });
+            dir_resolver.expect_get_config_file().returning(move || { Ok(file_path.clone()) });
         }
 
         let server_addr = ServerAddr::new("127.0.0.1", &8080).unwrap();
@@ -93,7 +111,7 @@ mod tests {
 
         {
             let file_path = file_path.clone();
-            dir_resolver.expect_get_config_folder().returning(move || { Ok(file_path.clone()) });
+            dir_resolver.expect_get_config_file().returning(move || { Ok(file_path.clone()) });
         }
 
         let server_addr = ServerAddr::new("127.0.0.1", &8080).unwrap();

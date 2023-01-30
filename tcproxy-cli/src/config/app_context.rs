@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -26,5 +27,11 @@ impl AppContext {
 
     pub fn name(&self) -> &str {
         &self.name
+    }
+}
+
+impl Display for AppContext {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[name = {}, host = {}, port = {}]", self.name, self.target_host, self.target_host)
     }
 }

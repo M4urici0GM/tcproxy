@@ -13,27 +13,50 @@ use tcproxy_core::{transport::TcpFrameTransport, AsyncCommand, Result, TcpFrame}
 use tcproxy_core::framing::ClientConnected;
 
 use crate::{ClientState, ConsoleUpdater, ListenArgs, PingSender, Shutdown, TcpFrameReader, TcpFrameWriter};
+use crate::config::{AppConfig, AppContext};
 
 
 pub struct ListenCommand {
     args: Arc<ListenArgs>,
+    app_cfg: Arc<AppConfig>,
     pub(crate) _shutdown_complete_tx: Sender<()>,
     pub(crate) _notify_shutdown: broadcast::Sender<()>,
 }
 
 impl ListenCommand {
-    pub fn new(args: Arc<ListenArgs>, shutdown_complete_tx: Sender<()>, notify_shutdown: broadcast::Sender<()>) -> Self {
+    pub fn new(
+        args: Arc<ListenArgs>,
+        config: Arc<AppConfig>,
+        shutdown_complete_tx: Sender<()>,
+        notify_shutdown: broadcast::Sender<()>) -> Self
+    {
         Self {
-            args,
+            args: Arc::clone(&args),
+            app_cfg: Arc::clone(&config),
             _notify_shutdown: notify_shutdown,
-            _shutdown_complete_tx: shutdown_complete_tx
+            _shutdown_complete_tx: shutdown_complete_tx,
+        }
+    }
+
+    fn get_context(&self) -> Result<AppContext> {
+        let context_name = match self.args.app_context() {
+            Some(ctx) => ctx,
+            None => self.app_cfg.default_context().to_string(),
+        };
+
+        match self.app_cfg.get_context(&context_name) {
+            Some(ctx) => Ok(ctx),
+            None => {
+                Err(format!("context {} was not found.", context_name).into())
+            }
         }
     }
 
     /// connects to remote server.
     async fn connect(&self) -> Result<TcpStream> {
-        let addr = SocketAddr::from_str("144.22.179.129:8080")?;
-        match TokioTcpStream::connect(addr).await {
+        let app_context = self.get_context()?;
+        let server_addr = format!("{}:{}", app_context.host(), app_context.port());
+        match TokioTcpStream::connect(server_addr).await {
             Ok(stream) => {
                 debug!("Connected to server..");
                 let socket_addr = stream.peer_addr().unwrap();
@@ -91,7 +114,8 @@ impl AsyncCommand for ListenCommand {
             _ = ping_task.spawn(Shutdown::new(self._notify_shutdown.subscribe())) => {
                 debug!("ping task finished.");
             }
-        };
+        }
+        ;
 
         Ok(())
     }

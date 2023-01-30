@@ -11,8 +11,9 @@ use tcproxy_core::{AsyncCommand, Command};
 
 use crate::{ClientArgs};
 use crate::commands::ListenCommand;
-use crate::commands::contexts::{CreateContextCommand, DirectoryResolver};
+use crate::commands::contexts::{CreateContextCommand, DirectoryResolver, ListContextsCommand, SetDefaultContextCommand};
 use crate::{AppCommandType, ContextCommands};
+use crate::config::AppConfig;
 
 /// represents main app logic.
 pub struct App {
@@ -22,6 +23,10 @@ pub struct App {
 pub struct DefaultDirectoryResolver;
 
 impl DefaultDirectoryResolver {
+    pub fn new() -> Self {
+        Self {}
+    }
+
     fn get_config_dir() -> Result<ProjectDirs> {
         let project_dir = ProjectDirs::from("", "m4urici0gm", "tcproxy");
         match project_dir {
@@ -37,15 +42,17 @@ impl DirectoryResolver for DefaultDirectoryResolver {
         let config_dir = project_dir.config_dir();
 
         if !config_dir.exists() {
-            std::fs::create_dir_all(&config_dir)?;
+            std::fs::create_dir_all(config_dir)?;
         }
 
         Ok(PathBuf::from(&config_dir))
     }
 
     fn get_config_file(&self) -> Result<PathBuf> {
-        let base_path = self.get_config_folder()?;
-        Ok(base_path.join("config.yaml"))
+        let mut base_path = self.get_config_folder()?;
+        base_path.push("config.yaml");
+
+        Ok(base_path)
     }
 }
 
@@ -58,6 +65,10 @@ impl App {
 
     /// does initial handshake and start listening for remote connections.
     pub async fn start(&self, shutdown_signal: impl Future) -> Result<()> {
+        let directory_resolver = DefaultDirectoryResolver::new();
+        let config_path = directory_resolver.get_config_file()?;
+        let config = AppConfig::load(&config_path)?;
+
         match self.args.get_type() {
             AppCommandType::Listen(args) => {
                 // used to notify running threads that stop signal was received.
@@ -68,6 +79,7 @@ impl App {
 
                 let mut command = ListenCommand::new(
                     Arc::new(args.clone()),
+                    Arc::new(config.clone()),
                     shutdown_complete_tx,
                     notify_shutdown,
                 );
@@ -75,6 +87,12 @@ impl App {
                 tokio::select! {
                     res = command.handle() => {
                         debug!("ListenCommand has been finished with {:?}", res);
+                        match res {
+                            Ok(_) => {},
+                            Err(err) => {
+                                println!("error: {:?}", err);
+                            }
+                        }
                     },
                     _ = shutdown_signal => {
                         debug!("app received stop signal..");
@@ -88,13 +106,25 @@ impl App {
                 let _ = shutdown_complete_rx.recv().await;
             }
             AppCommandType::Context(args) => {
-                println!("received config command");
-                if let ContextCommands::Create(args) = args {
-                    let mut command = CreateContextCommand::new(args, DefaultDirectoryResolver);
-                    let result = command.handle();
-                    match result {
-                        Ok(_) => println!("Hello"),
-                        Err(err) => println!("{:?}", err),
+                let result = match args {
+                    ContextCommands::Create(args) => {
+                        CreateContextCommand::new(args, DefaultDirectoryResolver).handle()
+                    },
+                    ContextCommands::List => {
+                        ListContextsCommand::new(DefaultDirectoryResolver).handle()
+                    },
+                    ContextCommands::SetDefault(args) => {
+                        SetDefaultContextCommand::new(args, DefaultDirectoryResolver).handle()
+                    },
+                    _ => {
+                        todo!()
+                    }
+                };
+
+                match result {
+                    Ok(_) => {},
+                    Err(err) => {
+                        println!("Failed when running command: {}", err);
                     }
                 }
 
