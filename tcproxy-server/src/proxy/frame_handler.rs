@@ -45,7 +45,7 @@ impl FrameHandler for DefaultFrameHandler {
     async fn handle(
         &mut self,
         frame: TcpFrame,
-        cancellation_token: CancellationToken,
+        _cancellation_token: CancellationToken,
     ) -> Result<Option<TcpFrame>> {
         let mut command_handler: Box<dyn AsyncCommand<Output = Result<()>>> = match frame {
             TcpFrame::Ping(_) => Box::new(PingCommand::new(&self.sender)),
@@ -58,17 +58,7 @@ impl FrameHandler for DefaultFrameHandler {
                     data.connection_id(),
                     &self.state)
             }
-            TcpFrame::ClientConnected(_) => {
-                let listen_ip = self.feature_manager
-                    .get_config()
-                    .get_listen_ip();
-
-                ClientConnectedCommand::boxed_new(
-                    listen_ip,
-                    &self.sender,
-                    &self.state,
-                    &cancellation_token)
-            },
+            TcpFrame::ClientConnected(_) => ClientConnectedCommand::boxed_new(&self.sender),
             _ => {
                 debug!("invalid frame received.");
                 return Ok(None);

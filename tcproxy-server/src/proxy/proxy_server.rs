@@ -10,11 +10,12 @@ use tcproxy_core::framing::{SocketConnected};
 use tcproxy_core::tcp::{SocketListener, TcpStream};
 use tcproxy_core::Result;
 
+use crate::managers::PortPermit;
 use crate::tcp::{RemoteConnection};
 use crate::ClientState;
 
 pub struct ProxyServer {
-    target_port: u16,
+    port_permit: PortPermit,
     listener: Box<dyn SocketListener + 'static>,
     proxy_state: Arc<ClientState>,
     client_sender: Sender<TcpFrame>,
@@ -22,14 +23,14 @@ pub struct ProxyServer {
 
 impl ProxyServer {
     pub fn new<T>(
-        target_port: &u16,
+        port_permit: PortPermit,
         state: &Arc<ClientState>,
         sender: &Sender<TcpFrame>,
         listener: T,
     ) -> Self
         where T: SocketListener + 'static {
         Self {
-            target_port: *target_port,
+            port_permit: port_permit,
             proxy_state: state.clone(),
             client_sender: sender.clone(),
             listener: Box::new(listener),
@@ -47,7 +48,7 @@ impl ProxyServer {
             }
 
             debug!("proxy server finished.");
-            port_manager.remove_port(self.target_port);
+            port_manager.free_port(self.port_permit.clone());
         });
     }
 

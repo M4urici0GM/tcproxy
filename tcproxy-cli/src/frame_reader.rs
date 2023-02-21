@@ -73,9 +73,7 @@ impl TcpFrameReader {
                         debug!("remote socket disconnected");
                         Box::new(RemoteDisconnectedCommand::new(data.connection_id(), &self.state))
                     }
-                    TcpFrame::ClientConnectedAck(data) => {
-                        debug!("Remote proxy listening in {}:{}", "127.0.0.1", data.port());
-                        self.state.update_remote_ip(&data.port().to_string());
+                    TcpFrame::ClientConnectedAck(_) => {
                         continue;
                     }
                     TcpFrame::Pong(_) => {

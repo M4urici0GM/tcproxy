@@ -1,9 +1,8 @@
 use std::fmt::Display;
 use std::io::Cursor;
-use bytes::{Buf, BufMut, BytesMut};
+use bytes::{Buf, BytesMut};
 
 use crate::FrameDecodeError;
-use crate::io::{get_u8};
 use crate::framing::frame_types::*;
 use crate::framing::{ClientConnected, ClientConnectedAck, DataPacket, Error, SocketConnected, Ping, Pong, SocketDisconnected};
 
@@ -80,8 +79,8 @@ impl Display for TcpFrame {
             TcpFrame::Pong(_) => {
                 "Pong".to_string()
             }
-            TcpFrame::ClientConnectedAck(data) => {
-                format!("ClientConnectedACK ({})", data.port())
+            TcpFrame::ClientConnectedAck(_) => {
+                format!("ClientConnectedACK")
             }
             TcpFrame::SocketConnected(data) => {
                 format!("IncomingSocket ({})", data.connection_id())
