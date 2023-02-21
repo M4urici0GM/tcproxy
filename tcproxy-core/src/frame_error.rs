@@ -4,6 +4,7 @@ use std::{num::TryFromIntError, string::FromUtf8Error};
 pub enum FrameDecodeError {
     Incomplete,
     UnexpectedFrameType(u8),
+    CorruptedFrame,
     Other(crate::Error),
 }
 
@@ -36,6 +37,7 @@ impl From<TryFromIntError> for FrameDecodeError {
 impl std::fmt::Display for FrameDecodeError {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
+            FrameDecodeError::CorruptedFrame => "frame is corrupted".fmt(fmt),
             FrameDecodeError::Incomplete => "stream ended early".fmt(fmt),
             FrameDecodeError::Other(err) => err.fmt(fmt),
             FrameDecodeError::UnexpectedFrameType(f_type) => format!("unexpected frame_type: {}", f_type).fmt(fmt),

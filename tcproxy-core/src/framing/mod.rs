@@ -6,7 +6,11 @@ mod socket_connected;
 mod error;
 mod ping;
 mod pong;
+mod authenticate;
+mod authenticate_ack;
 
+pub use authenticate::*;
+pub use authenticate_ack::*;
 pub use pong::*;
 pub use ping::*;
 pub use error::*;
@@ -25,6 +29,8 @@ pub mod frame_types {
     pub const CLIENT_CONNECTED_ACK: u8 = b'^';
     pub const DATA_PACKET: u8 = b'!';
     pub const SOCKET_DISCONNECTED: u8 = b'(';
+    pub const AUTHENTICATE: u8 = b')';
+    pub const AUTHENTICATE_ACK: u8 = b'=';
 }
 
 pub mod utils {

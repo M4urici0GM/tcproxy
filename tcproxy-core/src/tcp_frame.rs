@@ -4,7 +4,7 @@ use bytes::{Buf, BytesMut};
 
 use crate::FrameDecodeError;
 use crate::framing::frame_types::*;
-use crate::framing::{ClientConnected, ClientConnectedAck, DataPacket, Error, SocketConnected, Ping, Pong, SocketDisconnected};
+use crate::framing::{ClientConnected, ClientConnectedAck, DataPacket, Error, SocketConnected, Ping, Pong, SocketDisconnected, Authenticate, AuthenticateAck};
 
 
 pub trait Frame {
@@ -17,6 +17,8 @@ pub enum TcpFrame {
     Ping(Ping),
     Pong(Pong),
     Error(Error),
+    Authenticate(Authenticate),
+    AuthenticateAck(AuthenticateAck),
     DataPacket(DataPacket),
     SocketConnected(SocketConnected),
     ClientConnectedAck(ClientConnectedAck),
@@ -38,6 +40,8 @@ impl TcpFrame {
             SOCKET_CONNECTED => TcpFrame::SocketConnected(SocketConnected::decode(cursor)?),
             ERROR => TcpFrame::Error(Error::decode(cursor)?),
             DATA_PACKET => TcpFrame::DataPacket(DataPacket::decode(cursor)?),
+            AUTHENTICATE => TcpFrame::Authenticate(Authenticate::decode(cursor)?),
+            AUTHENTICATE_ACK => TcpFrame::AuthenticateAck(AuthenticateAck::decode(cursor)?),
             actual => {
                 let msg = format!(
                     "proto error. invalid frame type. {} {}",
@@ -53,6 +57,8 @@ impl TcpFrame {
 
     pub fn to_buffer(&self) -> BytesMut {
         let buffer = match self {
+            TcpFrame::AuthenticateAck(data) => data.encode(),
+            TcpFrame::Authenticate(data) => data.encode(),
             TcpFrame::ClientConnected(data) => data.encode(),
             TcpFrame::ClientConnectedAck(data) => data.encode(),
             TcpFrame::Ping(data) => data.encode(),
@@ -79,6 +85,12 @@ impl Display for TcpFrame {
             TcpFrame::Pong(_) => {
                 "Pong".to_string()
             }
+            TcpFrame::Authenticate(_) => {
+                format!("Authenticate")
+            },
+            TcpFrame::AuthenticateAck(_) => {
+                format!("AuthenticateAck")
+            },
             TcpFrame::ClientConnectedAck(_) => {
                 format!("ClientConnectedACK")
             }
