@@ -7,6 +7,7 @@ pub mod transport;
 pub mod framing;
 pub mod io;
 
+use bytes::BufMut;
 pub use command::*;
 pub use frame_error::*;
 pub use tcp_frame::*;
@@ -14,6 +15,16 @@ pub use tcp_frame::*;
 pub type Error = Box<dyn std::error::Error + Sync + Send + 'static>;
 pub type Result<T> = std::result::Result<T, Error>;
 
+pub trait PutU32String: BufMut {
+    fn put_u32_sized_str(&mut self, value: &str);
+}
+
+impl PutU32String for Vec<u8> {
+    fn put_u32_sized_str(&mut self, value: &str) {
+        self.put_u32(value.len() as u32);
+        self.put_slice(value.as_bytes());
+    }
+}
 
 pub mod test_util {
 

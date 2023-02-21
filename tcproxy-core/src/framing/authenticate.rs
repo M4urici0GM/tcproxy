@@ -1,9 +1,9 @@
 use std::io::Cursor;
-use bytes::BufMut;
-use crate::{Frame, FrameDecodeError};
+use bytes::buf::BufMut;
+use crate::{Frame, FrameDecodeError, PutU32String};
 use crate::framing::frame_types::AUTHENTICATE;
 use crate::framing::utils::assert_connection_type;
-use crate::io::{get_buffer, get_u32, get_u8};
+use crate::io::{get_u32_string, get_u8};
 
 #[derive(Debug, PartialEq)]
 pub struct Authenticate {
@@ -23,24 +23,12 @@ impl Authenticate {
 impl Frame for Authenticate {
     fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Authenticate, FrameDecodeError> {
         assert_connection_type(&get_u8(buffer)?, &AUTHENTICATE)?;
-
-        let account_id_size = get_u32(buffer)?;
-        if 0 >= account_id_size {
-            return Err(FrameDecodeError::CorruptedFrame);
-        }
-
-        let account_id = String::from_utf8(get_buffer(buffer, account_id_size)?)?;
-
-        let token_size = get_u32(buffer)?;
-        if 0 >= token_size {
-            return Err(FrameDecodeError::CorruptedFrame);
-        }
-
-        let token = String::from_utf8(get_buffer(buffer, token_size)?)?;
+        let account_id = get_u32_string(buffer)?;
+        let account_token = get_u32_string(buffer)?;
 
         Ok(Self {
             account_id,
-            account_token: token,
+            account_token,
         })
     }
 
@@ -48,10 +36,8 @@ impl Frame for Authenticate {
         let mut buffer = Vec::new();
 
         buffer.put_u8(AUTHENTICATE);
-        buffer.put_u32(self.account_id.len() as u32);
-        buffer.put_slice(self.account_id.as_bytes());
-        buffer.put_u32(self.account_token.len() as u32);
-        buffer.put_slice(self.account_token.as_bytes());
+        buffer.put_u32_sized_str(&self.account_id);
+        buffer.put_u32_sized_str(&self.account_token);
 
         buffer
     }
@@ -130,7 +116,6 @@ pub mod tests {
     pub fn should_return_err_when_account_id_is_missing() {
         // Arrange
         let id = "some-account-id";
-        let token = "some-account-token";
         let mut buffer = Vec::new();
 
         buffer.put_u8(AUTHENTICATE);

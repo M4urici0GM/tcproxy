@@ -55,7 +55,7 @@ impl PortManagerGuard {
         lock.free_port(permit);  
     }
 
-    pub fn reserve_port(&self, conn_id: &u32, conn_token: &str) -> std::result::Result<PortPermit, PortError> {
+    pub fn reserve_port(&self, conn_id: &u32, conn_token: &str) -> Result<PortPermit, PortError> {
         let mut lock = self.manager
             .lock()
             .unwrap();
@@ -99,7 +99,7 @@ impl PortManager {
         }
     }
 
-    pub fn used_pors(&self) -> &HashSet<PortPermit> {
+    pub fn used_ports(&self) -> &HashSet<PortPermit> {
         &self.used_ports
     }
 
@@ -118,7 +118,7 @@ impl PortManager {
     }
     
 
-    pub fn reserve_port(&mut self, conn_id: &u32, conn_token: &str) -> std::result::Result<PortPermit, PortError> {
+    pub fn reserve_port(&mut self, conn_id: &u32, conn_token: &str) -> Result<PortPermit, PortError> {
         if 0 == self.available_ports.len() {
             return Err(PortError::PortLimitReached);
         }
@@ -211,7 +211,7 @@ pub mod tests {
         port_manager.free_port(port_permit.clone());
 
         // Assert
-        assert_eq!(0, port_manager.used_pors().len());
+        assert_eq!(0, port_manager.used_ports().len());
         assert!(port_manager.available_ports.contains(port_permit.port()));
     }
 }
