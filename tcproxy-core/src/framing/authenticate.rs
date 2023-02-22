@@ -18,6 +18,10 @@ impl Authenticate {
             account_token: String::from(token),
         }
     }
+
+    pub fn token(&self) -> &str { &self.account_token }
+
+    pub fn account_id(&self) -> &str { &self.account_id }
 }
 
 impl Frame for Authenticate {

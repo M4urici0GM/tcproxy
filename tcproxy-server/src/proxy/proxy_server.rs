@@ -30,7 +30,7 @@ impl ProxyServer {
     ) -> Self
         where T: SocketListener + 'static {
         Self {
-            port_permit: port_permit,
+            port_permit,
             proxy_state: state.clone(),
             client_sender: sender.clone(),
             listener: Box::new(listener),
@@ -77,11 +77,10 @@ impl ProxyServer {
             permit,
             &self.client_sender);
 
+        self.send_incoming_connection_frame(&connection_id).await?;
         tokio::spawn(async move {
             let _ = remote_connection.start(connection, receiver).await;
         });
-
-        self.send_incoming_connection_frame(&connection_id).await?;
         Ok(())
     }
 

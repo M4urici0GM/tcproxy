@@ -7,7 +7,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
 
 use tcproxy_core::tcp::{ISocketListener, SocketConnection, SocketListener};
-use crate::managers::{FeatureManager, IFeatureManager};
+use crate::managers::{AuthenticationManager, AuthenticationManagerGuard, FeatureManager, IFeatureManager, PortManager, PortManagerGuard};
 
 use crate::proxy::ClientConnection;
 
@@ -65,7 +65,18 @@ impl Server {
     where
         T: SocketConnection + 'static,
     {
-        let mut proxy_client = ClientConnection::new(&self.feature_manager);
+        let server_config = self.feature_manager.get_config();
+        let auth_manager = AuthenticationManager::new();
+        let port_manager = PortManager::new(server_config.get_port_range());
+
+        let port_guard = Arc::new(PortManagerGuard::new(port_manager));
+        let auth_guard = Arc::new(AuthenticationManagerGuard::new(auth_manager));
+
+        let mut proxy_client = ClientConnection::new(
+            port_guard,
+            auth_guard,
+            &server_config);
+
         tokio::spawn(async move {
             let socket_addr = socket.addr();
 

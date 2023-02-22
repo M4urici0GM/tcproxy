@@ -6,6 +6,8 @@ pub mod tcp;
 pub mod transport;
 pub mod framing;
 pub mod io;
+pub mod config;
+pub mod auth;
 
 use bytes::BufMut;
 pub use command::*;

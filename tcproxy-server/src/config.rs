@@ -1,8 +1,10 @@
 
 use std::{fs, net::{IpAddr, SocketAddr}, str::FromStr, ops::Range};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 use serde::{Serialize, Deserialize};
-use tracing::{debug, error};
+use tracing::error;
+use tcproxy_core::config::{Config, ConfigLoader};
 
 use tcproxy_core::Result;
 
@@ -16,6 +18,7 @@ pub mod env {
     pub const CONNECTIONS_PER_PROXY: &str = "TCPROXY_CONNECTIONS_PER_PROXY";
     pub const LISTEN_IP: &str = "TCPROXY_LISTEN_IP";
     pub const CONFIG_FILE: &str = "TCPROXY_CONFIG_FILE";
+    pub const JWT_SECRET: &str = "TCPROXY_JWT_SECRET";
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,21 +29,8 @@ pub struct ServerConfig {
     listen_port: u16,
     server_fqdn: String,
     max_connections_per_proxy: u16,
+    jwt_secret: String,
 }
-
-impl Default for ServerConfig {
-    fn default() -> Self {
-        Self {
-            port_min: 15000,
-            port_max: 25000,
-            listen_ip: IpAddr::from_str("0.0.0.0").unwrap(),
-            listen_port: 8080,
-            server_fqdn: "proxy.server.local".to_owned(), 
-            max_connections_per_proxy: 120,
-        }
-    }
-}
-
 
 // FILE
 // Environment Variables
@@ -53,34 +43,26 @@ impl ServerConfig {
         listen_ip: IpAddr,
         listen_port: u16,
         server_fqdn: &str,
-        max_connections_per_proxy: u16
+        max_connections_per_proxy: u16,
+        jwt_secret: &str,
     ) -> Self {
         Self {
             port_min,
             port_max,
             listen_ip,
             listen_port,
-            server_fqdn: server_fqdn.to_owned(),
+            server_fqdn: String::from(server_fqdn),
+            jwt_secret: String::from(jwt_secret),
             max_connections_per_proxy,
         }
     }
 
-    pub fn load(env_vars: &[(String, String)], args: &AppArguments) -> Result<Self> {
-        let parsed_env_vars = ServerConfig::parse_environment_variables(env_vars);
-        let file_path = ServerConfig::get_config_file_path(&parsed_env_vars);
+    pub fn get_jwt_secret(&self) -> &str {
+        &self.jwt_secret
+    }
 
-        if !ServerConfig::file_exists(&file_path) {
-            debug!("Config file doesnt exist. Creating default...");
-            ServerConfig::create_default(&file_path)?;
-        }
-
-        let mut config = ServerConfig::read_from_file(&file_path)?;
-
-        config.apply_env(&parsed_env_vars)?;
-        config.apply_args(args);
-        config.validate()?;
-
-        Ok(config)
+    pub fn set_jwt_secret(&mut self, secret: &str) {
+        self.jwt_secret = String::from(secret);
     }
 
     pub fn get_socket_addr(&self) -> SocketAddr {
@@ -107,13 +89,44 @@ impl ServerConfig {
         self.server_fqdn.to_owned()
     }
 
-    fn validate(&self) -> Result<()> {
-        if self.port_min == 0 {
-            return Err("Min port cannot be zero".into());
-        }
+    fn set_port_min(&mut self, min_port: u16) {
+        self.port_min = min_port;
+    }
 
-        if self.port_min > self.port_max {
-            return Err("Min port is greater than max_port".into());
+    fn set_port_max(&mut self, max_port: u16) {
+        self.port_max = max_port;
+    }
+
+    fn set_listen_port(&mut self, listen_port: u16) {
+        self.listen_port = listen_port;
+    }
+
+    fn set_server_fqdn(&mut self, server_fqdn: &str) {
+        self.server_fqdn = server_fqdn.to_owned();
+    }
+
+    fn set_connections_per_proxy(&mut self, connections_per_proxy: u16) {
+        self.max_connections_per_proxy = connections_per_proxy;
+    }
+
+    fn set_listen_ip(&mut self, ip: IpAddr) {
+        self.listen_ip = ip;
+    }
+}
+
+impl Config<AppArguments> for ServerConfig {
+    fn apply_env(&mut self, app_vars: &HashMap<String, String>) -> Result<()> {
+        for (name, value) in app_vars {
+            match name.as_str() {
+                env::PORT_MIN => self.set_port_min(value.parse::<u16>()?),
+                env::PORT_MAX => self.set_port_max(value.parse::<u16>()?),
+                env::LISTEN_PORT => self.set_listen_port(value.parse::<u16>()?),
+                env::LISTEN_IP => self.set_listen_ip(IpAddr::from_str(value)?),
+                env::SERVER_FQDN => self.set_server_fqdn(value),
+                env::CONNECTIONS_PER_PROXY => self.set_connections_per_proxy(value.parse::<u16>()?),
+                env::JWT_SECRET => self.set_jwt_secret(value),
+                _ => continue,
+            }
         }
 
         Ok(())
@@ -138,48 +151,22 @@ impl ServerConfig {
         }
     }
 
-    fn apply_env(&mut self, app_vars: &HashMap<String, String>) -> Result<()> {
-        for (name, value) in app_vars {
-            match name.as_str() {
-                env::PORT_MIN => self.set_port_min(value.parse::<u16>()?),
-                env::PORT_MAX => self.set_port_max(value.parse::<u16>()?),
-                env::LISTEN_PORT => self.set_listen_port(value.parse::<u16>()?),
-                env::LISTEN_IP => self.set_listen_ip(IpAddr::from_str(value)?),
-                env::SERVER_FQDN => self.set_server_fqdn(value),
-                env::CONNECTIONS_PER_PROXY => self.set_connections_per_proxy(value.parse::<u16>()?),
-                _ => continue,
-            }
+
+    fn validate(&self) -> Result<()> {
+        if self.port_min == 0 {
+            return Err("Min port cannot be zero".into());
+        }
+
+        if self.port_min > self.port_max {
+            return Err("Min port is greater than max_port".into());
         }
 
         Ok(())
     }
+}
 
-    fn set_port_min(&mut self, min_port: u16) {
-        self.port_min = min_port;
-    }
-
-    fn set_port_max(&mut self, max_port: u16) {
-        self.port_max = max_port;
-    }
-
-    fn set_listen_port(&mut self, listen_port: u16) {
-        self.listen_port = listen_port;
-    }
-
-    fn set_server_fqdn(&mut self, server_fqdn: &str) {
-        self.server_fqdn = server_fqdn.to_owned();
-    }
-
-    fn set_connections_per_proxy(&mut self, connections_per_proxy: u16) {
-        self.max_connections_per_proxy = connections_per_proxy;
-    }
-
-    fn set_listen_ip(&mut self, ip: IpAddr) {
-        self.listen_ip = ip;
-    }
-
-    fn parse_environment_variables(env_vars: &[(String, String)]) -> HashMap<String, String> {
-        let mut hash_map = HashMap::<String, String>::new();
+impl ConfigLoader<'_, AppArguments> for ServerConfig {
+    fn named_environment_variables() -> HashSet<String> {
         let available_env_vars: Vec<String> = vec![
             env::PORT_MIN.to_owned(),
             env::CONNECTIONS_PER_PROXY.to_owned(),
@@ -190,44 +177,10 @@ impl ServerConfig {
             env::PORT_MAX.to_owned()
         ];
 
-        for (key, value) in env_vars {
-            if available_env_vars.contains(key) {
-                hash_map.insert(key.to_owned(), value.to_owned());
-            }
-        }
-
-        hash_map
+        HashSet::from_iter(available_env_vars.iter().cloned())
     }
 
-    /// checks whether TCPROXY_CONFIG_FILE environment variable is set. If so, it will
-    /// try to read config file from this path, if environment variable is not set, it will
-    /// create the config file in the current path (where executable is running)
-    fn get_config_file_path(env_vars: &HashMap<String, String>) -> String {
-        if env_vars.contains_key(env::CONFIG_FILE) {
-            return env_vars
-                .get(env::CONFIG_FILE)
-                .unwrap()
-                .to_owned();
-        }
-
-        "./config.json".to_owned()
-    }
-
-    fn file_exists(file_path: &str) -> bool {
-        fs::metadata(file_path).is_ok()
-    }
-
-    /// creates and write default config to disk.
-    fn create_default(file_path: &str) -> Result<()> {
-        let config = ServerConfig::default();
-        let config_str = serde_json::to_string(&config)?;
-
-        fs::write(file_path, config_str)?;
-        Ok(())
-    }
-
-    /// reads config file from disk.
-    fn read_from_file(path: &str) -> Result<Self> {
+    fn read_from_file(path: &Path) -> Result<ServerConfig> {
         let file_contents = match fs::read_to_string(path) {
             Ok(file_contents) => file_contents,
             Err(err) => {
@@ -239,8 +192,35 @@ impl ServerConfig {
         let config = serde_json::from_str::<Self>(&file_contents)?;
         Ok(config)
     }
+
+    fn get_config_path(env_vars: &HashMap<String, String>) -> PathBuf {
+        if env_vars.contains_key(env::CONFIG_FILE) {
+            let config_path = env_vars
+                .get(env::CONFIG_FILE)
+                .unwrap()
+                .to_owned();
+
+            return PathBuf::from(&config_path);
+        }
+
+        PathBuf::from("./config.json")
+    }
 }
 
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self {
+            port_min: 15000,
+            port_max: 25000,
+            listen_ip: IpAddr::from_str("0.0.0.0").unwrap(),
+            listen_port: 8080,
+            server_fqdn: "proxy.server.local".to_owned(),
+            max_connections_per_proxy: 120,
+            jwt_secret: "some_secret".to_owned(),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -248,6 +228,7 @@ mod tests {
     use uuid::Uuid;
     use std::str::FromStr;
     use crate::{AppArguments, env, ServerConfig};
+    use super::ConfigLoader;
 
     #[test]
     pub fn should_read_from_file() {
@@ -303,7 +284,7 @@ mod tests {
         let file_name = format!("{}.json", file_id);
 
         let expected_port = 80;
-        let expected_ip =IpAddr::from_str("129.1.1.2").unwrap();
+        let expected_ip = IpAddr::from_str("129.1.1.2").unwrap();
         let expected_port_range = 1111..2222;
         let expected_connections_per_proxy = 300;
 
@@ -358,7 +339,7 @@ mod tests {
 
     /// Util function for removing the file after each test.
     fn remove_file(file_name: &str) {
-        std::fs::remove_file(&file_name).unwrap();
+        std::fs::remove_file(file_name).unwrap();
     }
 
     /// Creates default file and writes it to disk.
@@ -369,10 +350,11 @@ mod tests {
             IpAddr::from_str("127.0.0.1").unwrap(),
             8080,
             "proxy.server.local",
-            120);
+            120,
+            "SOME_SECRET");
 
         let config_str = serde_json::to_string(&config).unwrap();
-        std::fs::write(&file_name, &config_str).unwrap();
+        std::fs::write(file_name, config_str).unwrap();
 
         config
     }

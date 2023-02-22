@@ -1,3 +1,5 @@
+extern crate core;
+
 mod args;
 mod server;
 mod tests;

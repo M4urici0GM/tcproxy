@@ -13,6 +13,7 @@ pub enum Reason {
     PortLimitReached,
     FailedToCreateProxy,
     AuthenticationFailed,
+    UnexpectedError,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -39,6 +40,7 @@ impl Error {
             Reason::PortLimitReached => 0x11,
             Reason::FailedToCreateProxy => 0x12,
             Reason::AuthenticationFailed => 0x13,
+            Reason::UnexpectedError => 0x14,
         }
     }
 
@@ -48,6 +50,7 @@ impl Error {
             0x11 => Ok(Reason::PortLimitReached),
             0x12 => Ok(Reason::FailedToCreateProxy),
             0x13 => Ok(Reason::AuthenticationFailed),
+            0x14 => Ok(Reason::UnexpectedError),
             actual => {
                 return Err(FrameDecodeError::Other(format!("invalid reason: {}", actual).into()));
             }
@@ -82,6 +85,7 @@ impl Frame for Error {
 impl fmt::Display for Reason {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let msg = match self {
+            Reason::UnexpectedError => format!("encountered unexpected error!"),
             Reason::AuthenticationFailed => format!("authentication failed!"),
             Reason::FailedToCreateProxy => format!("Failed to create proxy"),
             Reason::PortLimitReached => format!("port limit reached"),
