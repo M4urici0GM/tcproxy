@@ -1,10 +1,10 @@
 use std::sync::Mutex;
 use chrono::{DateTime, Utc};
-use tcproxy_core::auth::AccountDetails;
+use tcproxy_core::auth::AccountDetailsDto;
 
 pub struct AuthenticationManager {
     is_authenticated: bool,
-    account_details: Option<AccountDetails>,
+    account_details: Option<AccountDetailsDto>,
     authenticated_at: Option<DateTime<Utc>>,
 }
 
@@ -20,14 +20,14 @@ impl AuthenticationManagerGuard {
     }
     
     pub fn is_authenticated(&self) -> bool {
-        let mut lock = self.manager
+        let lock = self.manager
             .lock()
             .unwrap();
         
         lock.is_authenticated()
     }
 
-    pub fn set_authentication_details(&self, details: &AccountDetails) {
+    pub fn set_authentication_details(&self, details: &AccountDetailsDto) {
         let mut lock = self.manager
             .lock()
             .unwrap();
@@ -57,15 +57,15 @@ impl AuthenticationManager {
         self.is_authenticated
     }
 
-    pub fn account_details(&self) -> &Option<AccountDetails> {
-        &self.account_details
+    pub fn account_details(&self) -> Option<AccountDetailsDto> {
+        self.account_details.clone()
     }
 
     pub fn authenticated_at(&self) -> &Option<DateTime<Utc>> {
         &self.authenticated_at
     }
 
-    pub fn set_authentication_details(&mut self, details: AccountDetails) {
+    pub fn set_authentication_details(&mut self, details: AccountDetailsDto) {
         self.is_authenticated = true;
         self.authenticated_at = Some(Utc::now());
         self.account_details = Some(details);
@@ -80,18 +80,19 @@ impl AuthenticationManager {
 
 #[cfg(test)]
 pub mod tests {
-    use tcproxy_core::auth::{AccountDetails, UserDetails};
+    use mongodb::bson::Uuid;
+    use tcproxy_core::auth::{AccountDetailsDto, UserDetails};
     use crate::managers::AuthenticationManager;
 
     #[test]
     pub fn should_set_authentication_correctly() {
         // Arrange
         let user_details = UserDetails::new(
-            "some-id",
+            &Uuid::new(),
             "some name",
             "some@email.com");
 
-        let account_details = AccountDetails::new("some-id", &user_details);
+        let account_details = AccountDetailsDto::new(&Uuid::new(), "account-name", &user_details);
         let mut auth_manager = AuthenticationManager::new();
 
         // Act
@@ -101,18 +102,21 @@ pub mod tests {
         assert!(auth_manager.is_authenticated);
         assert!(auth_manager.account_details.is_some());
         assert!(auth_manager.authenticated_at.is_some());
-        assert_eq!(auth_manager.account_details().unwrap(), account_details);
+
+        let got_account_details = auth_manager.account_details().unwrap();
+
+        assert_eq!(got_account_details, account_details);
     }
 
     #[test]
     pub fn should_revoke_authentication_correctly() {
         // Arrange
         let user_details = UserDetails::new(
-            "some-id",
+            &Uuid::new(),
             "some name",
             "some@email.com");
 
-        let account_details = AccountDetails::new("some-id", &user_details);
+        let account_details = AccountDetailsDto::new(&Uuid::new(), "account-name", &user_details);
         let mut auth_manager = AuthenticationManager::new();
         auth_manager.set_authentication_details(account_details.clone());
 

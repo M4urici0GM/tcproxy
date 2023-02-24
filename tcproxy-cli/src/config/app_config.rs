@@ -13,6 +13,7 @@ type Result<T> = std::result::Result<T, AppConfigError>;
 #[derive(Debug, PartialEq, Eq, Default, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     default_context: String,
+    user_token: Option<String>,
     contexts: Vec<AppContext>,
 }
 
@@ -82,6 +83,10 @@ impl AppConfig {
             .iter()
             .cloned()
             .find(|item| { item.name() == name })
+    }
+
+    pub fn get_user_token(&self) -> Option<String> {
+        self.user_token.clone()
     }
 
     pub fn push_context(&mut self, context: &AppContext) -> std::result::Result<(), AppContextError> {

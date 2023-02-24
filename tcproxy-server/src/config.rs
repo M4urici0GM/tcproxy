@@ -19,6 +19,7 @@ pub mod env {
     pub const LISTEN_IP: &str = "TCPROXY_LISTEN_IP";
     pub const CONFIG_FILE: &str = "TCPROXY_CONFIG_FILE";
     pub const JWT_SECRET: &str = "TCPROXY_JWT_SECRET";
+    pub const DB_CONNECTION_STRING: &str = "TCPROXY_CONNECTION_STRING";
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,6 +31,7 @@ pub struct ServerConfig {
     server_fqdn: String,
     max_connections_per_proxy: u16,
     jwt_secret: String,
+    connection_string: String,
 }
 
 // FILE
@@ -45,12 +47,14 @@ impl ServerConfig {
         server_fqdn: &str,
         max_connections_per_proxy: u16,
         jwt_secret: &str,
+        connection_string: &str,
     ) -> Self {
         Self {
             port_min,
             port_max,
             listen_ip,
             listen_port,
+            connection_string: String::from(connection_string),
             server_fqdn: String::from(server_fqdn),
             jwt_secret: String::from(jwt_secret),
             max_connections_per_proxy,
@@ -89,6 +93,10 @@ impl ServerConfig {
         self.server_fqdn.to_owned()
     }
 
+    pub fn get_connection_string(&self) -> &str {
+        &self.connection_string
+    }
+
     fn set_port_min(&mut self, min_port: u16) {
         self.port_min = min_port;
     }
@@ -103,6 +111,10 @@ impl ServerConfig {
 
     fn set_server_fqdn(&mut self, server_fqdn: &str) {
         self.server_fqdn = server_fqdn.to_owned();
+    }
+
+    fn set_connection_string(&mut self, connection_string: &str) {
+        self.connection_string = connection_string.to_owned();
     }
 
     fn set_connections_per_proxy(&mut self, connections_per_proxy: u16) {
@@ -125,6 +137,7 @@ impl Config<AppArguments> for ServerConfig {
                 env::SERVER_FQDN => self.set_server_fqdn(value),
                 env::CONNECTIONS_PER_PROXY => self.set_connections_per_proxy(value.parse::<u16>()?),
                 env::JWT_SECRET => self.set_jwt_secret(value),
+                env::DB_CONNECTION_STRING => self.set_connection_string(value),
                 _ => continue,
             }
         }
@@ -174,7 +187,8 @@ impl ConfigLoader<'_, AppArguments> for ServerConfig {
             env::CONFIG_FILE.to_owned(),
             env::LISTEN_IP.to_owned(),
             env::SERVER_FQDN.to_owned(),
-            env::PORT_MAX.to_owned()
+            env::PORT_MAX.to_owned(),
+            env::DB_CONNECTION_STRING.to_owned(),
         ];
 
         HashSet::from_iter(available_env_vars.iter().cloned())
@@ -217,6 +231,7 @@ impl Default for ServerConfig {
             listen_port: 8080,
             server_fqdn: "proxy.server.local".to_owned(),
             max_connections_per_proxy: 120,
+            connection_string: "some_connection_string".to_owned(),
             jwt_secret: "some_secret".to_owned(),
         }
     }
@@ -351,7 +366,8 @@ mod tests {
             8080,
             "proxy.server.local",
             120,
-            "SOME_SECRET");
+            "SOME_SECRET",
+            "SOME_CONNECTION_STRING");
 
         let config_str = serde_json::to_string(&config).unwrap();
         std::fs::write(file_name, config_str).unwrap();

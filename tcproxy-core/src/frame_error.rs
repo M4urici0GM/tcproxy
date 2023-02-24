@@ -1,4 +1,5 @@
 use std::{num::TryFromIntError, string::FromUtf8Error};
+use std::io::Error;
 
 #[derive(Debug)]
 pub enum FrameDecodeError {
@@ -21,6 +22,15 @@ impl From<&str> for FrameDecodeError {
 }
 
 impl std::error::Error for FrameDecodeError {}
+
+impl From<std::io::Error> for FrameDecodeError {
+    fn from(value: Error) -> Self {
+        match value.kind() {
+            std::io::ErrorKind::UnexpectedEof => Self::Incomplete,
+            _ => Self::Other(value.into())
+        }
+    }
+}
 
 impl From<FromUtf8Error> for FrameDecodeError {
     fn from(_src: FromUtf8Error) -> FrameDecodeError {

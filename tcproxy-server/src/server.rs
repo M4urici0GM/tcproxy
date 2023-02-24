@@ -1,13 +1,14 @@
 use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use mongodb::{Client, Database};
 use tcproxy_core::Result;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
 
 use tcproxy_core::tcp::{ISocketListener, SocketConnection, SocketListener};
-use crate::managers::{AuthenticationManager, AuthenticationManagerGuard, FeatureManager, IFeatureManager, PortManager, PortManagerGuard};
+use crate::managers::{AccountManager, AuthenticationManager, AuthenticationManagerGuard, DefaultAccountManager, FeatureManager, IFeatureManager, PortManager, PortManagerGuard};
 
 use crate::proxy::ClientConnection;
 
@@ -15,17 +16,23 @@ use crate::proxy::ClientConnection;
 pub struct Server {
     feature_manager: Arc<IFeatureManager>,
     server_listener: ISocketListener,
+    db_client: Arc<Client>,
+    database: Arc<Database>,
 }
 
 impl Server {
-    pub fn new<TListener, TFeatureManager>(feature_manager: TFeatureManager, listener: TListener) -> Self
+    pub fn new<TListener, TFeatureManager>(feature_manager: TFeatureManager, listener: TListener, db_client: Client) -> Self
     where
         TListener: SocketListener + 'static,
         TFeatureManager: FeatureManager + 'static
     {
+        let db = db_client.database("tcproxy");
+        info!("using {} as default database", db.name());
         Self {
             feature_manager: Arc::new(Box::new(feature_manager)),
             server_listener: Box::new(listener),
+            db_client: Arc::new(db_client),
+            database: Arc::new(db),
         }
     }
 
@@ -68,6 +75,7 @@ impl Server {
         let server_config = self.feature_manager.get_config();
         let auth_manager = AuthenticationManager::new();
         let port_manager = PortManager::new(server_config.get_port_range());
+        let account_manager: Arc<Box<dyn AccountManager + 'static>> = Arc::new(Box::new(DefaultAccountManager::new(&self.database)));
 
         let port_guard = Arc::new(PortManagerGuard::new(port_manager));
         let auth_guard = Arc::new(AuthenticationManagerGuard::new(auth_manager));
@@ -75,7 +83,8 @@ impl Server {
         let mut proxy_client = ClientConnection::new(
             port_guard,
             auth_guard,
-            &server_config);
+            &server_config,
+            &account_manager);
 
         tokio::spawn(async move {
             let socket_addr = socket.addr();

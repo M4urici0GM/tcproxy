@@ -39,7 +39,6 @@ pub enum TokenHandlerError {
 }
 
 
-#[automock]
 pub trait TokenHandler: Sync + Send {
-    fn decode(&mut self, token: &str) ->  Result<Claims, TokenHandlerError>;
+    fn decode(&self, token: &str) ->  Result<Claims, TokenHandlerError>;
 }

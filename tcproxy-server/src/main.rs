@@ -1,10 +1,12 @@
 
 use clap::Parser;
+use mongodb::Client;
 use tokio::signal;
 use tracing::{info, error};
 
 use tcproxy_core::tcp::{SocketListener, TcpListener};
 use tcproxy_core::Result;
+use tcproxy_core::config::ConfigLoader;
 use tcproxy_server::{AppArguments, Server, ServerConfig};
 use tcproxy_server::managers::DefaultFeatureManager;
 
@@ -23,11 +25,12 @@ async fn main() -> Result<()> {
         }
     };
 
+    let db_client = Client::with_uri_str(config.get_connection_string()).await?;
     let socket_addr = config.get_socket_addr();
     let feature_manager = DefaultFeatureManager::new(config);
     let listener = TcpListener::bind(socket_addr).await?;
 
-    Server::new(feature_manager, listener)
+    Server::new(feature_manager, listener, db_client)
         .run(signal::ctrl_c())
         .await?;
 

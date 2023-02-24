@@ -4,6 +4,7 @@ use crate::{Frame, FrameDecodeError, PutU32String};
 use crate::framing::frame_types::AUTHENTICATE_ACK;
 use crate::framing::utils::assert_connection_type;
 use crate::io::{get_u32_string, get_u8};
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Default)]
 pub struct AuthenticateAck {
@@ -41,6 +42,12 @@ impl Frame for AuthenticateAck {
         buffer.put_u32_sized_str(&self.email);
 
         buffer
+    }
+}
+
+impl Display for AuthenticateAck {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "AuthenticateACK details: [email = {}, account-id = {}]", self.email, self.account_id)
     }
 }
 

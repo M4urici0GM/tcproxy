@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
+use mongodb::bson::Uuid;
 use tokio::net::TcpStream as TokioTcpStream;
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::broadcast;
@@ -10,7 +11,8 @@ use tracing::{debug, error, info};
 
 use tcproxy_core::tcp::TcpStream;
 use tcproxy_core::{transport::TcpFrameTransport, AsyncCommand, Result, TcpFrame};
-use tcproxy_core::framing::ClientConnected;
+use tcproxy_core::framing::{Authenticate, ClientConnected};
+use tcproxy_core::transport::TransportReader;
 
 use crate::{ClientState, ConsoleUpdater, ListenArgs, PingSender, Shutdown, TcpFrameReader, TcpFrameWriter};
 use crate::config::{AppConfig, AppContext};
@@ -86,13 +88,56 @@ impl AsyncCommand for ListenCommand {
         let connection = self.connect().await?;
         let (console_sender, console_receiver) = mpsc::channel::<i32>(10);
         let (sender, receiver) = mpsc::channel::<TcpFrame>(10000);
-        let (reader, mut writer) = TcpFrameTransport::new(connection).split();
+        let (mut reader, mut writer) = TcpFrameTransport::new(connection).split();
 
         info!("Connected to server, trying handshake...");
 
         let state = Arc::new(ClientState::new(&console_sender));
 
         writer.send(TcpFrame::ClientConnected(ClientConnected)).await?;
+        let frame = match reader.next().await? {
+            Some(f) => f,
+            None => {
+                debug!("received none. it means the server closed the connection.");
+                return Err("failed to do handshake with server.".into());
+            }
+        };
+
+        match frame {
+            TcpFrame::ClientConnectedAck(_) => {},
+            actual => {
+                debug!("received invalid frame when doing handshake. received {} instead of ClientConnectedAck", actual);
+                return Err("failed to do handshake with server.".into());
+            }
+        };
+
+        let user_token = match self.app_cfg.get_user_token() {
+            Some(token) => token,
+            None => {
+                debug!("user is not authenticated.");
+                return Err("You are not authenticated or your token expired. Please authenticate with\n tcproxy-cli auth login".into());
+            }
+        };
+
+        writer.send(TcpFrame::Authenticate(Authenticate::new(&Uuid::new(), &user_token))).await?;
+        let frame = match reader.next().await? {
+            Some(f) => f,
+            None => {
+                debug!("received none. it means the server closed the connection.");
+                return Err("failed to do handshake with server.".into());
+            }
+        };
+
+        match frame {
+            TcpFrame::AuthenticateAck(data) => {
+                debug!("received {} from authenticate frame", data);
+            },
+            actual => {
+                debug!("received invalid frame when doing handshake. received {} instead of ClientConnectedAck", actual);
+                return Err("You are not authenticated or your token expired. Please authenticate with\n tcproxy-cli auth login".into());
+            }
+        };
+
 
         let ping_task = PingSender::new(&sender, &state, self.args.ping_interval(), &self._shutdown_complete_tx);
         let console_task = ConsoleUpdater::new(console_receiver, &state, &self.args, &self._shutdown_complete_tx);
@@ -115,7 +160,6 @@ impl AsyncCommand for ListenCommand {
                 debug!("ping task finished.");
             }
         }
-        ;
 
         Ok(())
     }

@@ -9,7 +9,7 @@ use tracing::debug;
 use crate::proxy::{DefaultFrameHandler, DefaultTokenHandler};
 use crate::proxy::{ClientFrameReader, ClientFrameWriter};
 use crate::{ClientState, ServerConfig};
-use crate::managers::{AuthenticationManagerGuard, IFeatureManager, PortManagerGuard};
+use crate::managers::{AccountManager, AuthenticationManagerGuard, IFeatureManager, PortManagerGuard};
 
 pub struct ClientConnection {
     state: Arc<ClientState>,
@@ -21,11 +21,11 @@ impl ClientConnection {
         port_guard: Arc<PortManagerGuard>,
         auth_guard: Arc<AuthenticationManagerGuard>,
         server_config: &Arc<ServerConfig>,
-
+        account_manager: &Arc<Box<dyn AccountManager + 'static>>
     ) -> Self
     {
         Self {
-            state: ClientState::new(port_guard, auth_guard, server_config),
+            state: ClientState::new(port_guard, auth_guard, server_config, account_manager),
             server_config: server_config.clone(),
         }
     }

@@ -1,1 +1,10 @@
-{"port_min":15000,"port_max":25000,"listen_ip":"0.0.0.0","listen_port":8080,"server_fqdn":"proxy.server.local","max_connections_per_proxy":120}
+{
+  "port_min": 15000,
+  "port_max": 25000,
+  "listen_ip": "0.0.0.0",
+  "listen_port": 8080,
+  "server_fqdn": "proxy.server.local",
+  "max_connections_per_proxy": 120,
+  "jwt_secret": "DPASOKDOPASKDSOPDKAS",
+  "connection_string": "mongodb://root:blueScreen%23666@localhost"
+}

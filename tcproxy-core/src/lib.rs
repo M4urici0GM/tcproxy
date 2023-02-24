@@ -9,7 +9,9 @@ pub mod io;
 pub mod config;
 pub mod auth;
 
+use std::io::{Cursor, Read};
 use bytes::BufMut;
+use mongodb::bson::Uuid;
 pub use command::*;
 pub use frame_error::*;
 pub use tcp_frame::*;
@@ -19,6 +21,30 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 pub trait PutU32String: BufMut {
     fn put_u32_sized_str(&mut self, value: &str);
+}
+
+pub trait PutBsonUuid: BufMut {
+    fn put_bson_uuid(&mut self, value: &Uuid);
+}
+
+pub trait ReadBsonUuid: Read {
+    fn read_bson_uuid(&mut self) -> std::io::Result<Uuid>;
+}
+
+impl ReadBsonUuid for Cursor<&[u8]> {
+    /// Reads and consumes 16 bytes from Cursor, Converting it to an UUID instance.
+    fn read_bson_uuid(&mut self) -> std::io::Result<Uuid> {
+        let mut buffer: [u8; 16] = Default::default();
+        self.read_exact(&mut buffer)?;
+
+        Ok(Uuid::from_bytes(buffer))
+    }
+}
+
+impl PutBsonUuid for Vec<u8> {
+    fn put_bson_uuid(&mut self, value: &Uuid) {
+        self.put_slice(&value.bytes());
+    }
 }
 
 impl PutU32String for Vec<u8> {

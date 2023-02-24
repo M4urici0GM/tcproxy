@@ -61,10 +61,14 @@ impl DefaultTransportReader {
         let mut cursor = Cursor::new(&self.buffer[..]);
         match TcpFrame::parse(&mut cursor) {
             Ok(frame) => {
+                trace!("found new frame on buffer: {}", frame);
                 self.buffer.advance(cursor.position() as usize);
                 Ok(Some(frame))
             },
-            Err(FrameDecodeError::Incomplete) => Ok(None),
+            Err(FrameDecodeError::Incomplete) => {
+                trace!("incomplete frame on buffer.. {}", self.buffer.len());
+                Ok(None)
+            },
             Err(err) => {
                 error!("error trying to parse frame {}", err);
                 Err(err.into())

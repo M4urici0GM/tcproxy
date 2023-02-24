@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use tokio::sync::mpsc::Sender;
+use tracing::debug;
 
 use tcproxy_core::{AsyncCommand, Result, TcpFrame};
 use tcproxy_core::framing::ClientConnectedAck;
@@ -26,6 +27,7 @@ impl AsyncCommand for ClientConnectedCommand {
     type Output = Result<()>;
 
     async fn handle(&mut self) -> Self::Output {
+        debug!("received connection client command");
         self.client_sender
             .send(TcpFrame::ClientConnectedAck(ClientConnectedAck::new()))
             .await?;
