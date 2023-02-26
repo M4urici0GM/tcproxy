@@ -51,8 +51,8 @@ impl PortManagerGuard {
             .lock()
             .unwrap();
 
-        debug!("disposing used port: {}", permit);
-        lock.free_port(permit);  
+        debug!("disposing used port: {permit}");
+        lock.free_port(permit);
     }
 
     pub fn reserve_port(&self, conn_id: &u32, conn_token: &str) -> Result<PortPermit, PortError> {
@@ -66,7 +66,7 @@ impl PortManagerGuard {
                 Err(PortError::PortLimitReached)
             },
             Err(err) => {
-                error!("failed when trying to reserve port: {}", err);
+                error!("failed when trying to reserve port: {err}");
                 Err(err)
             },
             actual => actual,
