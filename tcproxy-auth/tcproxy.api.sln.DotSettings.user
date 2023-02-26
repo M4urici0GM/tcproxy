@@ -1,0 +1,4 @@
+﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=558b6119_002D9913_002D47db_002Daf46_002Dbf28d4952573/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="ShouldThrowEntityAlreadyExists_WhenAnUserExistsWithSameEmail" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;ProjectFile&gt;87BCFD44-DD42-4386-A950-BEEA60BDA75D/d:Application/d:Requests/f:CreateUserRequestHandlerTest.cs&lt;/ProjectFile&gt;&#xD;
+&lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>
