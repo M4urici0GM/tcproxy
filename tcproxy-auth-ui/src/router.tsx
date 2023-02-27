@@ -7,7 +7,7 @@ import {
 } from "react-router-dom";
 
 
-import Signin from './pages/signin';
+import SignIn from './pages/signin';
 import Signup from './pages/signup';
 import NotFound from './pages/notfound';
 
@@ -15,7 +15,7 @@ const Router = () => {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/signin" element={<Signin />} />
+        <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

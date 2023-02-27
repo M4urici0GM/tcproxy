@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { UndrawAuthenticate } from 'react-undraw';
+import React, {useState} from 'react';
+import {UndrawAuthenticate} from 'react-undraw';
 import {
   FaEnvelope,
   FaEye,
@@ -7,7 +7,7 @@ import {
   FaSignInAlt,
   FaGoogle,
 } from 'react-icons/fa';
-import { toast } from 'react-toastify';
+import {toast} from 'react-toastify';
 
 import Input from '../../components/Input';
 import Button from '../../components/Button';
@@ -16,16 +16,16 @@ import {
   SignupButton,
 } from './styles';
 
-import { defaultTheme } from '../..';
+import {defaultTheme} from '../..';
 
 import Container from 'react-bootstrap/Container';
 import Row from 'react-bootstrap/Row';
 import Column from 'react-bootstrap/Col';
-import { useAppContext } from '../../contexts/AppContext';
+import {useAppContext} from '../../contexts/AppContext';
 
-const Signin: React.FC = (props) => {
+const SignIn: React.FC = (props) => {
   const [isPassShown, setIsPassShown] = useState(false);
-  const { toggleLoadingState } = useAppContext();
+  const {toggleLoadingState} = useAppContext();
 
   const onSignButtonClick = async () => {
     toggleLoadingState();
@@ -40,79 +40,79 @@ const Signin: React.FC = (props) => {
     <Container>
       <Row>
         <Column sm={12} md={6}>
-  <UndrawAuthenticate height="300" />
-    </Column>
-    <Column sm={12} md={6}>
-  <Row>
-    <Column>
-      <Input
-        label="Your best email"
-  type="email"
-  onChange={() => console.log('bb')}
-  placeholder="your@email.com"
-  icon={
-    <FaEnvelope />
-}
-  />
-  </Column>
-  </Row>
-  <Row className="mt-3">
-  <Column>
-    <Input
-      label="Your password"
-  type={isPassShown ? 'text' : 'password'}
-  onChange={() => console.log('aa')}
-  placeholder="*******"
-  icon={
-  (isPassShown) ? (
-    <FaEyeSlash onClick={togglePassword} />
-) : (
-    <FaEye onClick={togglePassword} />
-)
-}
-  />
-  </Column>
-  </Row>
-  <Row className="mt-3">
-  <Column>
-    <Button
-      content="Signin"
-  dark
-  theme={defaultTheme}
-  fullWidth
-  onClick={onSignButtonClick}
-  icon={
-    <FaSignInAlt />
-}
-  />
-  </Column>
-  </Row>
-  <Row className="d-flex justify-content-center">
-  <Column className="d-flex">
-    <SignupButton>
-      Don't have an account yet? Click here
-  </SignupButton>
-  </Column>
-  </Row>
-  <Row className="mt-3">
-  <Column className="d-flex flex-column">
-    <OrHeader>Or: </OrHeader>
-  <Button
-  content="Signin with google"
-  transparent
-  fullWidth
-  theme={defaultTheme}
-  onClick={onSignUpWithGoogleButtonClick}
-  icon={
-    <FaGoogle />
-}
-  />
-  </Column>
-  </Row>
-  </Column>
-  </Row>
-  </Container>
-);
+          <UndrawAuthenticate height="300"/>
+        </Column>
+        <Column sm={12} md={6}>
+          <Row>
+            <Column>
+              <Input
+                label="Your best email"
+                type="email"
+                onChange={() => console.log('bb')}
+                placeholder="your@email.com"
+                icon={
+                  <FaEnvelope/>
+                }
+              />
+            </Column>
+          </Row>
+          <Row className="mt-3">
+            <Column>
+              <Input
+                label="Your password"
+                type={isPassShown ? 'text' : 'password'}
+                onChange={() => console.log('aa')}
+                placeholder="*******"
+                icon={
+                  (isPassShown) ? (
+                    <FaEyeSlash onClick={togglePassword}/>
+                  ) : (
+                    <FaEye onClick={togglePassword}/>
+                  )
+                }
+              />
+            </Column>
+          </Row>
+          <Row className="mt-3">
+            <Column>
+              <Button
+                content="Signin"
+                dark
+                theme={defaultTheme}
+                fullWidth
+                onClick={onSignButtonClick}
+                icon={
+                  <FaSignInAlt/>
+                }
+              />
+            </Column>
+          </Row>
+          <Row className="d-flex justify-content-center">
+            <Column className="d-flex">
+              <SignupButton>
+                Don't have an account yet? Click here
+              </SignupButton>
+            </Column>
+          </Row>
+          <Row className="mt-3">
+            <Column className="d-flex flex-column">
+              <OrHeader>Or: </OrHeader>
+              <Button
+                content="Signin with google"
+                transparent
+                fullWidth
+                theme={defaultTheme}
+                onClick={onSignUpWithGoogleButtonClick}
+                icon={
+                  <FaGoogle/>
+                }
+              />
+            </Column>
+          </Row>
+        </Column>
+      </Row>
+    </Container>
+  );
 };
 
-export default Signin;
+export default SignIn;

@@ -4,7 +4,7 @@ import {UndrawSignin} from "react-undraw";
 import {FaEnvelope, FaEye, FaSignInAlt} from "react-icons/fa";
 import Button from "../../../components/Button";
 import {defaultTheme} from "../../../index";
-import {SigninButton} from "../styles";
+import {SignInButton} from "../styles";
 import FormInput from "../../../components/FormInput";
 
 const SignUpForm: FunctionComponent = () => {
@@ -81,9 +81,9 @@ const SignUpForm: FunctionComponent = () => {
           </Row>
           <Row className="d-flex justify-content-center">
             <Column className="d-flex">
-              <SigninButton>
+              <SignInButton>
                 Already have an account? Click here
-              </SigninButton>
+              </SignInButton>
             </Column>
           </Row>
         </Column>
