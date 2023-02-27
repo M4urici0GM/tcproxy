@@ -13,11 +13,11 @@ export interface Theme {
   secondaryColor: string
   secondaryText: string
   backgroundColor: string
-};
+}
 
 export enum AvailableThemes {
   LIGHT = 'LIGHT',
-};
+}
 
 export const defaultTheme: Theme = {
   mode: 'light',

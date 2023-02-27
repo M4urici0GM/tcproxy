@@ -3,9 +3,9 @@ import { toast } from 'react-toastify';
 
 
 import { FormProvider, useForm } from 'react-hook-form';
-import {useAppContext} from "../../contexts/AppContext";
-import {IFormValues} from "./types";
-import SignUpForm from "./Components/SignUpForm";
+import {useAppContext} from '../../contexts/AppContext';
+import {IFormValues} from './types';
+import SignUpForm from './Components/SignUpForm';
 
 
 const SignUp: FunctionComponent = () => {
@@ -35,7 +35,7 @@ const SignUp: FunctionComponent = () => {
         <SignUpForm />
       </FormProvider>
     </form>
-  )
+  );
 };
 
 export default SignUp;
