@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { ChangeEvent, FocusEvent } from 'react';
 
 import {
   StyledInput,
@@ -10,16 +10,18 @@ import {
 
 interface InputProps {
   fullWidth?: boolean
-  type?: string
+  type?: "text" | "email" | "password"
   width?: number
   placeholder?: string
   label?: string
   icon?: React.ReactNode
   iconColor?: string
-  style?: any
-  onBlur?(): void
-  onFocus?(): void
-  onChange?(): void
+  style?: any;
+  id?: string;
+  disabled?: boolean;
+  onBlur?: ((event: FocusEvent<HTMLInputElement>) => Promise<void | boolean>) | (() => void);
+  onFocus?: ((event: FocusEvent<HTMLInputElement>) => Promise<void | boolean>) | (() => void);
+  onChange?: ((event: ChangeEvent<HTMLInputElement>) => Promise<void | boolean>) | (() => void);
 }
 
 const Input: React.FC<InputProps> = (props) => {
@@ -37,8 +39,12 @@ const Input: React.FC<InputProps> = (props) => {
       }
       <IconContainer>
         <StyledInput
+          id={props.id}
           type={props.type}
           onChange={props.onChange}
+          onFocus={props.onFocus}
+          onBlur={props.onBlur}
+          disabled={props.disabled}
           placeholder={props.placeholder}
         />
         {props.icon && (

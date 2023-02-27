@@ -12,7 +12,6 @@ import { useAppContext } from '../../contexts/AppContext';
 interface Props {
   children: React.ReactNode
 }
-
 const AppContainer: React.FC<Props> = (props) => {
   const { loading } = useAppContext();
 
