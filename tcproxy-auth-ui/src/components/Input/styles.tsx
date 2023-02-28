@@ -1,5 +1,6 @@
-import styled, { ThemedStyledInterface } from 'styled-components';
+import styled from 'styled-components';
 
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
 interface InputProps { }
 
 interface IconProps {
@@ -15,9 +16,9 @@ export const InputContainer = styled.div<InputContainerProps>`
     display: flex;
     flex-direction: column;
     width: ${props => (!props.fullWidth && !props.width)
-        ? 'inherit'
-        : `${props.width}px`
-    };
+    ? 'inherit'
+    : `${props.width}px`
+};
 `;
 
 export const StyledInput = styled.input<InputProps>`

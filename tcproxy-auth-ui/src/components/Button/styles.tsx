@@ -4,7 +4,7 @@ interface ButtonProps {
     fullWidth?: boolean
     dark?: boolean
     transparent?: boolean
-};
+}
 
 export const IconContainer = styled.div`
     & svg {
@@ -29,11 +29,11 @@ export const StyledButton = styled.button<ButtonProps>`
     font-weight: 400;
     color: ${props => props.transparent ? props.theme.primaryText : 'white'};
     background-color: ${props => props.transparent 
-        ? 'transparent' 
-        : props.dark
-            ? props.theme.primaryDark
-            : props.theme.primaryColor
-    };
+    ? 'transparent' 
+    : props.dark
+      ? props.theme.primaryDark
+      : props.theme.primaryColor
+};
     border: ${props => props.transparent ? `2px solid ${props.theme.primaryDark}` : 'none' };
     &:focus {
         outline: none;

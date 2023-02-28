@@ -10,7 +10,7 @@ export const BackgroundContainer = styled.div`
 `;
 
 export const WhiteContainer = styled(Container).attrs({
-    className: 'd-flex w-100 justify-content-center'
+  className: 'd-flex w-100 justify-content-center'
 })`
     background-color: #ffff;
     width: 90%;
@@ -22,7 +22,7 @@ export const WhiteContainer = styled(Container).attrs({
 `;
 
 export const ContentContainer = styled(Row).attrs({
-    className: 'd-flex align-self-center w-100'
+  className: 'd-flex align-self-center w-100'
 })`
     position: relative
 `;

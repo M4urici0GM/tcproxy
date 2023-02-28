@@ -1,11 +1,11 @@
-import React, {FunctionComponent} from "react";
-import {Column, Container, Row} from "../../../components/Grid";
-import {UndrawSignin} from "react-undraw";
-import {FaEnvelope, FaEye, FaSignInAlt} from "react-icons/fa";
-import Button from "../../../components/Button";
-import {defaultTheme} from "../../../index";
-import {SignInButton} from "../styles";
-import FormInput from "../../../components/FormInput";
+import React, {FunctionComponent} from 'react';
+import {Column, Container, Row} from '../../../components/Grid';
+import {UndrawSignin} from 'react-undraw';
+import {FaEnvelope, FaEye, FaSignInAlt} from 'react-icons/fa';
+import Button from '../../../components/Button';
+import {defaultTheme} from '../../../index';
+import {SignInButton} from '../styles';
+import FormInput from '../../../components/FormInput';
 
 const SignUpForm: FunctionComponent = () => {
   return (

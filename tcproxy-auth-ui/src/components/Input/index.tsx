@@ -7,7 +7,7 @@ import {
   IconContainer,
   Icon,
 } from './styles';
-import {InputProps} from "./types";
+import {InputProps} from './types';
 
 const Input: React.FC<InputProps> = (props) => {
   return (
@@ -40,16 +40,6 @@ const Input: React.FC<InputProps> = (props) => {
       </IconContainer>
     </InputContainer>
   );
-};
-
-Input.defaultProps = {
-  fullWidth: true,
-  type: 'text',
-  placeholder: '',
-  style: {},
-  onBlur: () => { },
-  onFocus: () => { },
-  onChange: () => { },
 };
 
 export default Input;

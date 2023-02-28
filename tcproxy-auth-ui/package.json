@@ -1,5 +1,9 @@
 {
   "dependencies": {
+    "@chakra-ui/icons": "^2.0.17",
+    "@chakra-ui/react": "^2.5.1",
+    "@emotion/react": "^11.10.6",
+    "@emotion/styled": "^11.10.6",
     "@types/axios": "^0.14.0",
     "@types/react": "^18.0.28",
     "@types/react-bootstrap": "^0.32.32",
@@ -11,6 +15,7 @@
     "@types/styled-components": "^5.1.26",
     "axios": "^1.3.4",
     "eslint": "^8.35.0",
+    "framer-motion": "^10.0.1",
     "react": "^18.2.0",
     "react-bootstrap": "^2.7.2",
     "react-dom": "^18.2.0",

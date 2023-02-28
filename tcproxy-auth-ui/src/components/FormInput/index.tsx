@@ -1,7 +1,7 @@
-import React from "react";
-import {useFormContext} from "react-hook-form";
-import Input from "../Input";
-import {IFormInputProps} from "./types";
+import React from 'react';
+import {useFormContext} from 'react-hook-form';
+import Input from '../Input';
+import {IFormInputProps} from './types';
 
 const FormInput: React.FC<IFormInputProps> = (props) => {
   const {

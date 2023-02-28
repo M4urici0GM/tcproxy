@@ -36,7 +36,7 @@ const AppContextProvider: React.FC<{ children: React.ReactNode }> = (props) => {
       ...remaining,
       loading: status ?? !loading,
     }));
-  }
+  };
 
 
   return (
@@ -48,7 +48,7 @@ const AppContextProvider: React.FC<{ children: React.ReactNode }> = (props) => {
     >
       {children}
     </appContext.Provider>
-  )
+  );
 };
 
 export { AppContextProvider, useAppContext };

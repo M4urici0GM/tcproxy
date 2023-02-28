@@ -1,4 +1,4 @@
-import React, {FunctionComponent} from 'react';
+import React from 'react';
 
 
 import {
@@ -42,12 +42,5 @@ const Button: React.FC<Props> = (props) => {
     </StyledButton>
   );
 };
-
-Button.defaultProps = {
-  content: 'Button',
-  fullWidth: false,
-  onClick: () => {
-  },
-}
 
 export default Button;
