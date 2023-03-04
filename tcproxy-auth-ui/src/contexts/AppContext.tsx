@@ -3,8 +3,10 @@ import { Theme } from '..';
 
 export interface IAppContext {
   loading: boolean;
+  loginHint?: string;
   currentTheme: Theme,
   toggleLoadingState: () => void;
+  setLoginHint: (hint: string) => void;
 }
 
 const defaultTheme: Theme = {
@@ -19,8 +21,10 @@ const defaultTheme: Theme = {
 
 const defaultState: IAppContext = {
   loading: false,
+  loginHint: '',
   currentTheme: { ...defaultTheme },
-  toggleLoadingState: () => null
+  toggleLoadingState: () => null,
+  setLoginHint: () => null,
 };
 
 const appContext = React.createContext<IAppContext>({ ...defaultState });
@@ -31,6 +35,10 @@ const AppContextProvider: React.FC<{ children: React.ReactNode }> = (props) => {
   const { children } = props;
   const [state, setState] = React.useState<IAppContext>({ ...defaultState });
 
+  const setLoginHint = (hint: string) => {
+    setState((currentState) => ({ ...currentState, loginHint: hint }));
+  };
+
   const toggleLoadingState = (status = null) => {
     setState(({ loading, ...remaining }) => ({
       ...remaining,
@@ -38,11 +46,11 @@ const AppContextProvider: React.FC<{ children: React.ReactNode }> = (props) => {
     }));
   };
 
-
   return (
     <appContext.Provider
       value={{
         ...state,
+        setLoginHint,
         toggleLoadingState,
       }}
     >

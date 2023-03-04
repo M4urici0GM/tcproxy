@@ -16,6 +16,7 @@
         <FrameworkReference Include="Microsoft.AspNetCore.App" />
     </ItemGroup>
     <ItemGroup>
+        <ProjectReference Include="..\Tcproxy.Core\Tcproxy.Core.csproj" />
         <ProjectReference Include="..\Tcproxy.Persistence\Tcproxy.Persistence.csproj" />
     </ItemGroup>
 </Project>

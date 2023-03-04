@@ -1,4 +1,4 @@
-﻿namespace Tcproxy.Core;
+﻿namespace tcproxy.core;
 
 /// <summary>
 /// Represents something that can be null or not.
@@ -21,7 +21,8 @@ public class Option<T>
         _item = item;
     }
 
-    public static Option<T> From(T item)
+    #nullable enable
+    public static Option<T> From(T? item)
     {
         return (item == null)
             ? new Option<T>()

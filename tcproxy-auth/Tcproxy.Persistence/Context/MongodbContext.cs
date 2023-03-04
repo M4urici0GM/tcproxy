@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Options;
 using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Driver;
-using Tcproxy.Core.Options;
+using tcproxy.core.Options;
 
 namespace Tcproxy.Persistence.Context;
 

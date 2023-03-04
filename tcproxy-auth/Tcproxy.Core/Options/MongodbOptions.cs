@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Tcproxy.Core.Options;
+namespace tcproxy.core.Options;
 
 public class MongodbOptions
 {

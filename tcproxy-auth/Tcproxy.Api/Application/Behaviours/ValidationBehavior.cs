@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using FluentValidation;
 using MediatR;
 
-namespace Tcproxy.Api.Application.Behaviours;
+namespace tcproxy.api.Application.Behaviours;
 
 /// <summary>
 /// Pipeline to validate request before executing actual RequestHandler

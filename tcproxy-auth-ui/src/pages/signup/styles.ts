@@ -1,20 +1,22 @@
 import styled from 'styled-components';
-import {Link} from 'react-router-dom';
+import {Container} from '@chakra-ui/react';
 
-export const SignInButton = styled(Link).attrs({
-  to: '/signin'
-})`
-  cursor: pointer;
-  align-self: center;
-  color: ${props => props.theme.primaryText};
-  border: 0;
+export const Form = styled.form`
+  height: 100%;
   width: 100%;
-  font-size: 1em;
-  background: transparent;
-  text-decoration: none;
-  text-align: center;
+`;
 
-  &:focus {
-    outline: none;
-  }
+
+export const Page = styled.div`
+  width: 100%;
+  height: 100%;
+  padding-top: 6rem;
+  padding-bottom: 6rem;
+  display: flex;
+  background: #dedede;
+`;
+
+export const PageContainer = styled(Container)`
+  background-color: #fff;
+  border-radius: 10px;
 `;

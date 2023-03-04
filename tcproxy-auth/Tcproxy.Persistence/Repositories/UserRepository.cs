@@ -1,5 +1,6 @@
 ﻿using MongoDB.Driver;
 using MongoDB.Driver.Linq;
+using tcproxy.core;
 using Tcproxy.Core.Entities;
 using Tcproxy.Persistence.Context;
 
@@ -22,6 +23,16 @@ public interface IUserRepository
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
     Task<bool> UserExistsByEmailAsync(string email, CancellationToken cancellationToken);
+
+
+    /// <summary>
+    /// Tries fo find an user with given email.
+    /// Note that it can return a null object wrapped into an Option object.
+    /// </summary>
+    /// <param name="email"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    Task<Option<User>> FindByEmailAsync(string email, CancellationToken cancellationToken);
 }
 
 public class UserRepository : IUserRepository
@@ -40,21 +51,33 @@ public class UserRepository : IUserRepository
         {
             throw new ArgumentNullException(nameof(user));
         }
-        
+
         await _userCollection.InsertOneAsync(user, new InsertOneOptions(), cancellationToken);
         return user;
     }
 
     /// <inheritdoc />
-    public Task<bool> UserExistsByEmailAsync(string email, CancellationToken cancellationToken)
+    public async Task<bool> UserExistsByEmailAsync(string email, CancellationToken cancellationToken)
     {
         if (email is null)
         {
             throw new ArgumentNullException(nameof(email));
         }
-        
-        return _userCollection.AsQueryable()
+
+        var userOption = await FindByEmailAsync(email, cancellationToken);
+        return userOption.IsSome();
+    }
+
+    /// <inheritdoc />
+    public async Task<Option<User>> FindByEmailAsync(string email, CancellationToken cancellationToken)
+    {
+        if (email is null)
+            throw new ArgumentNullException(nameof(email));
+
+        var user = await _userCollection.AsQueryable()
             .Where(x => x.Email == email)
-            .AnyAsync(cancellationToken);
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return Option<User>.From(user);
     }
 }

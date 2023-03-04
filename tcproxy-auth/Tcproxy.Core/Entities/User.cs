@@ -11,4 +11,5 @@ public class User : BaseEntity
     public string PasswordHash { get; set; } = string.Empty;
     public bool Confirmed { get; set; } = false;
     public bool Active { get; set; } = false;
+    public string ProfilePicture { get; set; } = string.Empty;
 }

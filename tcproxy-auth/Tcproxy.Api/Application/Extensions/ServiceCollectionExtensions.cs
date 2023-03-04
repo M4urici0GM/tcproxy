@@ -2,14 +2,14 @@
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Tcproxy.Api.Application.Behaviours;
+using tcproxy.api.Application.Behaviours;
 using Tcproxy.Application.Mappings;
 using Tcproxy.Application.Requests.CreateUser;
-using Tcproxy.Core.Options;
+using tcproxy.core.Options;
 using Tcproxy.Persistence.Context;
 using Tcproxy.Persistence.Repositories;
 
-namespace Tcproxy.Api.Application.Extensions;
+namespace tcproxy.api.Application.Extensions;
 
 public static class ServiceCollectionExtensions
 {

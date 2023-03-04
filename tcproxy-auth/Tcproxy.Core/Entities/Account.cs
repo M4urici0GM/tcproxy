@@ -1,4 +1,5 @@
-﻿namespace Tcproxy.Core.Entities;
+﻿
+namespace Tcproxy.Core.Entities;
 
 [Serializable]
 public class Account : BaseEntity

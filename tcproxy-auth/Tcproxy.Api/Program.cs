@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Tcproxy.Api.Application.Extensions;
+using tcproxy.api.Application.Extensions;
 using Tcproxy.Application.Requests.CreateUser;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,10 +21,9 @@ builder.Services.AddPersistence();
 
 var app = builder.Build();
 
-
 app.UseSwagger();
 app.UseSwaggerUI();
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 app.Run();

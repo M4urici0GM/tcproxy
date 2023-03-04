@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Tcproxy.Application.Requests.CreateUser;
 
-namespace Tcproxy.Api.Controllers;
+namespace tcproxy.api.Controllers;
 
 [ApiController, Route("/v1/[controller]")]
 public class UserController : ControllerBase
