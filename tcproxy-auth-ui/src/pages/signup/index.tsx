@@ -11,7 +11,8 @@ import axiosApi from '../../services/api';
 import {useAppContext} from '../../contexts/AppContext';
 
 interface ApiError {
-  
+  statusCode: number,
+  errors: Array<{ property: string; message: string;}>;
 }
 
 interface User {
@@ -37,7 +38,7 @@ const SignUp: FunctionComponent = () => {
   const {
     setLoginHint,
   } = useAppContext();
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const form = useForm<IFormValues>({
     defaultValues: {
       firstName: '',
@@ -67,9 +68,10 @@ const SignUp: FunctionComponent = () => {
       });
 
       setLoginHint(response.email);
-    } catch (err: AxiosError) {
-      if (err.response.status === 400) {
-
+    } catch (err) {
+      const axiosError = err as AxiosError<ApiError>;
+      if (axiosError.response?.status === 400) {
+        return null;
       }
     }
   };

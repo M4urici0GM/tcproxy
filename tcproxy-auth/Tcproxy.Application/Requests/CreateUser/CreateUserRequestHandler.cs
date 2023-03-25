@@ -26,19 +26,19 @@ public class CreateUserRequestHandler : IRequestHandler<CreateUserRequest, UserR
     /// <param name="request"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    /// <exception cref="EntityAlreadyExists{User}">When user already exists with given email.</exception>
+    /// <exception cref="EntityAlreadyExists">When user already exists with given email.</exception>
     public async Task<UserResponse> Handle(CreateUserRequest request, CancellationToken cancellationToken)
     {
         var userExists = await _userRepository.UserExistsByEmailAsync(request.Email, cancellationToken);
         if (userExists)
         {
-            throw new EntityAlreadyExists<User>(nameof(User.Email), request.Email);
+            throw new EntityAlreadyExists(nameof(User.Email), nameof(User), request.Email);
         }
         
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
         var user = new User
         {
-            Name = request.Name,
+            Name = $"{request.FirstName} {request.LastName}",
             Email = request.Email,
             PasswordHash = passwordHash,
         };

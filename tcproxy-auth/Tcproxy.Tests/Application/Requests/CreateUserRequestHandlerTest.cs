@@ -33,12 +33,12 @@ public class CreateUserRequestHandlerTest
         var request = new CreateUserRequest
         {
             Email = "some_email@some_provider.com",
-            Name = "Julia Gates",
+            FirstName = "Julia Gates",
             Password = "blueScreen#666",
         };
 
         // Assert
-        await Assert.ThrowsAsync<EntityAlreadyExists<User>>(() => _sut.Handle(request, CancellationToken.None));
+        await Assert.ThrowsAsync<EntityAlreadyExists>(() => _sut.Handle(request, CancellationToken.None));
     }
 
     [Fact(DisplayName = "Should create user correctly")]
@@ -48,7 +48,7 @@ public class CreateUserRequestHandlerTest
         var request = new CreateUserRequest
         {
             Email = "some_email@some_provider.com",
-            Name = "Julia Gates",
+            FirstName = "Julia Gates",
             Password = "blueScreen#666",
         };
 
@@ -62,7 +62,7 @@ public class CreateUserRequestHandlerTest
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User()
             {
-                Name = request.Name,
+                Name = request.FirstName,
                 Email = request.Email,
                 PasswordHash = "SOME_PASSWORD_HASH",
                 Active = true,
@@ -74,6 +74,6 @@ public class CreateUserRequestHandlerTest
 
         // Assert
         response.Email.Should().Be(request.Email);
-        response.Name.Should().Be(request.Name);
+        response.Name.Should().Be(request.FirstName);
     }
 }

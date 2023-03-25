@@ -1,8 +1,10 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using tcproxy.api.Application.Extensions;
-using Tcproxy.Application.Requests.CreateUser;
+using tcproxy.api.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,16 +13,23 @@ builder.Configuration.AddJsonFile("appsettings.json");
 builder.Configuration.AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json");
 builder.Configuration.AddEnvironmentVariables();
 
-builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddEssentialServices();
 builder.Services.AddAppOptions(builder.Configuration);
 builder.Services.AddValidators();
 builder.Services.AddPersistence();
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    });
 
 var app = builder.Build();
 
+app.UseMiddleware<ErrorHandlerMiddleware>();
 app.UseSwagger();
 app.UseSwaggerUI();
 //app.UseHttpsRedirection();
