@@ -8,10 +8,12 @@ pub mod framing;
 pub mod io;
 pub mod config;
 pub mod auth;
+pub mod http;
 
 use std::io::{Cursor, Read};
-use bytes::BufMut;
+use bytes::{BufMut, Buf};
 use mongodb::bson::Uuid;
+
 pub use command::*;
 pub use frame_error::*;
 pub use tcp_frame::*;
@@ -21,6 +23,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 pub trait PutU32String: BufMut {
     fn put_u32_sized_str(&mut self, value: &str);
+}
+
+pub trait ReadU32String: Read {
+    fn read_u32_str(&mut self) -> std::io::Result<String>;
 }
 
 pub trait PutBsonUuid: BufMut {
@@ -38,6 +44,19 @@ impl ReadBsonUuid for Cursor<&[u8]> {
         self.read_exact(&mut buffer)?;
 
         Ok(Uuid::from_bytes(buffer))
+    }
+}
+
+impl ReadU32String for Cursor<&[u8]> {
+    fn read_u32_str(&mut self) -> std::io::Result<String> {
+        let buffer_size = self.get_u32();
+        let mut buffer = vec![0; buffer_size as usize];
+
+        self.read_exact(&mut buffer)?;
+
+        String::from_utf8(buffer).map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::Unsupported, "invalid utf-8 string")
+        })
     }
 }
 

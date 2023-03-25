@@ -1,10 +1,12 @@
 import React, {FunctionComponent, useState} from 'react';
 import { AxiosError } from 'axios';
-
 import {useForm, FormProvider} from 'react-hook-form';
-import {IFormValues} from './types';
 import {Button, Fade, Heading, Progress, Stack} from '@chakra-ui/react';
 import {useNavigate} from 'react-router-dom';
+import { toast } from 'react-toastify';
+
+
+import {IFormValues} from './types';
 import FormInput from '../../components/FormInput';
 import {Page, PageContainer, Form} from './styles';
 import axiosApi from '../../services/api';
@@ -22,7 +24,8 @@ interface User {
 }
 
 interface CreateUserRequest {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
 }
@@ -35,6 +38,7 @@ const createUser = async (user: CreateUserRequest) => {
 
 const SignUp: FunctionComponent = () => {
   const navigate = useNavigate();
+
   const {
     setLoginHint,
   } = useAppContext();
@@ -49,7 +53,6 @@ const SignUp: FunctionComponent = () => {
     }
   });
 
-
   const onGoBackButtonClick = () => navigate('/signin');
 
   const onFormSubmit = async (values: IFormValues) => {
@@ -62,8 +65,9 @@ const SignUp: FunctionComponent = () => {
 
     try {
       const response = await createUser({
-        name: `${firstName} ${lastName}`,
-        password: password,
+        firstName,
+        lastName,
+        password,
         email,
       });
 
@@ -73,6 +77,8 @@ const SignUp: FunctionComponent = () => {
       if (axiosError.response?.status === 400) {
         return null;
       }
+
+      toast.error('There was an error trying to create your user, try again later..');
     }
   };
 

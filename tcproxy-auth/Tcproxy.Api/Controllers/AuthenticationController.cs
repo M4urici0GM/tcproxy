@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Tcproxy.Application.Requests.AuthenticationChallenge;
+using Tcproxy.Application.Requests.StartChallengeRequest;
 
 namespace tcproxy.api.Controllers;
 
@@ -14,6 +15,15 @@ public class AuthenticationController : ControllerBase
     public AuthenticationController(IMediator mediator)
     {
         _mediator = mediator;
+    }
+
+    [HttpPost("start-challenge")]
+    public async Task<IActionResult> StartChallengeAsync(
+        [FromBody]StartChallengeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _mediator.Send(request, cancellationToken);
+        return Ok(response);
     }
 
     [HttpGet("challenge")]

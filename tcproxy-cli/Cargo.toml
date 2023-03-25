@@ -16,10 +16,15 @@ clap = { version = "4.0.23", features = ["derive", "color", "default"] }
 chrono = "0.4"
 mockall = "0.11.2"
 emoji-printer = "0.4.3"
-directories = "4.0"
+directories = "5.0.0"
 serde = { version = "1.0.143", features = ["derive"] }
 serde_yaml = "0.9"
 resolve-path = "0.1.0"
 fancy-regex = "0.11.0"
 lazy_static = "1.4.0"
 mongodb = "2.3.1"
+open = "4.0.1"
+rand = "0.8.5"
+url = "2.3.1"
+http-body-util = "0.1.0-rc.2"
+hyper = { version = "1.0.0-rc.3", features = ["full"] }

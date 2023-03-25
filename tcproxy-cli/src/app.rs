@@ -1,13 +1,22 @@
+use std::collections::HashMap;
+use std::convert::Infallible;
 use std::future::Future;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
+use bytes::Bytes;
 use directories::ProjectDirs;
+use http_body_util::Full;
+use hyper::{Method, Response};
+use hyper::service::service_fn;
+use tokio::net::TcpListener;
 use tokio::sync::{mpsc, broadcast};
 
 use tracing::debug;
 
 use tcproxy_core::Result;
 use tcproxy_core::{AsyncCommand, Command};
+use tcproxy_core::http::{StartChallengeRequest};
 
 use crate::{ClientArgs};
 use crate::commands::ListenCommand;
@@ -37,6 +46,7 @@ impl DefaultDirectoryResolver {
 }
 
 impl DirectoryResolver for DefaultDirectoryResolver {
+    // TODO: remove the self argument from DirectoryResolver
     fn get_config_folder(&self) -> Result<PathBuf> {
         let project_dir = DefaultDirectoryResolver::get_config_dir()?;
         let config_dir = project_dir.config_dir();
@@ -56,6 +66,7 @@ impl DirectoryResolver for DefaultDirectoryResolver {
     }
 }
 
+
 impl App {
     pub fn new(args: ClientArgs) -> Self {
         Self {
@@ -70,6 +81,103 @@ impl App {
         let config = AppConfig::load(&config_path)?;
 
         match self.args.get_type() {
+            AppCommandType::Login => {
+                println!("hello world from login command");
+                println!("starting authentication process...");
+
+                let address = "127.0.0.1:0";
+                let listener = TcpListener::bind(address).await.unwrap();
+                let listener_port = listener.local_addr().unwrap().port();
+                println!("started listening at {}", &listener_port);
+
+                let nonce = rand::random::<u32>();
+                let callback_uri = format!("http://127.0.0.1:{}", &listener_port);
+
+                let request = StartChallengeRequest::new(&callback_uri, &nonce);
+                let response = tcproxy_core::http::start_challenge(&request).await.unwrap();
+
+                let open_url = format!("http://127.0.0.1:3000/signin?challenge={}", response.challenge_id());
+
+                println!("Opening browser..");
+                println!("If your browser doesn't automatically open, please copy and paste the following link in your browser:");
+                println!("{}", &open_url);
+
+                open::that(open_url)?;
+
+                loop {
+                    let (stream, _) = tokio::select! {
+                        res = listener.accept() => {
+                            println!("accepted socket..");
+                            res?
+                        },
+                        _ = tokio::time::sleep(Duration::from_secs(300)) => {
+                            println!("timeout reached.. exiting authentication challenge..");
+                            break;
+                        }
+                    };
+
+                    hyper::server::conn::http1::Builder::new()
+                        .serve_connection(stream, service_fn(|req| async move {
+                            let config_path = DefaultDirectoryResolver.get_config_file().unwrap();
+                            let mut config = AppConfig::load(&config_path).unwrap();
+
+                            if Method::GET != req.method() {
+                                let response = Response::builder()
+                                    .status(400)
+                                    .header(hyper::header::CONNECTION, "close")
+                                    .body(Full::new(Bytes::from("Invalid request")))
+                                    .unwrap();
+
+                                return Ok::<Response<Full<Bytes>>, Infallible>(response);
+                            }
+
+                            let query = match req.uri().query() {
+                                Some(query) => query,
+                                None => {
+                                    let response = Response::builder()
+                                        .status(400)
+                                        .header(hyper::header::CONNECTION, "close")
+                                        .body(Full::new(Bytes::from("Invalid request")))
+                                        .unwrap();
+
+                                    return Ok::<Response<Full<Bytes>>, Infallible>(response);
+                                }
+                            };
+
+                            let params = url::form_urlencoded::parse(query.as_bytes())
+                                .into_owned()
+                                .collect::<HashMap<String, String>>();
+
+                            return match params.get("token") {
+                                Some(t) => {
+                                    config.set_user_token(&t);
+                                    AppConfig::save_to_file(&config, &config_path).unwrap();
+
+                                    println!("authenticated successfully!");
+                                    let response = Response::builder()
+                                        .status(200)
+                                        .header(hyper::header::CONNECTION, "close")
+                                        .body(Full::new(Bytes::from("You can close this window now.")))
+                                        .unwrap();
+
+                                    Ok::<Response<Full<Bytes>>, Infallible>(response)
+                                }
+                                None => {
+                                    let response = Response::builder()
+                                        .status(400)
+                                        .header(hyper::header::CONNECTION, "close")
+                                        .body(Full::new(Bytes::from("Invalid request")))
+                                        .unwrap();
+
+                                    Ok::<Response<Full<Bytes>>, Infallible>(response)
+                                }
+                            };
+                        }))
+                        .await?;
+
+                    break;
+                }
+            }
             AppCommandType::Listen(args) => {
                 // used to notify running threads that stop signal was received.
                 let (notify_shutdown, _) = broadcast::channel::<()>(1);
@@ -109,20 +217,20 @@ impl App {
                 let result = match args {
                     ContextCommands::Create(args) => {
                         CreateContextCommand::new(args, DefaultDirectoryResolver).handle()
-                    },
+                    }
                     ContextCommands::List => {
                         ListContextsCommand::new(DefaultDirectoryResolver).handle()
-                    },
+                    }
                     ContextCommands::SetDefault(args) => {
                         SetDefaultContextCommand::new(args, DefaultDirectoryResolver).handle()
-                    },
+                    }
                     _ => {
                         todo!()
                     }
                 };
 
                 match result {
-                    Ok(_) => {},
+                    Ok(_) => {}
                     Err(err) => {
                         println!("Failed when running command: {}", err);
                     }

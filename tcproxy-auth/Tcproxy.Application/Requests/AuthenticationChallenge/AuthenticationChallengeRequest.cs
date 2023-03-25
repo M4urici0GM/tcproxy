@@ -1,6 +1,8 @@
+using System;
 using MediatR;
 
 namespace Tcproxy.Application.Requests.AuthenticationChallenge;
 
 public record AuthenticationChallengeRequest(
-    string Email) : IRequest<AuthenticationChallengeResponse>;
+    string Email,
+    Guid ChallengeId) : IRequest<AuthenticationChallengeResponse>;

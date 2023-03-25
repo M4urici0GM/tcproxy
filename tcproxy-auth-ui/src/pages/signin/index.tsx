@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   Avatar,
-  ChakraProvider,
   Container,
   Heading,
   HStack, Progress,
@@ -11,18 +10,16 @@ import {
   TagLabel,
   TagRightIcon,
   Text,
-  VStack
 } from '@chakra-ui/react';
 import {Input, Divider, Button, Fade} from '@chakra-ui/react';
-import {FcGoogle, FcDown} from 'react-icons/fc';
+import {FcGoogle} from 'react-icons/fc';
 import {FaChevronDown} from 'react-icons/fa';
-import {useNavigate} from 'react-router-dom';
+import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
 
-
+import axiosApi from '../../services/api';
 import {useAppContext} from '../../contexts/AppContext';
 import styled from 'styled-components';
-import {CloseIcon} from '@chakra-ui/icons';
-
+import {toast} from 'react-toastify';
 
 const Page = styled.div`
   width: 100%;
@@ -38,6 +35,22 @@ const PageContainer = styled(Container)`
   border-radius: 10px;
 `;
 
+interface AuthChallengeRequest {
+  challengeId: string;
+  email: string;
+}
+
+interface AuthChallengeResponse {
+  userEmail: string,
+  profilePicture: string,
+  userName: string,
+}
+
+const challenge = async (challengeId: string, email: string): Promise<AuthChallengeResponse> => {
+  return axiosApi.get<AuthChallengeRequest, AuthChallengeResponse>(
+    '/v1/auth/challenge',
+    { params: { challengeId, email } });
+};
 
 const SignIn: React.FC = () => {
   const [isPassShown, setIsPassShown] = useState(false);
@@ -47,10 +60,25 @@ const SignIn: React.FC = () => {
   const [error, setError] = useState({has: false, msg: 'Invalid username or password'});
 
   const navigate = useNavigate();
+  const history = useLocation();
+  const [searchParams] = useSearchParams();
 
-  const {toggleLoadingState} = useAppContext();
+  const onCreateAccountButtonClick = () => navigate('/signup', {});
 
-  const onCreateAccountButtonClick = () => navigate('/signup');
+  const onChallengeButtonClick = () => {
+    setLoading(true);
+    try {
+
+    } catch (err) {
+      toast.error('Internal server error, Try again later.');
+    }
+  };
+
+  useEffect(() => {
+    if (!searchParams.has('challenge')) {
+      navigate('/error');
+    }
+  }, []);
 
   return (
     <Page>
@@ -111,14 +139,7 @@ const SignIn: React.FC = () => {
                       colorScheme='blue'
                       variant='solid'
                       isDisabled={loading}
-                      onClick={() => {
-                        setLoading(true);
-                        setTimeout(() => {
-                          setLoading(false);
-                          setStep('PASSWORD');
-                          // setError((currentState) => ({ has: true, msg: 'Email not registered' }));
-                        }, 700);
-                      }}
+                      onClick={onChallengeButtonClick}
                     >
                       Continue with email
                     </Button>

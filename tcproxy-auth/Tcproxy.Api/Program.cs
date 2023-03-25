@@ -13,12 +13,14 @@ builder.Configuration.AddJsonFile("appsettings.json");
 builder.Configuration.AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json");
 builder.Configuration.AddEnvironmentVariables();
 
+builder.Services.AddDistributedMemoryCache();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddEssentialServices();
 builder.Services.AddAppOptions(builder.Configuration);
 builder.Services.AddValidators();
 builder.Services.AddPersistence();
+builder.Services.AddCors();
 builder.Services
     .AddControllers()
     .AddJsonOptions(options =>
@@ -32,6 +34,11 @@ var app = builder.Build();
 app.UseMiddleware<ErrorHandlerMiddleware>();
 app.UseSwagger();
 app.UseSwaggerUI();
+app.UseCors(cfg =>
+{
+    cfg.AllowAnyHeader();
+    cfg.AllowAnyOrigin();
+});
 //app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();

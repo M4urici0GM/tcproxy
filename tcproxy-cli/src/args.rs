@@ -25,6 +25,8 @@ pub enum AppCommandType {
     /// Context configuration.
     #[clap(subcommand)]
     Context(ContextCommands),
+
+    Login
 }
 
 #[derive(Parser, Debug)]

@@ -70,6 +70,10 @@ impl AppConfig {
         true
     }
 
+    pub fn set_user_token(&mut self, token: &str) {
+        self.user_token = Some(String::from(token));
+    }
+
     pub fn has_default_context(&self) -> bool {
         self.default_context != String::default()
     }
@@ -84,6 +88,7 @@ impl AppConfig {
             .cloned()
             .find(|item| { item.name() == name })
     }
+
 
     pub fn get_user_token(&self) -> Option<String> {
         self.user_token.clone()
