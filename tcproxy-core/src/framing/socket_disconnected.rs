@@ -1,8 +1,10 @@
 use std::io::Cursor;
+use bytes::BufMut;
+
 use crate::{Frame, FrameDecodeError};
-use crate::framing::frame_types::{SOCKET_CONNECTED, SOCKET_DISCONNECTED};
+use crate::framing::frame_types::{SOCKET_DISCONNECTED};
 use crate::framing::utils::assert_connection_type;
-use crate::io::{get_u32, get_u8};
+use crate::io::{get_u32, get_u16};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct SocketDisconnected {
@@ -23,7 +25,7 @@ impl SocketDisconnected {
 
 impl Frame for SocketDisconnected {
     fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError> where Self : Sized {
-        assert_connection_type(&get_u8(buffer)?, &SOCKET_DISCONNECTED)?;
+        assert_connection_type(&get_u16(buffer)?, &SOCKET_DISCONNECTED)?;
 
         let connection_id = get_u32(buffer)?;
         Ok(Self { connection_id })
@@ -31,7 +33,7 @@ impl Frame for SocketDisconnected {
 
     fn encode(&self) -> Vec<u8> {
         let mut buff = Vec::new();
-        buff.push(SOCKET_DISCONNECTED);
+        buff.put_u16(SOCKET_DISCONNECTED);
         buff.extend_from_slice(&self.connection_id.to_be_bytes());
 
         buff

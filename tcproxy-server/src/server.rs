@@ -8,7 +8,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
 
 use tcproxy_core::tcp::{ISocketListener, SocketConnection, SocketListener};
-use crate::managers::{AccountManager, AuthenticationManager, AuthenticationManagerGuard, DefaultAccountManager, FeatureManager, IFeatureManager, PortManager, PortManagerGuard};
+use crate::managers::{UserManager, AuthenticationManager, AuthenticationManagerGuard, DefaultAccountManager, FeatureManager, IFeatureManager, PortManager, PortManagerGuard};
 
 use crate::proxy::ClientConnection;
 
@@ -75,7 +75,7 @@ impl Server {
         let server_config = self.feature_manager.get_config();
         let auth_manager = AuthenticationManager::new();
         let port_manager = PortManager::new(server_config.get_port_range());
-        let account_manager: Arc<Box<dyn AccountManager + 'static>> = Arc::new(Box::new(DefaultAccountManager::new(&self.database)));
+        let account_manager: Arc<Box<dyn UserManager + 'static>> = Arc::new(Box::new(DefaultAccountManager::new(&self.database)));
 
         let port_guard = Arc::new(PortManagerGuard::new(port_manager));
         let auth_guard = Arc::new(AuthenticationManagerGuard::new(auth_manager));

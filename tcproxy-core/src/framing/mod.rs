@@ -21,23 +21,38 @@ pub use client_connected_ack::*;
 pub use data_packet::*;
 
 pub mod frame_types {
-    pub const PING: u8 = b'-';
-    pub const PONG: u8 = b'+';
-    pub const ERROR: u8 = b'@';
-    pub const SOCKET_CONNECTED: u8 = b'#';
-    pub const CLIENT_CONNECTED: u8 = b'*';
-    pub const CLIENT_CONNECTED_ACK: u8 = b'^';
-    pub const DATA_PACKET: u8 = b'!';
-    pub const SOCKET_DISCONNECTED: u8 = b'(';
-    pub const AUTHENTICATE: u8 = b')';
-    pub const AUTHENTICATE_ACK: u8 = b'=';
+    pub const PING: u16 = 0x15;
+    pub const PONG: u16 = 0x16;
+    pub const ERROR: u16 = 0x97;
+    pub const SOCKET_CONNECTED: u16 = 0x18;
+    pub const CLIENT_CONNECTED: u16 = 0x19;
+    pub const CLIENT_CONNECTED_ACK: u16 = 0x20;
+    pub const DATA_PACKET: u16 = 0x21;
+    pub const SOCKET_DISCONNECTED: u16 = 0x22;
+    pub const AUTHENTICATE: u16 = 0x23;
+    pub const AUTHENTICATE_ACK: u16 = 0x24;
+    pub const LOGIN: u16 = 0x25;
+}
+
+pub mod error_types {
+    pub const CLIENT_UNABLE_TO_CONNECT: u16 = 0x99;
+    pub const PORT_LIMIT_REACHED: u16 = 0x98;
+    pub const FAILED_TO_CREATE_PROXY: u16 = 0x97;
+    pub const AUTHENTICATION_FAILED: u16 = 0x96;
+    pub const UNEXPECTED_ERROR: u16 = 0x96;
+    pub const ALREADY_AUTHENTICATED: u16 = 0x94;
+}
+
+pub mod authentication_grant_types {
+    pub const PASSWORD_AUTHENTICATION: u16 = 0x10;
+    pub const AUTH_TOKEN_AUTHENTICATION: u16 = 0x11;
 }
 
 pub mod utils {
     use chrono::NaiveDateTime;
     use crate::FrameDecodeError;
 
-    pub fn assert_connection_type(frame_type: &u8, expected_type: &u8) -> Result<(), FrameDecodeError> {
+    pub fn assert_connection_type(frame_type: &u16, expected_type: &u16) -> Result<(), FrameDecodeError> {
         if frame_type != expected_type {
             return Err(FrameDecodeError::UnexpectedFrameType(*frame_type));
         }

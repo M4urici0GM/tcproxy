@@ -1,6 +1,7 @@
 use std::io::ErrorKind;
-use mockall::automock;
 use serde::{Deserialize, Serialize};
+
+use super::User;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -38,7 +39,19 @@ pub enum TokenHandlerError {
     Other(ErrorKind),
 }
 
+pub struct AuthToken(String);
+
+impl AuthToken {
+    pub fn new(token: &str) -> Self {
+        Self(String::from(token))
+    }
+
+    pub fn get(&self) -> &str {
+        &self.0
+    }
+}
 
 pub trait TokenHandler: Sync + Send {
+    fn encode(&self, claims: &Claims) -> Result<AuthToken, TokenHandlerError>;
     fn decode(&self, token: &str) ->  Result<Claims, TokenHandlerError>;
 }

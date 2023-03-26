@@ -1,10 +1,11 @@
 use std::fmt::Display;
 use std::io::Cursor;
 use bytes::{Buf, BytesMut};
+use tracing::debug;
 
 use crate::FrameDecodeError;
 use crate::framing::frame_types::*;
-use crate::framing::{ClientConnected, ClientConnectedAck, DataPacket, Error, SocketConnected, Ping, Pong, SocketDisconnected, Authenticate, AuthenticateAck};
+use crate::framing::*;
 
 
 pub trait Frame {
@@ -31,8 +32,10 @@ impl TcpFrame {
         if !cursor.has_remaining() {
             return Err(FrameDecodeError::Incomplete);
         }
+        let grant_type_buf = [cursor.chunk()[0], cursor.chunk()[1]];
+        let raw_grant_type = u16::from_be_bytes(grant_type_buf);
 
-        let frame = match cursor.chunk()[0] {
+        let frame = match raw_grant_type {
             CLIENT_CONNECTED => TcpFrame::ClientConnected(ClientConnected::decode(cursor)?),
             CLIENT_CONNECTED_ACK => TcpFrame::ClientConnectedAck(ClientConnectedAck::decode(cursor)?),
             PING => TcpFrame::Ping(Ping::decode(cursor)?),
@@ -43,12 +46,7 @@ impl TcpFrame {
             AUTHENTICATE => TcpFrame::Authenticate(Authenticate::decode(cursor)?),
             AUTHENTICATE_ACK => TcpFrame::AuthenticateAck(AuthenticateAck::decode(cursor)?),
             actual => {
-                let msg = format!(
-                    "proto error. invalid frame type. {} {}",
-                    actual,
-                    String::from_utf8(vec![actual])?);
-
-                return Err(msg.into())
+                return Err(format!("proto error. invalid frame type. {}", actual).into())
             },
         };
 
@@ -56,6 +54,7 @@ impl TcpFrame {
     }
 
     pub fn to_buffer(&self) -> BytesMut {
+        debug!("sending frame {}", &self);
         let buffer = match self {
             TcpFrame::AuthenticateAck(data) => data.encode(),
             TcpFrame::Authenticate(data) => data.encode(),

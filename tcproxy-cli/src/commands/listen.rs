@@ -1,8 +1,6 @@
 use async_trait::async_trait;
-use std::net::SocketAddr;
-use std::str::FromStr;
+use std::io::{stdout, Write};
 use std::sync::Arc;
-use mongodb::bson::Uuid;
 use tokio::net::TcpStream as TokioTcpStream;
 use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::broadcast;
@@ -11,7 +9,7 @@ use tracing::{debug, error, info};
 
 use tcproxy_core::tcp::TcpStream;
 use tcproxy_core::{transport::TcpFrameTransport, AsyncCommand, Result, TcpFrame};
-use tcproxy_core::framing::{Authenticate, ClientConnected};
+use tcproxy_core::framing::{Authenticate, ClientConnected, GrantType, TokenAuthenticationArgs, PasswordAuthArgs};
 use tcproxy_core::transport::TransportReader;
 
 use crate::{ClientState, ConsoleUpdater, ListenArgs, PingSender, Shutdown, TcpFrameReader, TcpFrameWriter};
@@ -74,6 +72,42 @@ impl ListenCommand {
     }
 }
 
+fn strip_newline(input: &str) -> &str {
+    input
+        .strip_suffix("\r\n")
+        .or(input.strip_suffix("\n"))
+        .unwrap_or(input)
+}
+
+fn get_username_password() -> Result<PasswordAuthArgs> {
+    let mut tries = 0;
+    while tries < 3 {
+        print!("Your email: ");
+        stdout().flush()?;
+
+        let mut username = String::default();
+        let total_chars = std::io::stdin().read_line(&mut username)?;
+        if 0 == total_chars {
+            tries += 1;
+            continue;
+        }
+
+        let password = rpassword::prompt_password("Your password: ")?;
+        return Ok(PasswordAuthArgs::new(strip_newline(&username), &password, None));
+    }
+
+    return Err("Max tries reached.".into());
+}
+
+fn get_grant_type(app_cfg: &AppConfig) -> Result<GrantType> {
+    match app_cfg.get_user_token() {
+        Some(token) => {
+            Ok(GrantType::TOKEN(TokenAuthenticationArgs::new(&token)))
+        },
+        None => Ok(GrantType::PASSWORD(get_username_password()?))
+    }
+}
+
 #[async_trait]
 impl AsyncCommand for ListenCommand {
     type Output = Result<()>;
@@ -111,15 +145,9 @@ impl AsyncCommand for ListenCommand {
             }
         };
 
-        let user_token = match self.app_cfg.get_user_token() {
-            Some(token) => token,
-            None => {
-                debug!("user is not authenticated.");
-                return Err("You are not authenticated or your token expired. Please authenticate with\n tcproxy-cli auth login".into());
-            }
-        };
+       let grant_type = get_grant_type(&self.app_cfg)?;
 
-        writer.send(TcpFrame::Authenticate(Authenticate::new(&Uuid::new(), &user_token))).await?;
+        writer.send(TcpFrame::Authenticate(Authenticate::new(grant_type))).await?;
         let frame = match reader.next().await? {
             Some(f) => f,
             None => {

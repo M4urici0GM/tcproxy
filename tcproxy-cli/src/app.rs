@@ -6,7 +6,7 @@ use tokio::sync::{mpsc, broadcast};
 
 use tracing::debug;
 
-use tcproxy_core::Result;
+use tcproxy_core::{Error, Result};
 use tcproxy_core::{AsyncCommand, Command};
 
 use crate::{ClientArgs};
@@ -69,6 +69,7 @@ impl App {
         let config_path = directory_resolver.get_config_file()?;
         let config = AppConfig::load(&config_path)?;
 
+
         match self.args.get_type() {
             AppCommandType::Listen(args) => {
                 // used to notify running threads that stop signal was received.
@@ -97,7 +98,8 @@ impl App {
                     _ = shutdown_signal => {
                         debug!("app received stop signal..");
                     },
-                };
+                }
+                ;
 
                 drop(command);
 
@@ -109,20 +111,20 @@ impl App {
                 let result = match args {
                     ContextCommands::Create(args) => {
                         CreateContextCommand::new(args, DefaultDirectoryResolver).handle()
-                    },
+                    }
                     ContextCommands::List => {
                         ListContextsCommand::new(DefaultDirectoryResolver).handle()
-                    },
+                    }
                     ContextCommands::SetDefault(args) => {
                         SetDefaultContextCommand::new(args, DefaultDirectoryResolver).handle()
-                    },
+                    }
                     _ => {
                         todo!()
                     }
                 };
 
                 match result {
-                    Ok(_) => {},
+                    Ok(_) => {}
                     Err(err) => {
                         println!("Failed when running command: {}", err);
                     }

@@ -3,7 +3,7 @@ use bytes::BufMut;
 use crate::FrameDecodeError;
 use crate::framing::frame_types::DATA_PACKET;
 use crate::framing::utils::assert_connection_type;
-use crate::io::{get_buffer, get_u32, get_u8};
+use crate::io::{get_buffer, get_u32, get_u16};
 use crate::tcp_frame::Frame;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -33,7 +33,7 @@ impl DataPacket {
 
 impl Frame for DataPacket {
     fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError> where Self : Sized {
-        assert_connection_type(&get_u8(buffer)?, &DATA_PACKET)?;
+        assert_connection_type(&get_u16(buffer)?, &DATA_PACKET)?;
 
         let connection_id = get_u32(buffer)?;
         let buffer_size = get_u32(buffer)?;
@@ -44,7 +44,7 @@ impl Frame for DataPacket {
 
     fn encode(&self) -> Vec<u8> {
         let mut final_buff = Vec::new();
-        final_buff.put_u8(DATA_PACKET);
+        final_buff.put_u16(DATA_PACKET);
         final_buff.put_u32(self.connection_id);
         final_buff.put_u32(self.buffer_size);
         final_buff.put_slice(&self.buffer[..]);

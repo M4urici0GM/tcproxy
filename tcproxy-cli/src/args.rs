@@ -22,6 +22,8 @@ pub enum AppCommandType {
     /// Command for start listening for incoming connections
     Listen(ListenArgs),
 
+    // Login,
+
     /// Context configuration.
     #[clap(subcommand)]
     Context(ContextCommands),
@@ -53,6 +55,29 @@ pub struct CreateContextArgs {
     host: ServerAddr,
 }
 
+#[derive(Parser, Debug, Clone)]
+pub struct ListenArgs {
+    port: u16,
+
+    #[clap(short, long, value_parser = parse_ip, default_value = "127.0.0.1")]
+    ip: Ipv4Addr,
+
+    #[clap(short, long, value_parser, default_value = "false")]
+    verbose: bool,
+
+    #[clap(long, default_value = "5", value_parser = parse_ping_interval)]
+    ping_interval: u8,
+
+    #[clap(long, short)]
+    app_context: Option<String>
+}
+
+impl ClientArgs {
+    pub fn get_type(&self) -> &AppCommandType {
+        &self.command_type
+    }
+}
+
 impl SetDefaultContextArgs {
     pub fn new(name: &str) -> Self {
         Self {
@@ -79,29 +104,6 @@ impl CreateContextArgs {
 
     pub fn host(&self) -> &ServerAddr {
         &self.host
-    }
-}
-
-#[derive(Parser, Debug, Clone)]
-pub struct ListenArgs {
-    port: u16,
-
-    #[clap(short, long, value_parser = parse_ip, default_value = "127.0.0.1")]
-    ip: Ipv4Addr,
-
-    #[clap(short, long, value_parser, default_value = "false")]
-    verbose: bool,
-
-    #[clap(long, default_value = "5", value_parser = parse_ping_interval)]
-    ping_interval: u8,
-
-    #[clap(long, short)]
-    app_context: Option<String>
-}
-
-impl ClientArgs {
-    pub fn get_type(&self) -> &AppCommandType {
-        &self.command_type
     }
 }
 

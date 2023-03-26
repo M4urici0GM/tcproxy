@@ -4,7 +4,7 @@ use std::io::Error;
 #[derive(Debug)]
 pub enum FrameDecodeError {
     Incomplete,
-    UnexpectedFrameType(u8),
+    UnexpectedFrameType(u16),
     CorruptedFrame,
     Other(crate::Error),
 }

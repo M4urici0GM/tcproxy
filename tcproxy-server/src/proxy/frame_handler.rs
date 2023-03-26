@@ -1,13 +1,10 @@
-use std::cell::{Cell, RefCell};
 use async_trait::async_trait;
-
-
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
-use crate::commands::{AuthenticateArgs, AuthenticateCommand, ClientConnectedCommand, DataPacketClientCommand, LocalClientDisconnectedCommand, PingCommand};
+use crate::commands::{AuthenticateCommand, ClientConnectedCommand, DataPacketClientCommand, LocalClientDisconnectedCommand, PingCommand, AuthenticateCommandArgs};
 use crate::{ClientState};
 use tcproxy_core::TcpFrame;
 use tcproxy_core::{AsyncCommand, Result};
@@ -65,7 +62,7 @@ impl FrameHandler for DefaultFrameHandler {
             }
             TcpFrame::ClientConnected(_) => ClientConnectedCommand::boxed_new(&self.sender),
             TcpFrame::Authenticate(data) => AuthenticateCommand::boxed_new(
-                AuthenticateArgs::from(data),
+                AuthenticateCommandArgs::from(data),
                 &self.sender,
                 self.state.get_auth_manager(),
                 &self.token_handler,

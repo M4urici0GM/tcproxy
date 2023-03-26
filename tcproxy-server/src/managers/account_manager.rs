@@ -4,7 +4,7 @@ use mockall::automock;
 use mongodb::{Collection, Database};
 use mongodb::bson::{doc, Uuid};
 use mongodb::error::Error;
-use tcproxy_core::auth::{Account, AccountDetailsDto, UserDetails};
+use tcproxy_core::auth::User;
 
 pub enum AccountManagerError {
     NotFound,
@@ -19,43 +19,42 @@ impl From<mongodb::error::Error> for AccountManagerError {
 
 #[automock]
 #[async_trait]
-pub trait AccountManager: Sync + Send {
-    async fn find_account_by_id(&self, account_id: &Uuid) -> Result<AccountDetailsDto, AccountManagerError>;
+pub trait UserManager: Sync + Send {
+    async fn find_account_by_id(&self, account_id: &Uuid) -> Result<User, AccountManagerError>;
+    async fn find_user_by_email(&self, email: &str) -> Result<User, AccountManagerError>;
 }
 
 pub struct DefaultAccountManager {
-    user_collection: Collection<UserDetails>,
-    collection: Collection<Account>,
+    collection: Collection<User>,
 }
 
 impl DefaultAccountManager {
     pub fn new(database: &Arc<Database>) -> Self {
         Self {
-            collection: database.collection("accounts"),
-            user_collection: database.collection("users"),
+            collection: database.collection("users"),
         }
     }
 }
 
 #[async_trait]
-impl AccountManager for DefaultAccountManager {
-    async fn find_account_by_id(&self, account_id: &Uuid) -> Result<AccountDetailsDto, AccountManagerError> {
-        let query = doc! { "_id": account_id };
-        let teste = "36400444-3e7a-4e3a-b810-6815474b1100";
-        let result = self.collection.find_one(Some(query), None).await?;
-        let account = match result {
-            Some(acc) => acc,
-            None => {
-                return Err(AccountManagerError::NotFound);
-            }
-        };
-
-        let query = doc!{ "_id": account.user_id() };
-        let user_details = self.user_collection
+impl UserManager for DefaultAccountManager {
+    async fn find_account_by_id(&self, account_id: &Uuid) -> Result<User, AccountManagerError> {
+        let query = doc!{ "_id": account_id };
+        let user_details = self.collection
             .find_one(query, None)
             .await?
             .unwrap();
 
-        Ok(AccountDetailsDto::new(account_id, account.account_name(), &user_details))
+        Ok(user_details)
+    }
+
+    async fn find_user_by_email(&self, email: &str) -> Result<User, AccountManagerError> {
+        let query = doc!{ "email": email };
+        let user_details = self.collection
+            .find_one(query, None)
+            .await?
+            .unwrap();
+
+        Ok(user_details)
     }
 }
