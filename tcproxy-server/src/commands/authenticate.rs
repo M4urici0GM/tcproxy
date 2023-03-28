@@ -1,13 +1,14 @@
 use std::sync::Arc;
 use async_trait::async_trait;
 use bcrypt::verify;
+use chrono::{Utc, Duration};
 use mongodb::bson::Uuid;
 use tcproxy_core::auth::User;
 use tokio::sync::mpsc::Sender;
 use tracing::error;
 
 use tcproxy_core::{AsyncCommand, Result, TcpFrame};
-use tcproxy_core::auth::token_handler::{TokenHandler, Claims, AuthToken};
+use tcproxy_core::auth::token_handler::{TokenHandler, Claims, AuthToken, TokenHandlerError};
 use tcproxy_core::framing::{ AuthenticateAck, Error, Reason, GrantType, Authenticate, TokenAuthenticationArgs, PasswordAuthArgs};
 use crate::managers::{UserManager, AccountManagerError, AuthenticationManagerGuard};
 
@@ -30,9 +31,13 @@ pub enum AuthenticateCommandError {
     Other(tcproxy_core::Error)
 }
 
-impl<T: std::error::Error + Send + Sync + 'static> From<T> for AuthenticateCommandError {
-    fn from(value: T) -> Self {
-        Self::Other(value.into())
+
+impl From<TokenHandlerError> for AuthenticateCommandError {
+    fn from(value: TokenHandlerError) -> Self {
+        match value {
+            TokenHandlerError::InvalidToken => Self::AuthenticationFailed,
+            TokenHandlerError::Other(err) => Self::Other(err.into()),
+        }
     }
 }
 
@@ -45,6 +50,17 @@ impl From<AccountManagerError> for AuthenticateCommandError {
     }
 }
 
+impl From<bcrypt::BcryptError> for AuthenticateCommandError {
+    fn from(value: bcrypt::BcryptError) -> Self {
+        Self::Other(value.into())
+    }
+}
+
+impl From<mongodb::bson::uuid::Error> for AuthenticateCommandError {
+    fn from(value: mongodb::bson::uuid::Error) -> Self {
+        Self::Other(value.into())
+    }
+}
 
 /// Represents the event when client first connects to the server.
 /// (Client) sends ClientConnected   ---> [Server]
@@ -91,6 +107,23 @@ impl AuthenticateCommand {
             token_handler,
             account_manager))
     }
+
+    async fn authenticate(&self) -> std::result::Result<(User, Option<AuthToken>), AuthenticateCommandError> {
+       match &self.args.grant_type {
+            GrantType::PASSWORD(data) => {
+                let user_details = authenticate_with_password(&data, &self.account_manager).await?;
+                let token = create_user_token(&user_details, &self.token_handler)?;
+
+                Ok((user_details, Some(token)))
+            },
+            GrantType::TOKEN(data) => {
+                let user_details = authenticate_with_token(&data, &self.account_manager, &self.token_handler).await?;
+
+                Ok((user_details, None))
+            },
+        }
+    }
+    
 }
 
 #[async_trait]
@@ -103,20 +136,11 @@ impl AsyncCommand for AuthenticateCommand {
             return Ok(());
         }
 
-        let auth_result = match &self.args.grant_type {
-            GrantType::PASSWORD(data) => {
-                authenticate_with_password(&data, &self.client_sender, &self.account_manager).await
-            },
-            GrantType::TOKEN(data) => {
-                authenticate_with_token(&data, &self.account_manager, &self.client_sender, &self.token_handler).await
-            },
-        };
-
-        let account_details = match auth_result {
+        let (user, token) = match self.authenticate().await {
             Ok(acc_details) => acc_details,
             Err(AuthenticateCommandError::AuthenticationFailed) => {
                 send_authentication_failed_frame(&self.client_sender, &Reason::AuthenticationFailed).await?;
-                return Err("authentication failed".into())
+                return Ok(())
             }
             Err(AuthenticateCommandError::Other(err)) => {
                 error!("failed when trying to fetch account details: {}", err);
@@ -127,28 +151,41 @@ impl AsyncCommand for AuthenticateCommand {
             }
         };
 
-        let claims = Claims::from(user);
-        let token = self.token_handler.encode()?;
+        
         let authenticate_ack = AuthenticateAck::new(
-            &account_details.id().to_string(),
-            account_details.email(),
-            token.get()
+            user.id().to_string().as_ref(),
+            user.email(),
+            token
         );
 
-        self.auth_manager.set_authentication_details(&account_details);
+        self.auth_manager.set_authentication_details(&user);
         self.client_sender.send(TcpFrame::AuthenticateAck(authenticate_ack)).await?;
 
         Ok(())
     }
 }
 
-fn create_user_token(user: &User, token_handler: &Arc<Box<dyn TokenHandler + 'static>>) -> Result<AuthToken> {
-    
+fn create_user_token(
+    user: &User,
+    token_handler: &Arc<Box<dyn TokenHandler + 'static>>) -> std::result::Result<AuthToken, AuthenticateCommandError>
+{
+    let now = Utc::now();
+    let expiration = (now + Duration::hours(2)).timestamp_millis() as usize;
+    let now = now.timestamp_millis() as usize;
+
+    let claims = Claims::new(
+        &expiration,
+        &now,
+        user.id().to_string().as_str(),
+        "http://127.0.0.1:8080/",
+        "http://127.0.0.1:8080/");
+
+
+    Ok(token_handler.encode(&claims)?)
 }
 
 async fn authenticate_with_password(
     args: &PasswordAuthArgs,
-    sender: &Sender<TcpFrame>,
     manager: &Arc<Box<dyn UserManager + 'static>>) -> std::result::Result<tcproxy_core::auth::User, AuthenticateCommandError>
 {
     let account_details = manager.find_user_by_email(args.username()).await?;
@@ -166,7 +203,6 @@ async fn authenticate_with_password(
 async fn authenticate_with_token(
     args: &TokenAuthenticationArgs,
     manager: &Arc<Box<dyn UserManager + 'static>>,
-    sender: &Sender<TcpFrame>,
     token_handler: &Arc<Box<dyn TokenHandler + 'static>>) -> std::result::Result<tcproxy_core::auth::User, AuthenticateCommandError>
 {
     let token = args.token();

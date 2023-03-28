@@ -7,7 +7,7 @@ use crate::framing::frame_types::PONG;
 use crate::framing::utils::{assert_connection_type, parse_naive_date_time};
 use crate::io::{get_i64, get_u16};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Pong {
     timestamp: DateTime<Utc>
 }
@@ -115,7 +115,9 @@ mod tests {
     #[test]
     pub fn parse_pong_should_return_err_when_unexpected_frame_type() {
         // Arrange
-        let buffer: Vec<u8> = vec![random()];
+        let mut buffer: Vec<u8> = vec![];
+        buffer.put_u16(random());
+
         let mut cursor = Cursor::new(&buffer[..]);
 
         // Act

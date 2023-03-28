@@ -6,7 +6,7 @@ use crate::framing::frame_types::{SOCKET_DISCONNECTED};
 use crate::framing::utils::assert_connection_type;
 use crate::io::{get_u32, get_u16};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SocketDisconnected {
     connection_id: u32,
 }

@@ -26,7 +26,7 @@ pub struct TokenAuthenticationArgs {
     account_token: String,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Authenticate {
     grant_type: GrantType 
 }
@@ -148,6 +148,18 @@ impl Frame for Authenticate {
     }
 }
 
+
+impl From<PasswordAuthArgs> for GrantType {
+    fn from(value: PasswordAuthArgs) -> Self {
+        Self::PASSWORD(value)
+    }
+}
+
+impl From<TokenAuthenticationArgs> for GrantType {
+    fn from(value: TokenAuthenticationArgs) -> Self {
+        Self::TOKEN(value)
+    }
+}
 
 #[cfg(test)]
 pub mod tests {

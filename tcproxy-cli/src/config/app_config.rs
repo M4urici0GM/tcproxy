@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::config::{AppConfigError, AppContext, AppContextError};
@@ -10,7 +10,7 @@ use crate::config::{AppConfigError, AppContext, AppContextError};
 type Result<T> = std::result::Result<T, AppConfigError>;
 
 
-#[derive(Debug, PartialEq, Eq, Default, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Default, Clone)]
 pub struct AppConfig {
     default_context: String,
     user_token: Option<String>,
@@ -41,7 +41,11 @@ impl AppConfig {
         Ok(())
     }
 
-    pub fn default_context(&self) -> &str {
+    pub fn default_context(&self) -> Option<AppContext> {
+       self.get_context(&self.default_context)
+    }
+
+    pub fn default_context_str(&self) -> &str {
         &self.default_context
     }
 
@@ -68,6 +72,10 @@ impl AppConfig {
 
         self.default_context = context.name().to_owned();
         true
+    }
+
+    pub fn set_user_token(&mut self, token: &str) {
+        self.user_token = Some(String::from(token));
     }
 
     pub fn has_default_context(&self) -> bool {
@@ -198,7 +206,7 @@ mod tests {
         config.set_default_context(&context);
 
         // Assert
-        assert_eq!(config.default_context(), context.name());
+        assert_eq!(config.default_context_str(), context.name());
         assert_eq!(config.contexts().len(), 1);
         assert_eq!(config.contexts().get("context1").unwrap(), &context);
     }
@@ -214,7 +222,7 @@ mod tests {
         let read_config = AppConfig::load(file_path).unwrap();
 
         // Assert
-        assert_eq!(config.default_context(), read_config.default_context());
+        assert_eq!(config.default_context_str(), read_config.default_context_str());
         assert_eq!(&config.contexts(), &read_config.contexts());
 
         remove_file(file_path);
@@ -246,8 +254,8 @@ mod tests {
         default_config.push_context(&context).unwrap();
 
         // Assert
-        assert_eq!(default_config.default_context(), context.name());
-        assert_ne!(default_config.default_context(), context2.name());
+        assert_eq!(default_config.default_context_str(), context.name());
+        assert_ne!(default_config.default_context_str(), context2.name());
     }
 
 
@@ -268,7 +276,7 @@ mod tests {
 
         let read_config = read_config.unwrap();
         assert!(read_config.contexts().is_empty());
-        assert_eq!(read_config.default_context(), String::default());
+        assert_eq!(read_config.default_context_str(), String::default());
 
         remove_file(file_path);
     }

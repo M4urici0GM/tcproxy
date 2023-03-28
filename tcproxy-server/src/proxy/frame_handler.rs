@@ -54,12 +54,7 @@ impl FrameHandler for DefaultFrameHandler {
             TcpFrame::SocketDisconnected(data) => {
                 LocalClientDisconnectedCommand::boxed_new(data.connection_id(), &self.state)
             }
-            TcpFrame::DataPacket(data) => {
-                DataPacketClientCommand::boxed_new(
-                    data.buffer(),
-                    data.connection_id(),
-                    &self.state)
-            }
+            TcpFrame::DataPacket(data) => DataPacketClientCommand::boxed_new(&data, &self.state),
             TcpFrame::ClientConnected(_) => ClientConnectedCommand::boxed_new(&self.sender),
             TcpFrame::Authenticate(data) => AuthenticateCommand::boxed_new(
                 AuthenticateCommandArgs::from(data),

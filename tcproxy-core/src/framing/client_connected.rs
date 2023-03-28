@@ -6,7 +6,7 @@ use crate::framing::frame_types::CLIENT_CONNECTED;
 use crate::framing::utils::assert_connection_type;
 use crate::io::get_u16;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ClientConnected;
 
 impl ClientConnected {

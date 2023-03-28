@@ -25,7 +25,7 @@ impl Command for ListContextsCommand {
         let (biggest_name, contexts) = config.contexts()
             .iter()
             .fold((0, vec![]), |(acc, mut lines), (ctx_name, ctx)| {
-                let ctx_name = match ctx_name == config.default_context() {
+                let ctx_name = match ctx_name == config.default_context_str() {
                     true => format!("{} (default)", ctx_name),
                     false => ctx_name.to_owned(),
                 };

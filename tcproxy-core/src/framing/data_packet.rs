@@ -6,7 +6,7 @@ use crate::framing::utils::assert_connection_type;
 use crate::io::{get_buffer, get_u32, get_u16};
 use crate::tcp_frame::Frame;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataPacket {
     connection_id: u32,
     buffer_size: u32,

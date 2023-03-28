@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use std::sync::Arc;
-use tcproxy_core::{AsyncCommand, Result};
+use tcproxy_core::{AsyncCommand, Result, framing::DataPacket};
 
 use crate::ClientState;
 
@@ -11,20 +11,19 @@ pub struct DataPacketClientCommand {
 }
 
 impl DataPacketClientCommand {
-    pub fn new(buffer: &[u8], connection_id: &u32, proxy_state: &Arc<ClientState>) -> Self {
+    pub fn new(data_packet: &DataPacket, proxy_state: &Arc<ClientState>) -> Self {
         Self {
-            buffer: buffer.to_vec(),
-            connection_id: *connection_id,
+            buffer: data_packet.buffer().to_vec(),
+            connection_id: *data_packet.connection_id(),
             proxy_state: proxy_state.clone(),
         }
     }
 
     pub fn boxed_new(
-        buffer: &[u8],
-        connection_id: &u32,
+        data_packet: &DataPacket,
         proxy_state: &Arc<ClientState>,
     ) -> Box<Self> {
-        let obj = DataPacketClientCommand::new(buffer, connection_id, proxy_state);
+        let obj = Self::new(data_packet, proxy_state);
         Box::new(obj)
     }
 }

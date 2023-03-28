@@ -1,7 +1,9 @@
 use std::io::ErrorKind;
+use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 
-use super::User;
+use crate::Error;
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -13,6 +15,22 @@ pub struct Claims {
 }
 
 impl Claims {
+    pub fn new(
+        exp: &usize,
+        iat: &usize,
+        sub: &str,
+        iss: &str,
+        aud: &str,
+    ) -> Self {
+        Self {
+            exp: *exp,
+            iat: *iat,
+            sub: String::from(sub),
+            iss: String::from(iss),
+            aud: String::from(aud),
+        }
+    }
+
     pub fn iat(&self) -> &usize {
         &self.iat
     }
@@ -34,9 +52,20 @@ impl Claims {
     }
 }
 
+#[derive(Debug)]
 pub enum TokenHandlerError {
     InvalidToken,
-    Other(ErrorKind),
+    Other(Error),
+}
+
+impl std::fmt::Display for TokenHandlerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
+
+impl std::error::Error for TokenHandlerError {
+    
 }
 
 pub struct AuthToken(String);

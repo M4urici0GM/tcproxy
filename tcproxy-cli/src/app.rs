@@ -6,11 +6,11 @@ use tokio::sync::{mpsc, broadcast};
 
 use tracing::debug;
 
-use tcproxy_core::{Error, Result};
+use tcproxy_core::Result;
 use tcproxy_core::{AsyncCommand, Command};
 
 use crate::{ClientArgs};
-use crate::commands::ListenCommand;
+use crate::commands::{ListenCommand, LoginCommand};
 use crate::commands::contexts::{CreateContextCommand, DirectoryResolver, ListContextsCommand, SetDefaultContextCommand};
 use crate::{AppCommandType, ContextCommands};
 use crate::config::AppConfig;
@@ -20,6 +20,7 @@ pub struct App {
     args: Arc<ClientArgs>,
 }
 
+#[derive(Clone)]
 pub struct DefaultDirectoryResolver;
 
 impl DefaultDirectoryResolver {
@@ -71,7 +72,19 @@ impl App {
 
 
         match self.args.get_type() {
+            AppCommandType::Login(args) => {
+                let mut command = LoginCommand::new(args, &config, &directory_resolver);
+                match command.handle().await {
+                    Ok(_) => {
+                        println!("authenticated successfully");
+                    },
+                    Err(err) => {
+                        println!("unexpected error when trying to authenticate: {}", err);
+                    }
+                }
+            },
             AppCommandType::Listen(args) => {
+                // TODO: abstract this into a better way.
                 // used to notify running threads that stop signal was received.
                 let (notify_shutdown, _) = broadcast::channel::<()>(1);
 
@@ -81,6 +94,7 @@ impl App {
                 let mut command = ListenCommand::new(
                     Arc::new(args.clone()),
                     Arc::new(config.clone()),
+                    &directory_resolver,
                     shutdown_complete_tx,
                     notify_shutdown,
                 );
@@ -91,7 +105,7 @@ impl App {
                         match res {
                             Ok(_) => {},
                             Err(err) => {
-                                println!("error: {:?}", err);
+                                println!("{}", err);
                             }
                         }
                     },
@@ -129,9 +143,6 @@ impl App {
                         println!("Failed when running command: {}", err);
                     }
                 }
-
-                // let mut command = ConfigCommand::new(args);
-                // let _ = command.handle().await;
             }
         }
         Ok(())

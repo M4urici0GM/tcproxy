@@ -1,12 +1,13 @@
 use std::io::Cursor;
 use bytes::BufMut;
+use crate::auth::token_handler::AuthToken;
 use crate::{Frame, FrameDecodeError, PutU32String};
 use crate::framing::frame_types::AUTHENTICATE_ACK;
 use crate::framing::utils::assert_connection_type;
 use crate::io::{get_u32_string, get_u16};
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct AuthenticateAck {
     account_id: String,
     email: String,
@@ -14,12 +15,19 @@ pub struct AuthenticateAck {
 }
 
 impl AuthenticateAck {
-    pub fn new(id: &str, email: &str, token: &str) -> Self {
+    pub fn new(id: &str, email: &str, token: Option<AuthToken>) -> Self {
         Self {
             account_id: String::from(id),
             email: String::from(email),
-            token: String::from(token),
+            token: match token {
+                Some(t) => String::from(t.get()),
+                None => String::default(),
+            },
         }
+    }
+
+    pub fn token(&self) -> &str {
+        &self.token
     }
 }
 
@@ -44,6 +52,7 @@ impl Frame for AuthenticateAck {
         buffer.put_u16(AUTHENTICATE_ACK);
         buffer.put_u32_sized_str(&self.account_id);
         buffer.put_u32_sized_str(&self.email);
+        buffer.put_u32_sized_str(&self.token);
 
         buffer
     }
@@ -51,7 +60,7 @@ impl Frame for AuthenticateAck {
 
 impl Display for AuthenticateAck {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "AuthenticateACK details: [email = {}, account-id = {}]", self.email, self.account_id)
+        write!(f, "AuthenticateACK details: [email = {}, account-id = {}, token = {}]", self.email, self.account_id, self.token)
     }
 }
 
@@ -59,6 +68,7 @@ impl Display for AuthenticateAck {
 pub mod tests {
     use std::io::Cursor;
     use bytes::BufMut;
+    use crate::auth::token_handler::AuthToken;
     use crate::{Frame, FrameDecodeError, is_type};
     use crate::framing::AuthenticateAck;
     use crate::framing::frame_types::AUTHENTICATE_ACK;
@@ -69,13 +79,32 @@ pub mod tests {
         let account_id = "account_id";
         let email = "some_email@gmail.com";
         let token = "some_token";
-        let frame = AuthenticateAck::new(account_id, email, token);
+        let frame = AuthenticateAck::new(account_id, email, Some(AuthToken::new(token)));
 
         // Act
         let encoded = frame.encode();
 
+        println!("{:?}", encoded);
+
         // Assert
-        assert_eq!(encoded.len(), account_id.len() + token.len() + email.len() + 1 + 8); // ID_SIZE + EMAIL_SIZE + FRAME_TYPE + 2x STRING SIZES
+        assert_eq!(encoded.len(), account_id.len() + token.len() + email.len() + std::mem::size_of::<u16>() + 12); // ID_SIZE + EMAIL_SIZE + FRAME_TYPE + 3x STRING SIZES
+    }
+
+    #[test]
+    pub fn should_be_able_when_token_is_not_present() {
+        // Arrange
+        let account_id = "account_id";
+        let email = "some_email@gmail.com";
+        let token = String::default();
+        let frame = AuthenticateAck::new(account_id, email, None);
+
+        // Act
+        let encoded = frame.encode();
+
+        println!("{:?}", encoded);
+
+        // Assert
+        assert_eq!(encoded.len(), account_id.len() + token.len() + email.len() + std::mem::size_of::<u16>() + 12); // ID_SIZE + EMAIL_SIZE + FRAME_TYPE + 3x STRING SIZES
     }
 
     #[test]

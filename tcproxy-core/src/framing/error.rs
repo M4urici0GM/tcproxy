@@ -2,6 +2,8 @@ use std::fmt;
 use std::fmt::Formatter;
 use std::io::Cursor;
 use bytes::BufMut;
+use tracing::trace;
+
 use crate::{Frame, FrameDecodeError};
 use crate::framing::frame_types::ERROR;
 use crate::framing::utils::assert_connection_type;
@@ -66,6 +68,7 @@ impl Error {
 impl Frame for Error {
     fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError> where Self: Sized {
         assert_connection_type(&get_u16(buffer)?, &ERROR)?;
+        trace!("decoding Error frame");
 
         let value = get_u16(buffer)?;
         let reason = Error::decode_reason(&value)?;
@@ -82,6 +85,8 @@ impl Frame for Error {
 
         buffer.put_u16(ERROR);
         buffer.put_u16(reason);
+        buffer.put_u32(0);
+        buffer.put_slice(&vec![]);
 
         buffer
     }

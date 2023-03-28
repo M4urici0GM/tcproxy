@@ -40,20 +40,32 @@ impl DefaultAccountManager {
 impl UserManager for DefaultAccountManager {
     async fn find_account_by_id(&self, account_id: &Uuid) -> Result<User, AccountManagerError> {
         let query = doc!{ "_id": account_id };
-        let user_details = self.collection
+        let maybe_user = self.collection
             .find_one(query, None)
-            .await?
-            .unwrap();
+            .await?;
+
+        let user_details = match maybe_user {
+            Some(user) => user,
+            None => {
+                return Err(AccountManagerError::NotFound)
+            }
+        };
 
         Ok(user_details)
     }
 
     async fn find_user_by_email(&self, email: &str) -> Result<User, AccountManagerError> {
         let query = doc!{ "email": email };
-        let user_details = self.collection
+        let maybe_user = self.collection
             .find_one(query, None)
-            .await?
-            .unwrap();
+            .await?;
+
+        let user_details = match maybe_user {
+            Some(user) => user,
+            None => {
+                return Err(AccountManagerError::NotFound)
+            }
+        };
 
         Ok(user_details)
     }

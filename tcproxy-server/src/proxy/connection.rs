@@ -46,7 +46,8 @@ impl ClientConnection {
 
         let token_handler = DefaultTokenHandler::new(&self.server_config);
         let frame_handler = DefaultFrameHandler::new(&frame_tx, &self.state, token_handler);
-        let client_reader = ClientFrameReader::new(&frame_tx, transport_reader, frame_handler);
+
+        let client_reader = ClientFrameReader::new(transport_reader, frame_handler);
         let proxy_writer = ClientFrameWriter::new(frame_rx, transport_writer, &local_cancellation_token);
 
         tokio::select! {

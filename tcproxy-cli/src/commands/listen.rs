@@ -1,36 +1,41 @@
 use async_trait::async_trait;
-use std::io::{stdout, Write};
 use std::sync::Arc;
-use tokio::net::TcpStream as TokioTcpStream;
-use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::broadcast;
+use tokio::sync::mpsc::{self, Sender};
 
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
-use tcproxy_core::tcp::TcpStream;
+use tcproxy_core::framing::Reason;
+use tcproxy_core::framing::{Authenticate, ClientConnected, GrantType, TokenAuthenticationArgs};
 use tcproxy_core::{transport::TcpFrameTransport, AsyncCommand, Result, TcpFrame};
-use tcproxy_core::framing::{Authenticate, ClientConnected, GrantType, TokenAuthenticationArgs, PasswordAuthArgs};
-use tcproxy_core::transport::TransportReader;
 
-use crate::{ClientState, ConsoleUpdater, ListenArgs, PingSender, Shutdown, TcpFrameReader, TcpFrameWriter};
 use crate::config::{AppConfig, AppContext};
+use crate::server_addr::ServerAddr;
+use crate::{
+    ClientState, ConsoleUpdater, DefaultDirectoryResolver, ListenArgs, PingSender, Shutdown,
+    TcpFrameReader, TcpFrameWriter,
+};
 
+use super::contexts::DirectoryResolver;
 
 pub struct ListenCommand {
     args: Arc<ListenArgs>,
     app_cfg: Arc<AppConfig>,
-    pub(crate) _shutdown_complete_tx: Sender<()>,
-    pub(crate) _notify_shutdown: broadcast::Sender<()>,
+    dir_resolver: DefaultDirectoryResolver,
+    _shutdown_complete_tx: Sender<()>,
+    _notify_shutdown: broadcast::Sender<()>,
 }
 
 impl ListenCommand {
     pub fn new(
         args: Arc<ListenArgs>,
         config: Arc<AppConfig>,
+        dir_resolver: &DefaultDirectoryResolver,
         shutdown_complete_tx: Sender<()>,
-        notify_shutdown: broadcast::Sender<()>) -> Self
-    {
+        notify_shutdown: broadcast::Sender<()>,
+    ) -> Self {
         Self {
+            dir_resolver: dir_resolver.clone(),
             args: Arc::clone(&args),
             app_cfg: Arc::clone(&config),
             _notify_shutdown: notify_shutdown,
@@ -39,72 +44,15 @@ impl ListenCommand {
     }
 
     fn get_context(&self) -> Result<AppContext> {
-        let context_name = match self.args.app_context() {
-            Some(ctx) => ctx,
-            None => self.app_cfg.default_context().to_string(),
-        };
+        let context_name = self
+            .args
+            .app_context()
+            .unwrap_or(self.app_cfg.default_context_str().to_string());
 
         match self.app_cfg.get_context(&context_name) {
             Some(ctx) => Ok(ctx),
-            None => {
-                Err(format!("context {} was not found.", context_name).into())
-            }
+            None => Err(format!("context {} was not found.", context_name).into()),
         }
-    }
-
-    /// connects to remote server.
-    async fn connect(&self) -> Result<TcpStream> {
-        let app_context = self.get_context()?;
-        let server_addr = format!("{}:{}", app_context.host(), app_context.port());
-        match TokioTcpStream::connect(server_addr).await {
-            Ok(stream) => {
-                debug!("Connected to server..");
-                let socket_addr = stream.peer_addr().unwrap();
-                Ok(TcpStream::new(stream, socket_addr))
-            }
-            Err(err) => {
-                println!("{} {}", 124, 123);
-
-                error!("Failed to connect to server. Check you network connection and try again.");
-                Err(format!("Failed when connecting to server: {}", err).into())
-            }
-        }
-    }
-}
-
-fn strip_newline(input: &str) -> &str {
-    input
-        .strip_suffix("\r\n")
-        .or(input.strip_suffix("\n"))
-        .unwrap_or(input)
-}
-
-fn get_username_password() -> Result<PasswordAuthArgs> {
-    let mut tries = 0;
-    while tries < 3 {
-        print!("Your email: ");
-        stdout().flush()?;
-
-        let mut username = String::default();
-        let total_chars = std::io::stdin().read_line(&mut username)?;
-        if 0 == total_chars {
-            tries += 1;
-            continue;
-        }
-
-        let password = rpassword::prompt_password("Your password: ")?;
-        return Ok(PasswordAuthArgs::new(strip_newline(&username), &password, None));
-    }
-
-    return Err("Max tries reached.".into());
-}
-
-fn get_grant_type(app_cfg: &AppConfig) -> Result<GrantType> {
-    match app_cfg.get_user_token() {
-        Some(token) => {
-            Ok(GrantType::TOKEN(TokenAuthenticationArgs::new(&token)))
-        },
-        None => Ok(GrantType::PASSWORD(get_username_password()?))
     }
 }
 
@@ -119,58 +67,42 @@ impl AsyncCommand for ListenCommand {
 
         info!("Trying to connect...");
 
-        let connection = self.connect().await?;
-        let (console_sender, console_receiver) = mpsc::channel::<i32>(10);
-        let (sender, receiver) = mpsc::channel::<TcpFrame>(10000);
-        let (mut reader, mut writer) = TcpFrameTransport::new(connection).split();
+        
+        let app_context = self.get_context()?;
+        let addr = ServerAddr::try_from(app_context)?.to_socket_addr()?;
+        let mut transport = TcpFrameTransport::connect(addr).await?;
 
         info!("Connected to server, trying handshake...");
 
+        let (console_sender, console_receiver) = mpsc::channel::<i32>(10);
+        let (sender, receiver) = mpsc::channel::<TcpFrame>(10000);
         let state = Arc::new(ClientState::new(&console_sender));
+    
+        do_handshake(&mut transport).await?;
+        authenticate(&self.dir_resolver, &mut transport).await?;
 
-        writer.send(TcpFrame::ClientConnected(ClientConnected)).await?;
-        let frame = match reader.next().await? {
-            Some(f) => f,
-            None => {
-                debug!("received none. it means the server closed the connection.");
-                return Err("failed to do handshake with server.".into());
-            }
-        };
+        let (reader, writer) = transport.split();
+        let ping_task = PingSender::new(
+            &sender,
+            &state,
+            self.args.ping_interval(),
+            &self._shutdown_complete_tx,
+        );
+        let console_task = ConsoleUpdater::new(
+            console_receiver,
+            &state,
+            &self.args,
+            &self._shutdown_complete_tx,
+        );
 
-        match frame {
-            TcpFrame::ClientConnectedAck(_) => {},
-            actual => {
-                debug!("received invalid frame when doing handshake. received {} instead of ClientConnectedAck", actual);
-                return Err("failed to do handshake with server.".into());
-            }
-        };
-
-       let grant_type = get_grant_type(&self.app_cfg)?;
-
-        writer.send(TcpFrame::Authenticate(Authenticate::new(grant_type))).await?;
-        let frame = match reader.next().await? {
-            Some(f) => f,
-            None => {
-                debug!("received none. it means the server closed the connection.");
-                return Err("failed to do handshake with server.".into());
-            }
-        };
-
-        match frame {
-            TcpFrame::AuthenticateAck(data) => {
-                debug!("received {} from authenticate frame", data);
-            },
-            actual => {
-                debug!("received invalid frame when doing handshake. received {} instead of ClientConnectedAck", actual);
-                return Err("You are not authenticated or your token expired. Please authenticate with\n tcproxy-cli auth login".into());
-            }
-        };
-
-
-        let ping_task = PingSender::new(&sender, &state, self.args.ping_interval(), &self._shutdown_complete_tx);
-        let console_task = ConsoleUpdater::new(console_receiver, &state, &self.args, &self._shutdown_complete_tx);
         let receive_task = TcpFrameWriter::new(receiver, writer, &self._shutdown_complete_tx);
-        let forward_task = TcpFrameReader::new(&sender, &state, reader, &self.args, &self._shutdown_complete_tx);
+        let forward_task = TcpFrameReader::new(
+            &sender,
+            &state,
+            &self.args,
+            reader,
+            &self._shutdown_complete_tx,
+        );
 
         info!("Connected to server, spawning required tasks...");
 
@@ -190,5 +122,48 @@ impl AsyncCommand for ListenCommand {
         }
 
         Ok(())
+    }
+}
+
+async fn authenticate(
+    dir_resolver: &DefaultDirectoryResolver,
+    client: &mut TcpFrameTransport,
+) -> Result<()> {
+    let config_path = dir_resolver.get_config_file()?;
+    let mut config = AppConfig::load(&config_path)?;
+
+    let token = config.get_user_token().unwrap_or_default();
+    let grant_type = GrantType::TOKEN(TokenAuthenticationArgs::new(&token));
+    let authenticate_frame = TcpFrame::Authenticate(Authenticate::new(grant_type));
+
+    match client.send_frame(&authenticate_frame).await? {
+        TcpFrame::AuthenticateAck(data) => {
+            debug!("authenticated successfully");
+            debug!("trying to save user token into config file..");
+
+            // Stores user token into local config file
+            config.set_user_token(data.token());
+            AppConfig::save_to_file(&config, &config_path)?;
+
+            Ok(())
+        }
+        TcpFrame::Error(err) if *err.reason() == Reason::AuthenticationFailed => {
+            Err("Authentication failed. Try logging again with tcproxy-cli login".into())
+        }
+        actual => {
+            debug!("received invalid frame when doing handshake. received {} instead of ClientConnectedAck", actual);
+            Err("Error while trying to communicate with server.".into())
+        }
+    }
+}
+
+async fn do_handshake(client: &mut TcpFrameTransport) -> Result<()> {
+    let frame = TcpFrame::ClientConnected(ClientConnected);
+    match client.send_frame(&frame).await? {
+        TcpFrame::ClientConnectedAck(_) => Ok(()),
+        actual => {
+            debug!("received invalid frame when doing handshake. received {} instead of ClientConnectedAck", actual);
+            Err("failed to do handshake with server.".into())
+        }
     }
 }

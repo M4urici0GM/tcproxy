@@ -13,7 +13,7 @@ pub trait Frame {
     fn encode(&self) -> Vec<u8>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TcpFrame {
     Ping(Ping),
     Pong(Pong),
@@ -109,5 +109,11 @@ impl Display for TcpFrame {
 
         let msg = format!("tcpframe: {}", data_type);
         write!(f, "{}", msg)
+    }
+}
+
+impl From<Authenticate> for TcpFrame {
+    fn from(value: Authenticate) -> Self {
+        Self::Authenticate(value)
     }
 }

@@ -7,7 +7,7 @@ use crate::framing::utils::{assert_connection_type, parse_naive_date_time};
 use crate::io::{get_i64, get_u16};
 
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Ping {
     timestamp: DateTime<Utc>
 }

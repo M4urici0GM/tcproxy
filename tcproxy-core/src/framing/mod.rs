@@ -39,7 +39,7 @@ pub mod error_types {
     pub const PORT_LIMIT_REACHED: u16 = 0x98;
     pub const FAILED_TO_CREATE_PROXY: u16 = 0x97;
     pub const AUTHENTICATION_FAILED: u16 = 0x96;
-    pub const UNEXPECTED_ERROR: u16 = 0x96;
+    pub const UNEXPECTED_ERROR: u16 = 0x95;
     pub const ALREADY_AUTHENTICATED: u16 = 0x94;
 }
 

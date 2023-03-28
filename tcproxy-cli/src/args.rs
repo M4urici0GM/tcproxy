@@ -22,7 +22,7 @@ pub enum AppCommandType {
     /// Command for start listening for incoming connections
     Listen(ListenArgs),
 
-    // Login,
+    Login(LoginArgs),
 
     /// Context configuration.
     #[clap(subcommand)]
@@ -56,6 +56,12 @@ pub struct CreateContextArgs {
 }
 
 #[derive(Parser, Debug, Clone)]
+pub struct LoginArgs {
+    username: Option<String>,
+    app_context: Option<String>
+}
+
+#[derive(Parser, Debug, Clone)]
 pub struct ListenArgs {
     port: u16,
 
@@ -70,6 +76,16 @@ pub struct ListenArgs {
 
     #[clap(long, short)]
     app_context: Option<String>
+}
+
+impl LoginArgs {
+    pub fn app_context(&self) -> &Option<String> {
+        &self.app_context
+    }
+
+    pub fn username(&self) -> &Option<String> {
+        &self.username
+    }
 }
 
 impl ClientArgs {
