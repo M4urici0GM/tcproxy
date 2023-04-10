@@ -1,11 +1,11 @@
-use std::collections::HashMap;
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use serde::{Deserialize, Serialize};
 
-use crate::config::{AppConfigError, AppContext, AppContextError};
+use crate::config::{AppConfigError, AppContext};
+use super::directory_resolver::DirectoryResolver;
 
 type Result<T> = std::result::Result<T, AppConfigError>;
 
@@ -18,125 +18,79 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    pub fn load(path: &Path) -> Result<Self> {
-        if !AppConfig::exists(path) {
-            AppConfig::create_default(path)?;
+    pub fn new(contexts: &[AppContext], default_context: Option<AppContext>, user_token: Option<String>) -> Self {
+        Self {
+            contexts: Vec::from(contexts),
+            default_context: match default_context {
+                Some(ctx) => ctx.name().to_string(),
+                None => String::default()
+            },
+            user_token
         }
-
-        let config = AppConfig::read_from_file(path)?;
-        Ok(config)
     }
 
-    pub fn save_to_file(config: &Self, path: &Path) -> Result<()> {
-        let mut file = OpenOptions::new()
-            .write(true)
-            .append(false)
-            .create(true)
-            .open(path)?;
-
-        let self_contents = serde_yaml::to_string(&config)?;
-
-        file.write_all(self_contents.as_bytes())?;
-        file.flush()?;
-        Ok(())
+    pub fn contexts(&self) -> &[AppContext] {
+        &self.contexts
     }
 
-    pub fn default_context(&self) -> Option<AppContext> {
-       self.get_context(&self.default_context)
+    pub fn user_token(&self) -> &Option<String> {
+        &self.user_token
     }
-
-    pub fn default_context_str(&self) -> &str {
+    pub fn default_context(&self) -> &str {
         &self.default_context
     }
+}
 
-    pub fn contexts(&self) -> HashMap<String, AppContext> {
-        let mut mapped_ctxs = HashMap::new();
-        for ctx in self.contexts.iter().cloned() {
-            mapped_ctxs.insert(ctx.name().to_owned(), ctx);
-        }
-
-
-        mapped_ctxs
+pub fn load(resolver: &DirectoryResolver) -> Result<AppConfig> {
+    let path = resolver.get_config_file();
+    if !exists(&path) {
+        create_default(&path)?;
     }
 
-    pub fn ctx_exists(&self, context: &AppContext) -> bool {
-        self.contexts
-            .iter()
-            .any(|ctx| ctx == context)
-    }
+    let config = read_from_file(&path)?;
+    Ok(config)
+}
 
-    pub fn set_default_context(&mut self, context: &AppContext) -> bool {
-        if !self.ctx_exists(context) {
-            self.contexts.push(context.clone());
-        }
+pub fn save_to_file(config: &AppConfig, path: &Path) -> Result<()> {
+    let mut file = OpenOptions::new()
+        .write(true)
+        .append(false)
+        .create(true)
+        .open(path)?;
 
-        self.default_context = context.name().to_owned();
-        true
-    }
+    let self_contents = serde_yaml::to_string(&config)?;
 
-    pub fn set_user_token(&mut self, token: &str) {
-        self.user_token = Some(String::from(token));
-    }
+    file.write_all(self_contents.as_bytes())?;
+    file.flush()?;
+    Ok(())
+}
 
-    pub fn has_default_context(&self) -> bool {
-        self.default_context != String::default()
-    }
+fn create_default(path: &Path) -> Result<()> {
+    let default_config = AppConfig::default();
+    let config_str = serde_yaml::to_string(&default_config).unwrap();
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .append(false)
+        .open(path)?;
 
-    pub fn get_default_context(&self) -> Option<AppContext> {
-        self.get_context(&self.default_context)
-    }
+    file.write_all(config_str.as_bytes())?;
+    file.flush()?;
 
-    pub fn get_context(&self, name: &str) -> Option<AppContext> {
-        self.contexts
-            .iter()
-            .cloned()
-            .find(|item| { item.name() == name })
-    }
+    Ok(())
+}
 
-    pub fn get_user_token(&self) -> Option<String> {
-        self.user_token.clone()
-    }
+fn read_from_file(path: &Path) -> Result<AppConfig> {
+    let file = OpenOptions::new()
+        .read(true)
+        .open(path)?;
 
-    pub fn push_context(&mut self, context: &AppContext) -> std::result::Result<(), AppContextError> {
-        if self.ctx_exists(context) {
-            return Err(AppContextError::AlreadyExists(context.clone()))
-        }
+    let contents = serde_yaml::from_reader::<File, AppConfig>(file)?;
+    Ok(contents)
+}
 
-        self.contexts.push(context.clone());
-        if !self.has_default_context() {
-            self.set_default_context(context);
-        }
-
-        Ok(())
-    }
-
-    fn create_default(path: &Path) -> Result<()> {
-        let default_config = AppConfig::default();
-        let config_str = serde_yaml::to_string(&default_config).unwrap();
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .append(false)
-            .open(path)?;
-
-        file.write_all(config_str.as_bytes())?;
-        file.flush()?;
-
-        Ok(())
-    }
-
-    fn read_from_file(path: &Path) -> Result<Self> {
-        let file = OpenOptions::new()
-            .read(true)
-            .open(path)?;
-
-        let contents = serde_yaml::from_reader::<File, Self>(file)?;
-        Ok(contents)
-    }
-
-    fn exists(path: &Path) -> bool {
-        fs::metadata(path).is_ok()
-    }
+fn exists(path: &Path) -> bool {
+    fs::metadata(path).is_ok()
 }
 
 #[cfg(test)]
@@ -145,7 +99,7 @@ mod tests {
     use std::net::IpAddr;
     use std::path::Path;
     use uuid::Uuid;
-    use crate::config::{AppConfig, AppContext};
+    use crate::config::{app_config::{AppConfig}, AppContext};
 
     #[test]
     fn should_write_to_disk() {

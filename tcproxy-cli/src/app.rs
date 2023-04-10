@@ -1,60 +1,18 @@
 use std::future::Future;
-use std::path::PathBuf;
 use std::sync::Arc;
-use directories::ProjectDirs;
 use tokio::sync::{mpsc, broadcast};
 
+use tcproxy_core::Result;
 use tracing::debug;
 
-use tcproxy_core::Result;
-use tcproxy_core::{AsyncCommand, Command};
-
-use crate::{ClientArgs};
-use crate::commands::{ListenCommand, LoginCommand};
-use crate::commands::contexts::{CreateContextCommand, DirectoryResolver, ListContextsCommand, SetDefaultContextCommand};
-use crate::{AppCommandType, ContextCommands};
-use crate::config::AppConfig;
+use crate::commands::contexts::{CreateContextCommand, ListContextsCommand};
+use crate::commands::{LoginCommand, ListenCommand};
+use crate::{ClientArgs, AppCommandType, ContextCommands, config};
+use crate::config::{directory_resolver, app_config};
 
 /// represents main app logic.
 pub struct App {
     args: Arc<ClientArgs>,
-}
-
-#[derive(Clone)]
-pub struct DefaultDirectoryResolver;
-
-impl DefaultDirectoryResolver {
-    pub fn new() -> Self {
-        Self {}
-    }
-
-    fn get_config_dir() -> Result<ProjectDirs> {
-        let project_dir = ProjectDirs::from("", "m4urici0gm", "tcproxy");
-        match project_dir {
-            Some(dir) => Ok(dir),
-            None => Err("Couldnt access config folder".into()),
-        }
-    }
-}
-
-impl DirectoryResolver for DefaultDirectoryResolver {
-    fn get_config_folder(&self) -> Result<PathBuf> {
-        let project_dir = DefaultDirectoryResolver::get_config_dir()?;
-        let config_dir = project_dir.config_dir();
-
-        if !config_dir.exists() {
-            std::fs::create_dir_all(config_dir)?;
-        }
-
-        Ok(PathBuf::from(&config_dir))
-    }
-
-    fn get_config_file(&self) -> Result<PathBuf> {
-        let mut base_path = self.get_config_folder()?;
-        base_path.push("config.yaml");
-
-        Ok(base_path)
-    }
 }
 
 impl App {
@@ -66,9 +24,8 @@ impl App {
 
     /// does initial handshake and start listening for remote connections.
     pub async fn start(&self, shutdown_signal: impl Future) -> Result<()> {
-        let directory_resolver = DefaultDirectoryResolver::new();
-        let config_path = directory_resolver.get_config_file()?;
-        let config = AppConfig::load(&config_path)?;
+        let directory_resolver = directory_resolver::load()?;
+        let config = config::x()?;
 
 
         match self.args.get_type() {
@@ -124,13 +81,13 @@ impl App {
             AppCommandType::Context(args) => {
                 let result = match args {
                     ContextCommands::Create(args) => {
-                        CreateContextCommand::new(args, DefaultDirectoryResolver).handle()
+                        CreateContextCommand::new(args, DirectoryResolver).handle()
                     }
                     ContextCommands::List => {
-                        ListContextsCommand::new(DefaultDirectoryResolver).handle()
+                        ListContextsCommand::new(DirectoryResolver).handle()
                     }
                     ContextCommands::SetDefault(args) => {
-                        SetDefaultContextCommand::new(args, DefaultDirectoryResolver).handle()
+                        SetDefaultContextCommand::new(args, DirectoryResolver).handle()
                     }
                     _ => {
                         todo!()

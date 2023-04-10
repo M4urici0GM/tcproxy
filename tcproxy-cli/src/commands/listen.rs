@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use tcproxy_core::auth::token_handler::AuthToken;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Sender};
@@ -9,19 +10,17 @@ use tcproxy_core::framing::Reason;
 use tcproxy_core::framing::{Authenticate, ClientConnected, GrantType, TokenAuthenticationArgs};
 use tcproxy_core::{transport::TcpFrameTransport, AsyncCommand, Result, TcpFrame};
 
-use crate::config::{AppConfig, AppContext};
+use crate::config::directory_resolver::DirectoryResolver;
+use crate::config::{AppContext, self, Config};
 use crate::server_addr::ServerAddr;
 use crate::{
-    ClientState, ConsoleUpdater, DefaultDirectoryResolver, ListenArgs, PingSender, Shutdown,
+    ClientState, ConsoleUpdater, ListenArgs, PingSender, Shutdown,
     TcpFrameReader, TcpFrameWriter,
 };
 
-use super::contexts::DirectoryResolver;
-
 pub struct ListenCommand {
     args: Arc<ListenArgs>,
-    app_cfg: Arc<AppConfig>,
-    dir_resolver: DefaultDirectoryResolver,
+    dir_resolver: DirectoryResolver,
     _shutdown_complete_tx: Sender<()>,
     _notify_shutdown: broadcast::Sender<()>,
 }
@@ -29,29 +28,15 @@ pub struct ListenCommand {
 impl ListenCommand {
     pub fn new(
         args: Arc<ListenArgs>,
-        config: Arc<AppConfig>,
-        dir_resolver: &DefaultDirectoryResolver,
+        dir_resolver: &DirectoryResolver,
         shutdown_complete_tx: Sender<()>,
         notify_shutdown: broadcast::Sender<()>,
     ) -> Self {
         Self {
             dir_resolver: dir_resolver.clone(),
             args: Arc::clone(&args),
-            app_cfg: Arc::clone(&config),
             _notify_shutdown: notify_shutdown,
             _shutdown_complete_tx: shutdown_complete_tx,
-        }
-    }
-
-    fn get_context(&self) -> Result<AppContext> {
-        let context_name = self
-            .args
-            .app_context()
-            .unwrap_or(self.app_cfg.default_context_str().to_string());
-
-        match self.app_cfg.get_context(&context_name) {
-            Some(ctx) => Ok(ctx),
-            None => Err(format!("context {} was not found.", context_name).into()),
         }
     }
 }
@@ -65,21 +50,16 @@ impl AsyncCommand for ListenCommand {
             tracing_subscriber::fmt::init();
         }
 
-        info!("Trying to connect...");
-
-        
-        let app_context = self.get_context()?;
-        let addr = ServerAddr::try_from(app_context)?.to_socket_addr()?;
-        let mut transport = TcpFrameTransport::connect(addr).await?;
-
-        info!("Connected to server, trying handshake...");
+        let config = config::load(&self.dir_resolver)?;
+        let app_context = get_context(&self.args, &config)?;
+        let transport = get_transport(&app_context).await?;
 
         let (console_sender, console_receiver) = mpsc::channel::<i32>(10);
         let (sender, receiver) = mpsc::channel::<TcpFrame>(10000);
         let state = Arc::new(ClientState::new(&console_sender));
     
-        do_handshake(&mut transport).await?;
-        authenticate(&self.dir_resolver, &mut transport).await?;
+        do_handshake(&mut transport).await?; 
+        authenticate(&config, &mut transport).await?;
 
         let (reader, writer) = transport.split();
         let ping_task = PingSender::new(
@@ -106,33 +86,45 @@ impl AsyncCommand for ListenCommand {
 
         info!("Connected to server, spawning required tasks...");
 
-        tokio::select! {
-            res = console_task.spawn(Shutdown::new(self._notify_shutdown.subscribe())) => {
-                debug!("console task finished. {:?}", res);
-            }
-            _ = receive_task.spawn(Shutdown::new(self._notify_shutdown.subscribe())) => {
-                debug!("receive task finished.");
-            },
-            res = forward_task.spawn(Shutdown::new(self._notify_shutdown.subscribe())) => {
-                debug!("forward to server task finished. {:?}", res);
-            },
-            _ = ping_task.spawn(Shutdown::new(self._notify_shutdown.subscribe())) => {
-                debug!("ping task finished.");
-            }
-        }
-
+        let _ = tokio::join!(
+            console_task.spawn(Shutdown::new(self._notify_shutdown.subscribe())),
+            receive_task.spawn(Shutdown::new(self._notify_shutdown.subscribe())),
+            forward_task.spawn(Shutdown::new(self._notify_shutdown.subscribe())),
+            ping_task.spawn(Shutdown::new(self._notify_shutdown.subscribe())));   
+            
         Ok(())
     }
 }
 
+async fn get_transport(app_context: &AppContext) -> Result<TcpFrameTransport> {
+    info!("Trying to connect...");
+
+    let addr = ServerAddr::try_from(app_context.clone()).unwrap().to_socket_addr()?;
+    let transport = TcpFrameTransport::connect(addr).await?;
+
+    Ok(transport)
+}
+
+fn get_context(args: &Arc<ListenArgs>, config: &Config) -> Result<AppContext> {
+    let contexts = config.lock_context_manager()?;
+    let fallback = contexts.default_context_str().to_string();
+    let context_name = args.app_context().unwrap_or(fallback);
+
+    match contexts.get_context(&context_name) {
+        Some(ctx) => Ok(ctx),
+        None => Err(format!("context {} was not found.", context_name).into()),
+    }
+}
+
+
 async fn authenticate(
-    dir_resolver: &DefaultDirectoryResolver,
+    config: &Config,
     client: &mut TcpFrameTransport,
 ) -> Result<()> {
-    let config_path = dir_resolver.get_config_file()?;
-    let mut config = AppConfig::load(&config_path)?;
+    let context_manager = config.lock_context_manager()?;
+    let auth_manager = config.lock_auth_manager()?;
 
-    let token = config.get_user_token().unwrap_or_default();
+    let token = auth_manager.current_token().clone().unwrap_or_default();
     let grant_type = GrantType::TOKEN(TokenAuthenticationArgs::new(&token));
     let authenticate_frame = TcpFrame::Authenticate(Authenticate::new(grant_type));
 
@@ -142,8 +134,9 @@ async fn authenticate(
             debug!("trying to save user token into config file..");
 
             // Stores user token into local config file
-            config.set_user_token(data.token());
-            AppConfig::save_to_file(&config, &config_path)?;
+            let token = AuthToken::from(data.token());
+            auth_manager.set_current_token(Some(token));
+
 
             Ok(())
         }
@@ -158,6 +151,8 @@ async fn authenticate(
 }
 
 async fn do_handshake(client: &mut TcpFrameTransport) -> Result<()> {
+    info!("Connected to server, trying handshake...");
+
     let frame = TcpFrame::ClientConnected(ClientConnected);
     match client.send_frame(&frame).await? {
         TcpFrame::ClientConnectedAck(_) => Ok(()),

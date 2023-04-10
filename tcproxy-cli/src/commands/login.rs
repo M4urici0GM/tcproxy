@@ -7,39 +7,24 @@ use tcproxy_core::transport::TcpFrameTransport;
 use tcproxy_core::{Result, TcpFrame};
 use tcproxy_core::AsyncCommand;
 
-use crate::config::{AppConfig, AppContext};
+use crate::config::directory_resolver::DirectoryResolver;
+use crate::config::{AppContext, Config, self};
 use crate::server_addr::ServerAddr;
-use crate::{LoginArgs, DefaultDirectoryResolver};
-
-use super::contexts::DirectoryResolver;
+use crate::{LoginArgs};
 
 pub struct LoginCommand {
     args: LoginArgs,
-    app_cfg: AppConfig,                     //   |-> reason why abstract this into a manager
-    dir_resolver: DefaultDirectoryResolver  // <-|
+    directory_resolver: DirectoryResolver,
 }
 
 impl LoginCommand {
-    pub fn new(args: &LoginArgs, cfg: &AppConfig, dir_resolver: &DefaultDirectoryResolver) -> Self {
+    pub fn new(args: &LoginArgs, directory_resolver: &DirectoryResolver) -> Self {
         Self {
             args: args.clone(),
-            app_cfg: cfg.clone(),
-            dir_resolver: dir_resolver.clone(),
+            directory_resolver: directory_resolver.clone(),
         }
     }
 
-    fn get_context(&self) -> Result<AppContext> {
-        let context_name = self
-            .args
-            .app_context()
-            .clone()
-            .unwrap_or(self.app_cfg.default_context_str().to_string());
-
-        match self.app_cfg.get_context(&context_name) {
-            Some(ctx) => Ok(ctx),
-            None => Err(format!("context {} was not found.", context_name).into()),
-        }
-    }
 }
 
 #[async_trait]
@@ -48,8 +33,7 @@ impl AsyncCommand for LoginCommand {
 
     async fn handle(&mut self) -> Self::Output {
         // TODO: abstract the config into sort of a config manager?
-        let config_path = self.dir_resolver.get_config_file()?;
-        let mut config = AppConfig::load(&config_path)?;
+        let config = config::load(&self.directory_resolver)?;
 
         // gather all required information
         let password_args = get_password_auth_args(&self.args)?;
@@ -57,7 +41,7 @@ impl AsyncCommand for LoginCommand {
         let authenticate_frame = TcpFrame::from(Authenticate::new(grant_type));
 
         // creates transport
-        let app_context = self.get_context()?;
+        let app_context = get_context(&self.args, &config)?;
         let addr = ServerAddr::try_from(app_context)?.to_socket_addr()?;
         let mut transport = TcpFrameTransport::connect(addr).await?;
 
@@ -68,7 +52,6 @@ impl AsyncCommand for LoginCommand {
 
                 // Stores user token into local config file
                 config.set_user_token(data.token());
-                AppConfig::save_to_file(&config, &config_path)?;
 
                 Ok(())
             }
@@ -80,6 +63,18 @@ impl AsyncCommand for LoginCommand {
                 Err("Error while trying to communicate with server.".into())
             }
         }
+    }
+}
+
+fn get_context(args: &LoginArgs, config: &Config) -> Result<AppContext> {
+    let contexts = config.context_manager();
+    let context_name = args.app_context()
+        .clone()
+        .unwrap_or(contexts.default_context_str().to_string());
+
+    match contexts.get_context(&context_name) {
+        Some(ctx) => Ok(ctx),
+        None => Err(format!("context {} was not found.", context_name).into()),
     }
 }
 

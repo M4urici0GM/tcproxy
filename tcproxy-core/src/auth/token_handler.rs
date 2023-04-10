@@ -1,4 +1,4 @@
-use std::io::ErrorKind;
+use std::{io::ErrorKind, str::FromStr};
 use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 
@@ -68,6 +68,7 @@ impl std::error::Error for TokenHandlerError {
     
 }
 
+#[derive(Default)]
 pub struct AuthToken(String);
 
 impl AuthToken {
@@ -79,6 +80,19 @@ impl AuthToken {
         &self.0
     }
 }
+
+impl From<String> for AuthToken {
+    fn from(value: String) -> Self {
+        Self::new(&value)
+    }
+}
+
+impl From<&str> for AuthToken {
+    fn from(value: &str) -> Self {
+        Self::new(value)
+    }
+}
+
 
 pub trait TokenHandler: Sync + Send {
     fn encode(&self, claims: &Claims) -> Result<AuthToken, TokenHandlerError>;
