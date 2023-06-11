@@ -1,6 +1,6 @@
 pub mod token_handler;
 
-use mongodb::bson::Uuid;
+use uuid::Uuid;
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize)]

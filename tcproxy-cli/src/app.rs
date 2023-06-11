@@ -2,11 +2,12 @@ use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::{mpsc, broadcast};
 
-use tcproxy_core::Result;
+use tcproxy_core::{Result, AsyncCommand, Command};
 use tracing::debug;
 
-use crate::commands::contexts::{CreateContextCommand, ListContextsCommand};
+use crate::commands::contexts::{CreateContextCommand, ListContextsCommand, SetDefaultContextCommand};
 use crate::commands::{LoginCommand, ListenCommand};
+use crate::config::directory_resolver::DirectoryResolver;
 use crate::{ClientArgs, AppCommandType, ContextCommands, config};
 use crate::config::{directory_resolver, app_config};
 
@@ -25,12 +26,12 @@ impl App {
     /// does initial handshake and start listening for remote connections.
     pub async fn start(&self, shutdown_signal: impl Future) -> Result<()> {
         let directory_resolver = directory_resolver::load()?;
-        let config = config::x()?;
+        let config = config::load(&directory_resolver)?;
 
 
         match self.args.get_type() {
             AppCommandType::Login(args) => {
-                let mut command = LoginCommand::new(args, &config, &directory_resolver);
+                let mut command = LoginCommand::new(args, &config);
                 match command.handle().await {
                     Ok(_) => {
                         println!("authenticated successfully");
@@ -51,7 +52,6 @@ impl App {
                 let mut command = ListenCommand::new(
                     Arc::new(args.clone()),
                     Arc::new(config.clone()),
-                    &directory_resolver,
                     shutdown_complete_tx,
                     notify_shutdown,
                 );
@@ -81,13 +81,13 @@ impl App {
             AppCommandType::Context(args) => {
                 let result = match args {
                     ContextCommands::Create(args) => {
-                        CreateContextCommand::new(args, DirectoryResolver).handle()
+                        CreateContextCommand::new(args, &config).handle()
                     }
                     ContextCommands::List => {
-                        ListContextsCommand::new(DirectoryResolver).handle()
+                        ListContextsCommand::new(&config).handle()
                     }
                     ContextCommands::SetDefault(args) => {
-                        SetDefaultContextCommand::new(args, DirectoryResolver).handle()
+                        SetDefaultContextCommand::new(args, &config).handle()
                     }
                     _ => {
                         todo!()

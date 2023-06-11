@@ -1,6 +1,5 @@
 
 use clap::Parser;
-use mongodb::Client;
 use tokio::signal;
 use tracing::{info, error};
 
@@ -25,12 +24,11 @@ async fn main() -> Result<()> {
         }
     };
 
-    let db_client = Client::with_uri_str(config.get_connection_string()).await?;
     let socket_addr = config.get_socket_addr();
     let feature_manager = DefaultFeatureManager::new(config);
     let listener = TcpListener::bind(socket_addr).await?;
 
-    Server::new(feature_manager, listener, db_client)
+    Server::new(feature_manager, listener)
         .run(signal::ctrl_c())
         .await?;
 

@@ -1,7 +1,6 @@
 use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use mongodb::{Client, Database};
 use tcproxy_core::Result;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
@@ -12,27 +11,22 @@ use crate::managers::{UserManager, AuthenticationManager, AuthenticationManagerG
 
 use crate::proxy::ClientConnection;
 
-/// Represents the server application
+/// Represents the ser ver application
 pub struct Server {
     feature_manager: Arc<IFeatureManager>,
     server_listener: ISocketListener,
-    db_client: Arc<Client>,
-    database: Arc<Database>,
+
 }
 
 impl Server {
-    pub fn new<TListener, TFeatureManager>(feature_manager: TFeatureManager, listener: TListener, db_client: Client) -> Self
+    pub fn new<TListener, TFeatureManager>(feature_manager: TFeatureManager, listener: TListener) -> Self
     where
         TListener: SocketListener + 'static,
         TFeatureManager: FeatureManager + 'static
     {
-        let db = db_client.database("tcproxy");
-        info!("using {} as default database", db.name());
         Self {
             feature_manager: Arc::new(Box::new(feature_manager)),
             server_listener: Box::new(listener),
-            db_client: Arc::new(db_client),
-            database: Arc::new(db),
         }
     }
 
@@ -75,7 +69,7 @@ impl Server {
         let server_config = self.feature_manager.get_config();
         let auth_manager = AuthenticationManager::new();
         let port_manager = PortManager::new(server_config.get_port_range());
-        let account_manager: Arc<Box<dyn UserManager + 'static>> = Arc::new(Box::new(DefaultAccountManager::new(&self.database)));
+        let account_manager: Arc<Box<dyn UserManager + 'static>> = Arc::new(Box::new(DefaultAccountManager::new()));
 
         let port_guard = Arc::new(PortManagerGuard::new(port_manager));
         let auth_guard = Arc::new(AuthenticationManagerGuard::new(auth_manager));

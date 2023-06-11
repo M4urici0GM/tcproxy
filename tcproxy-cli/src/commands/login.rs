@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use tcproxy_core::auth::token_handler::AuthToken;
 use std::io::{stdout, Write};
 use tracing::debug;
 
@@ -7,21 +8,20 @@ use tcproxy_core::transport::TcpFrameTransport;
 use tcproxy_core::{Result, TcpFrame};
 use tcproxy_core::AsyncCommand;
 
-use crate::config::directory_resolver::DirectoryResolver;
 use crate::config::{AppContext, Config, self};
 use crate::server_addr::ServerAddr;
-use crate::{LoginArgs};
+use crate::LoginArgs;
 
 pub struct LoginCommand {
     args: LoginArgs,
-    directory_resolver: DirectoryResolver,
+    config: Config,
 }
 
 impl LoginCommand {
-    pub fn new(args: &LoginArgs, directory_resolver: &DirectoryResolver) -> Self {
+    pub fn new(args: &LoginArgs, config: &Config) -> Self {
         Self {
             args: args.clone(),
-            directory_resolver: directory_resolver.clone(),
+            config: config.clone()
         }
     }
 
@@ -32,16 +32,13 @@ impl AsyncCommand for LoginCommand {
     type Output = Result<()>;
 
     async fn handle(&mut self) -> Self::Output {
-        // TODO: abstract the config into sort of a config manager?
-        let config = config::load(&self.directory_resolver)?;
-
         // gather all required information
         let password_args = get_password_auth_args(&self.args)?;
         let grant_type = GrantType::from(password_args);
         let authenticate_frame = TcpFrame::from(Authenticate::new(grant_type));
 
         // creates transport
-        let app_context = get_context(&self.args, &config)?;
+        let app_context = get_context(&self.args, &self.config).await?;
         let addr = ServerAddr::try_from(app_context)?.to_socket_addr()?;
         let mut transport = TcpFrameTransport::connect(addr).await?;
 
@@ -51,7 +48,8 @@ impl AsyncCommand for LoginCommand {
                 debug!("trying to save user token into config file..");
 
                 // Stores user token into local config file
-                config.set_user_token(data.token());
+                let mut auth_manager = self.config.lock_auth_manager()?;
+                auth_manager.set_current_token(Some(AuthToken::from(data.token())));
 
                 Ok(())
             }
@@ -66,8 +64,8 @@ impl AsyncCommand for LoginCommand {
     }
 }
 
-fn get_context(args: &LoginArgs, config: &Config) -> Result<AppContext> {
-    let contexts = config.context_manager();
+async fn get_context(args: &LoginArgs, config: &Config) -> Result<AppContext> {
+    let contexts = config.lock_context_manager()?;
     let context_name = args.app_context()
         .clone()
         .unwrap_or(contexts.default_context_str().to_string());

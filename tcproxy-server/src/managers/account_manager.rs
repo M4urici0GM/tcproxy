@@ -1,19 +1,21 @@
-use std::sync::Arc;
 use async_trait::async_trait;
 use mockall::automock;
-use mongodb::{Collection, Database};
-use mongodb::bson::{doc, Uuid};
-use mongodb::error::Error;
 use tcproxy_core::auth::User;
+use uuid::Uuid;
 
 pub enum AccountManagerError {
     NotFound,
-    Other(tcproxy_core::Error)
+    Other(tcproxy_core::Error),
 }
 
-impl From<mongodb::error::Error> for AccountManagerError {
-    fn from(value: Error) -> Self {
-        Self::Other(value.into())
+pub struct DatabaseManager {
+} 
+
+impl DatabaseManager {
+    pub fn new() -> Self {
+        Self {
+
+        }
     }
 }
 
@@ -25,13 +27,11 @@ pub trait UserManager: Sync + Send {
 }
 
 pub struct DefaultAccountManager {
-    collection: Collection<User>,
 }
 
 impl DefaultAccountManager {
-    pub fn new(database: &Arc<Database>) -> Self {
+    pub fn new() -> Self {
         Self {
-            collection: database.collection("users"),
         }
     }
 }
@@ -39,34 +39,23 @@ impl DefaultAccountManager {
 #[async_trait]
 impl UserManager for DefaultAccountManager {
     async fn find_account_by_id(&self, account_id: &Uuid) -> Result<User, AccountManagerError> {
-        let query = doc!{ "_id": account_id };
-        let maybe_user = self.collection
-            .find_one(query, None)
-            .await?;
-
+        let maybe_user = None;
         let user_details = match maybe_user {
             Some(user) => user,
-            None => {
-                return Err(AccountManagerError::NotFound)
-            }
+            None => return Err(AccountManagerError::NotFound),
         };
 
         Ok(user_details)
     }
 
     async fn find_user_by_email(&self, email: &str) -> Result<User, AccountManagerError> {
-        let query = doc!{ "email": email };
-        let maybe_user = self.collection
-            .find_one(query, None)
-            .await?;
-
+        let maybe_user = None;
         let user_details = match maybe_user {
             Some(user) => user,
-            None => {
-                return Err(AccountManagerError::NotFound)
-            }
+            None => return Err(AccountManagerError::NotFound),
         };
 
         Ok(user_details)
     }
 }
+

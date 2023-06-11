@@ -43,6 +43,10 @@ impl AppConfig {
     pub fn default_context(&self) -> &str {
         &self.default_context
     }
+
+    pub fn set_default_context(&mut self, ctx: &str) {
+        self.default_context = String::from(ctx);
+    }
 }
 
 pub fn load(resolver: &DirectoryResolver) -> Result<AppConfig> {
@@ -86,9 +90,6 @@ fn create_default(path: &Path) -> Result<()> {
 
 fn read_from_file(path: &Path) -> Result<AppConfig> {
     let file = OpenOptions::new().read(true).open(path)?;
-    if file.metadata().is_err() {
-        create_default(path)?;
-    }
 
     let contents = serde_yaml::from_reader::<File, AppConfig>(file)?;
     Ok(contents)
@@ -100,7 +101,6 @@ fn exists(path: &Path) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::app_config::{read_from_file, save_to_file};
     use crate::config::{app_config::AppConfig, AppContext};
     use std::fs;
     use std::net::IpAddr;
@@ -116,10 +116,12 @@ mod tests {
         let mut config = AppConfig::default();
         let context = AppContext::new("context1", &host, &port);
 
-        // Act
-        save_to_file(&config, file_path).unwrap();
+        config.set_default_context(&context);
 
-        let created_config = read_from_file(file_path).unwrap();
+        // Act
+        AppConfig::save_to_file(&config, file_path).unwrap();
+
+        let created_config = AppConfig::load(file_path).unwrap();
 
         // Assert
         assert_eq!(created_config, config);
@@ -132,9 +134,40 @@ mod tests {
         let path = format!("~/{}.test", Uuid::new_v4());
         let file_path = Path::new(&path);
         let config = AppConfig::default();
-        let result = save_to_file(&config, file_path);
+        let result = AppConfig::save_to_file(&config, file_path);
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn push_context_should_return_err_if_ctx_exists() {
+        let mut config = AppConfig::default();
+        let (host, port) = create_socket_addr();
+        let context = AppContext::new("contex1", &host, &port);
+
+        config.push_context(&context).unwrap();
+
+        // Act
+        let result = config.push_context(&context);
+
+        // Assert
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn set_default_context_should_push_if_not_existent() {
+        let mut config = AppConfig::default();
+        let (host, port) = create_socket_addr();
+
+        let context = AppContext::new("context1", &host, &port);
+
+        // Act
+        config.set_default_context(&context);
+
+        // Assert
+        assert_eq!(config.default_context_str(), context.name());
+        assert_eq!(config.contexts().len(), 1);
+        assert_eq!(config.contexts().get("context1").unwrap(), &context);
     }
 
     #[test]
@@ -145,13 +178,46 @@ mod tests {
         let file_path = Path::new(&path);
 
         // Act
-        let read_config = read_from_file(file_path).unwrap();
+        let read_config = AppConfig::load(file_path).unwrap();
 
         // Assert
-        assert_eq!(config.default_context(), read_config.default_context());
+        assert_eq!(
+            config.default_context_str(),
+            read_config.default_context_str()
+        );
         assert_eq!(&config.contexts(), &read_config.contexts());
 
         remove_file(file_path);
+    }
+
+    #[test]
+    pub fn ctx_exists_should_return_true() {
+        // Arrange
+        let mut default_config = AppConfig::default();
+
+        let (host, port) = create_socket_addr();
+        let context = AppContext::new("test-context", &host, &port);
+
+        default_config.push_context(&context).unwrap();
+
+        // Assert
+        assert!(default_config.ctx_exists(&context));
+    }
+
+    #[test]
+    pub fn setting_first_context_should_set_default_context() {
+        // Arrange
+        let mut default_config = AppConfig::default();
+        let (host, port) = create_socket_addr();
+
+        let context = AppContext::new("test-context", &host, &port);
+        let context2 = AppContext::new("test-context2", &host, &port);
+
+        default_config.push_context(&context).unwrap();
+
+        // Assert
+        assert_eq!(default_config.default_context_str(), context.name());
+        assert_ne!(default_config.default_context_str(), context2.name());
     }
 
     #[test]
@@ -162,7 +228,7 @@ mod tests {
         let file_path = Path::new(&path);
 
         // Act
-        let read_config = read_from_file(file_path);
+        let read_config = AppConfig::load(file_path);
 
         println!("{:?}", read_config);
 
@@ -171,7 +237,7 @@ mod tests {
 
         let read_config = read_config.unwrap();
         assert!(read_config.contexts().is_empty());
-        assert_eq!(read_config.default_context(), String::default());
+        assert_eq!(read_config.default_context_str(), String::default());
 
         remove_file(file_path);
     }

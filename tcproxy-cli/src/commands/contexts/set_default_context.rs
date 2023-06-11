@@ -1,5 +1,5 @@
 use tcproxy_core::Command;
-use crate::config::{AppContextError, self, Config, AppContext};
+use crate::config::{AppContextError, Config, AppContext};
 use crate::SetDefaultContextArgs;
 
 pub struct SetDefaultContextCommand {
@@ -21,7 +21,6 @@ impl Command for SetDefaultContextCommand {
 
     fn handle(&mut self) -> Self::Output {
         let context = set_default_context(&self.config, self.args.name())?;
-        self.config.save_to_disk()?;
 
         println!("successfully set {} as default context", context);
 

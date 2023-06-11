@@ -1,26 +1,24 @@
 use async_trait::async_trait;
-use tcproxy_core::auth::token_handler::AuthToken;
 use std::sync::Arc;
+use tcproxy_core::auth::token_handler::AuthToken;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Sender};
 
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 use tcproxy_core::framing::Reason;
 use tcproxy_core::framing::{Authenticate, ClientConnected, GrantType, TokenAuthenticationArgs};
 use tcproxy_core::{transport::TcpFrameTransport, AsyncCommand, Result, TcpFrame};
 
-use crate::config::directory_resolver::DirectoryResolver;
-use crate::config::{AppContext, self, Config};
+use crate::config::{self, AppContext, Config};
 use crate::server_addr::ServerAddr;
 use crate::{
-    ClientState, ConsoleUpdater, ListenArgs, PingSender, Shutdown,
-    TcpFrameReader, TcpFrameWriter,
+    ClientState, ConsoleUpdater, ListenArgs, PingSender, Shutdown, TcpFrameReader, TcpFrameWriter,
 };
 
 pub struct ListenCommand {
     args: Arc<ListenArgs>,
-    dir_resolver: DirectoryResolver,
+    config: Arc<Config>,
     _shutdown_complete_tx: Sender<()>,
     _notify_shutdown: broadcast::Sender<()>,
 }
@@ -28,12 +26,12 @@ pub struct ListenCommand {
 impl ListenCommand {
     pub fn new(
         args: Arc<ListenArgs>,
-        dir_resolver: &DirectoryResolver,
+        config: Arc<Config>,
         shutdown_complete_tx: Sender<()>,
         notify_shutdown: broadcast::Sender<()>,
     ) -> Self {
         Self {
-            dir_resolver: dir_resolver.clone(),
+            config: config.clone(),
             args: Arc::clone(&args),
             _notify_shutdown: notify_shutdown,
             _shutdown_complete_tx: shutdown_complete_tx,
@@ -50,16 +48,16 @@ impl AsyncCommand for ListenCommand {
             tracing_subscriber::fmt::init();
         }
 
-        let config = config::load(&self.dir_resolver)?;
-        let app_context = get_context(&self.args, &config)?;
-        let transport = get_transport(&app_context).await?;
+        let app_context = get_context(&self.args, &self.config)?;
+        let mut transport = get_transport(&app_context).await?;
 
         let (console_sender, console_receiver) = mpsc::channel::<i32>(10);
         let (sender, receiver) = mpsc::channel::<TcpFrame>(10000);
         let state = Arc::new(ClientState::new(&console_sender));
-    
-        do_handshake(&mut transport).await?; 
-        authenticate(&config, &mut transport).await?;
+
+        let token = get_token(&self.config)?;
+        do_handshake(&mut transport).await?;
+        authenticate(&self.config, &token, &mut transport).await?;
 
         let (reader, writer) = transport.split();
         let ping_task = PingSender::new(
@@ -90,23 +88,48 @@ impl AsyncCommand for ListenCommand {
             console_task.spawn(Shutdown::new(self._notify_shutdown.subscribe())),
             receive_task.spawn(Shutdown::new(self._notify_shutdown.subscribe())),
             forward_task.spawn(Shutdown::new(self._notify_shutdown.subscribe())),
-            ping_task.spawn(Shutdown::new(self._notify_shutdown.subscribe())));   
-            
+            ping_task.spawn(Shutdown::new(self._notify_shutdown.subscribe()))
+        );
+
         Ok(())
     }
+}
+
+fn get_token(config: &Arc<Config>) -> Result<String>  {
+    let auth_manager = match config.lock_auth_manager() {
+        Ok(lock) => lock,
+        Err(err) => {
+            error!("error when trying to lock context_manager: {}", err);
+            return Err(err.into());
+        }
+    };
+
+    let token = auth_manager.current_token()
+        .clone()
+        .unwrap_or(String::default()); 
+
+    Ok(token.to_owned())
 }
 
 async fn get_transport(app_context: &AppContext) -> Result<TcpFrameTransport> {
     info!("Trying to connect...");
 
-    let addr = ServerAddr::try_from(app_context.clone()).unwrap().to_socket_addr()?;
+    let addr = ServerAddr::try_from(app_context.clone())
+        .unwrap()
+        .to_socket_addr()?;
     let transport = TcpFrameTransport::connect(addr).await?;
 
     Ok(transport)
 }
 
-fn get_context(args: &Arc<ListenArgs>, config: &Config) -> Result<AppContext> {
-    let contexts = config.lock_context_manager()?;
+fn get_context(args: &Arc<ListenArgs>, config: &Arc<Config>) -> Result<AppContext> {
+    let contexts = match config.lock_context_manager() {
+        Ok(lock) => lock,
+        Err(err) => {
+            error!("error when trying to lock context_manager");
+            return Err("".into());
+        }
+    };
     let fallback = contexts.default_context_str().to_string();
     let context_name = args.app_context().unwrap_or(fallback);
 
@@ -116,27 +139,19 @@ fn get_context(args: &Arc<ListenArgs>, config: &Config) -> Result<AppContext> {
     }
 }
 
-
-async fn authenticate(
-    config: &Config,
-    client: &mut TcpFrameTransport,
-) -> Result<()> {
-    let context_manager = config.lock_context_manager()?;
-    let auth_manager = config.lock_auth_manager()?;
-
-    let token = auth_manager.current_token().clone().unwrap_or_default();
-    let grant_type = GrantType::TOKEN(TokenAuthenticationArgs::new(&token));
+async fn authenticate(config: &Arc<Config>, token: &str, client: &mut TcpFrameTransport) -> Result<()> {
+    let grant_type = GrantType::TOKEN(TokenAuthenticationArgs::new(token));
     let authenticate_frame = TcpFrame::Authenticate(Authenticate::new(grant_type));
 
     match client.send_frame(&authenticate_frame).await? {
         TcpFrame::AuthenticateAck(data) => {
             debug!("authenticated successfully");
             debug!("trying to save user token into config file..");
+            let mut auth_manager = config.lock_auth_manager()?;
 
             // Stores user token into local config file
             let token = AuthToken::from(data.token());
             auth_manager.set_current_token(Some(token));
-
 
             Ok(())
         }

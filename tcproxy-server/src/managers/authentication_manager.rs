@@ -80,15 +80,15 @@ impl AuthenticationManager {
 
 #[cfg(test)]
 pub mod tests {
-    use mongodb::bson::Uuid;
     use tcproxy_core::auth::User;
+    use uuid::Uuid;
     use crate::managers::AuthenticationManager;
 
     #[test]
     pub fn should_set_authentication_correctly() {
         // Arrange
         let user_details = User::new(
-            &Uuid::new(),
+            &Uuid::new_v4(),
             "some name",
             "some@email.com",
             "someStrongPassword");
@@ -114,7 +114,7 @@ pub mod tests {
     pub fn should_revoke_authentication_correctly() {
         // Arrange
        let user_details = User::new(
-            &Uuid::new(),
+            &Uuid::new_v4(),
             "some name",
             "some@email.com",
             "someStrongPassword");

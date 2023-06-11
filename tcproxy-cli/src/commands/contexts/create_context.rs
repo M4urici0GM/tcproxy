@@ -1,15 +1,23 @@
-use tcproxy_core::{Command};
-use crate::config::{AppContext, AppContextError, Config};
-use crate::CreateContextArgs;
+use crate::config::{self, AppContext, AppContextError, Config};
 use crate::server_addr::ServerAddrType;
+use crate::CreateContextArgs;
+use tcproxy_core::Command;
 
 pub struct CreateContextCommand {
     args: CreateContextArgs,
-    config: Config
+    config: Config,
 }
 
-impl Command for CreateContextCommand
-{
+impl CreateContextCommand {
+    pub fn new(args: &CreateContextArgs, config: &Config) -> Self {
+        Self {
+            args: args.clone(),
+            config: config.clone(),
+        }
+    }
+}
+
+impl Command for CreateContextCommand {
     type Output = Result<(), AppContextError>;
 
     fn handle(&mut self) -> Self::Output {
@@ -19,35 +27,27 @@ impl Command for CreateContextCommand
         // temporary! need to implement a dns resolver
         // TODO: implement dns resolving module.
         if context_addr.addr_type() != ServerAddrType::IpAddr {
-            return Err(AppContextError::ValidationError("Cannot accept DNS hosts.".to_string()))
+            return Err(AppContextError::ValidationError(
+                "Cannot accept DNS hosts.".to_string(),
+            ));
         }
 
         push_context(&self.config, &context)?;
-        self.config.save_to_disk()?;
-    
+
         println!("created context {}", self.args.name());
         Ok(())
     }
 }
 
-async fn push_context(config: &Config, context: &AppContext) -> tcproxy_core::Result<()> {
-    let mut context_manager = config.lock_context_manager().await?;
+fn push_context(config: &Config, context: &AppContext) -> tcproxy_core::Result<()> {
+    let mut context_manager = config.lock_context_manager()?;
     context_manager.push_context(&context)?;
+
     Ok(())
 }
 
-
 #[cfg(test)]
 mod tests {
-    use std::fs;
-    use std::path::Path;
-    use uuid::Uuid;
-    use tcproxy_core::{Command, is_type};
-    use crate::commands::contexts::*;
-    use crate::config::AppContextError;
-    use crate::CreateContextArgs;
-    use crate::server_addr::ServerAddr;
-
     // #[test]
     // fn should_return_err_when_host_is_not_ip() {
     //     let mut dir_resolver = MockDirectoryResolver::new();
@@ -137,3 +137,4 @@ mod tests {
     //     std::fs::remove_file(path).unwrap();
     // }
 }
+

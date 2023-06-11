@@ -10,9 +10,7 @@ pub use app_context::*;
 pub use app_config_error::AppConfigError;
 pub use app_context_error::AppContextError;
 
-use std::sync::Arc;
-use tokio::sync::{Mutex, MutexGuard};
-use tracing::error;
+use std::sync::{Arc, MutexGuard, Mutex};
 
 use crate::config::app_config::AppConfig;
 use self::{directory_resolver::DirectoryResolver, context_manager::ContextManager};
@@ -42,7 +40,7 @@ impl AuthManager {
         &self.current_token
     }
 
-    pub fn set_current_token(&self, value: Option<AuthToken>) {
+    pub fn set_current_token(&mut self, value: Option<AuthToken>) {
         self.current_token = match value {
             Some(t) => Some(t.get().to_string()),
             None => None,
@@ -59,24 +57,24 @@ impl Config {
         }
     }
 
-    pub async fn lock_context_manager(&self) -> Result<MutexGuard<'_, ContextManager>> {
-        Ok(self.contexts.lock().await)
+    pub fn lock_context_manager(&self) -> Result<MutexGuard<'_, ContextManager>> {
+        Ok(self.contexts.lock().unwrap()) // TODO: fix me
     }
 
-    pub async fn lock_auth_manager(&self) -> Result<MutexGuard<'_, AuthManager>> {
-        Ok(self.auth.lock().await)
+    pub fn lock_auth_manager(&self) -> Result<MutexGuard<'_, AuthManager>> {
+        Ok(self.auth.lock().unwrap()) // TODO: fix me
     }
 
     pub async fn save_to_disk(&self) -> Result<()> {
-        save_to_disk(self, &self.directory_resolver).await?;
+        save_to_disk(self, &self.directory_resolver)?;
         todo!()
     }
 }
 
-pub async fn save_to_disk(config: &Config, directory_resolver: &DirectoryResolver) -> Result<()> {
+pub fn save_to_disk(config: &Config, directory_resolver: &DirectoryResolver) -> Result<()> {
     let path = directory_resolver.get_config_file();
-    let context_manager = config.lock_context_manager().await?;
-    let auth_manager = config.lock_auth_manager().await?;
+    let context_manager = config.lock_context_manager()?;
+    let auth_manager = config.lock_auth_manager()?;
 
     let app_config = AppConfig::new(
         context_manager.contexts_arr(),

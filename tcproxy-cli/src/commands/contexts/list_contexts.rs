@@ -1,13 +1,13 @@
 use tcproxy_core::Command;
 
-use crate::config::{AppContextError, directory_resolver::DirectoryResolver, Config};
+use crate::config::{AppContextError, Config};
 
 pub struct ListContextsCommand {
     config: Config
 }
 
 impl ListContextsCommand {
-    pub fn new<T>(config: Config) -> Self {
+    pub fn new(config: &Config) -> Self {
         Self {
             config: config.clone(),
         }

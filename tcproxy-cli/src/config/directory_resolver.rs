@@ -31,7 +31,9 @@ impl DirectoryResolver {
 }
 
 pub fn load() -> Result<DirectoryResolver> {
-    let config_dir = get_config_dir()?.config_dir();
+    let project_dir = get_config_dir()?;
+    let config_dir = project_dir.config_dir();
+
     if !config_dir.exists() {
         std::fs::create_dir_all(config_dir)?;
     }

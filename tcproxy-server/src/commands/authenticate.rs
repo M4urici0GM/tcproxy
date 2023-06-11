@@ -1,9 +1,10 @@
+use std::str::FromStr;
 use std::sync::Arc;
 use async_trait::async_trait;
 use bcrypt::verify;
 use chrono::{Utc, Duration};
-use mongodb::bson::Uuid;
 use tcproxy_core::auth::User;
+use uuid::Uuid;
 use tokio::sync::mpsc::Sender;
 use tracing::error;
 
@@ -56,11 +57,6 @@ impl From<bcrypt::BcryptError> for AuthenticateCommandError {
     }
 }
 
-impl From<mongodb::bson::uuid::Error> for AuthenticateCommandError {
-    fn from(value: mongodb::bson::uuid::Error) -> Self {
-        Self::Other(value.into())
-    }
-}
 
 /// Represents the event when client first connects to the server.
 /// (Client) sends ClientConnected   ---> [Server]
@@ -218,7 +214,7 @@ async fn authenticate_with_token(
         }
     };
 
-    let account_id = Uuid::parse_str(token_details.sub())?;
+    let account_id = Uuid::from_str(token_details.sub()).unwrap(); // TODO: fix me
     let user_details = manager.find_account_by_id(&account_id).await?;
     
     Ok(user_details)
