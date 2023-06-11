@@ -13,8 +13,12 @@ impl TcpStream {
     pub fn new(inner: TokioTcpStream, addr: SocketAddr) -> Self {
         Self { inner, addr }
     }
-}
 
+    pub async fn connect(addr: SocketAddr) -> std::io::Result<Self> {
+        let stream = TokioTcpStream::connect(addr).await?;
+        Ok(Self::new(stream, addr))
+    }
+}
 
 impl SocketConnection for TcpStream {
     fn split(

@@ -1,7 +1,10 @@
+use std::net::{SocketAddr, IpAddr, AddrParseError};
 use std::{str::FromStr, fmt::Display, num::ParseIntError};
 use std::error::Error;
 use fancy_regex::Regex;
 use lazy_static::lazy_static;
+
+use crate::config::AppContext;
 
 lazy_static! {
     static ref IP_REGEX: Regex = Regex::new(r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$").unwrap();
@@ -26,6 +29,14 @@ pub struct ServerAddr {
     host: String,
     port: u16,
     addr_type: ServerAddrType,
+}
+
+impl TryFrom<AppContext> for ServerAddr {
+    type Error = ServerAddrError;
+
+    fn try_from(value: AppContext) -> Result<Self, Self::Error> {
+        Self::new(value.host(), value.port())
+    }
 }
 
 // Used to represent a ServerAddr
@@ -65,6 +76,13 @@ impl ServerAddr {
     pub fn addr_type(&self) -> ServerAddrType {
         self.addr_type
     }
+
+    pub fn to_socket_addr(&self) -> Result<SocketAddr, ServerAddrError> {
+        let ip = IpAddr::from_str(&self.host)?;
+        let addr = SocketAddr::new(ip, self.port);
+        
+        Ok(addr)
+    }
 }
 
 impl FromStr for ServerAddr {
@@ -87,6 +105,12 @@ impl FromStr for ServerAddr {
 
 impl Error for ServerAddrError {
     
+}
+
+impl From<AddrParseError> for ServerAddrError {
+    fn from(_: AddrParseError) -> Self {
+        Self::InvalidHost
+    }
 }
 
 impl From<ParseIntError> for ServerAddrError {

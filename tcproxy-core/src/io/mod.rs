@@ -13,6 +13,16 @@ fn check_cursor_size<T>(src: &mut Cursor<&[u8]>) -> Result<(), FrameDecodeError>
     Ok(())
 }
 
+pub fn get_u32_string(src: &mut Cursor<&[u8]>) -> Result<String, FrameDecodeError> {
+    let string_size = get_u32(src)?;
+    if 0 == string_size {
+        return Ok(String::default());
+    }
+    
+    let buffer = get_buffer(src, string_size)?;
+    Ok(String::from_utf8(buffer)?)
+}
+
 pub fn get_buffer(src: &mut Cursor<&[u8]>, buffer_size: u32) -> Result<Vec<u8>, FrameDecodeError> {
     let mut buffer = vec![0; buffer_size as usize];
     src.read_exact(&mut buffer).map_err(|_| FrameDecodeError::Incomplete)?;

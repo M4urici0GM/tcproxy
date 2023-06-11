@@ -1,26 +1,52 @@
 use std::sync::Arc;
 
-use crate::managers::{ConnectionsManager, IFeatureManager, PortManager};
+use crate::managers::{UserManager, AuthenticationManagerGuard, ConnectionsManager, PortManagerGuard};
+use crate::ServerConfig;
 
 pub struct ClientState {
-    port_manager: Arc<PortManager>,
+    is_authenticated: bool,
+    server_config: Arc<ServerConfig>,
+    port_manager: Arc<PortManagerGuard>,
+    auth_manager: Arc<AuthenticationManagerGuard>,
+    accounts_manager: Arc<Box<dyn UserManager + 'static>>,
     connection_manager: Arc<ConnectionsManager>,
 }
 
 impl ClientState {
-    pub fn new(feature_manager: &Arc<IFeatureManager>) -> Arc<Self> {
-        let server_config = feature_manager.get_config();
+    pub fn new(
+        port_manager: Arc<PortManagerGuard>,
+        auth_manager: Arc<AuthenticationManagerGuard>,
+        server_config: &Arc<ServerConfig>,
+        account_manager: &Arc<Box<dyn UserManager + 'static>>,
+    ) -> Arc<Self>
+    {
         Arc::new(Self {
+            auth_manager,
+            port_manager,
+            is_authenticated: false,
+            server_config: server_config.clone(),
+            accounts_manager: account_manager.clone(),
             connection_manager: Arc::new(ConnectionsManager::new()),
-            port_manager: Arc::new(PortManager::new(server_config.get_port_range())),
         })
     }
 
-    pub fn get_port_manager(&self) -> &Arc<PortManager> {
+    pub fn get_port_manager(&self) -> &Arc<PortManagerGuard> {
         &self.port_manager
     }
 
     pub fn get_connection_manager(&self) -> &Arc<ConnectionsManager> {
         &self.connection_manager
+    }
+
+    pub fn get_accounts_manager(&self) -> &Arc<Box<dyn UserManager + 'static>> {
+        &self.accounts_manager
+    }
+
+    pub fn get_server_config(&self) -> &Arc<ServerConfig> {
+        &self.server_config
+    }
+
+    pub fn get_auth_manager(&self) -> &Arc<AuthenticationManagerGuard> {
+        &self.auth_manager
     }
 }

@@ -1,15 +1,15 @@
 use tcproxy_core::Command;
-use crate::commands::contexts::DirectoryResolver;
-use crate::config::{AppConfig, AppContextError};
+
+use crate::config::{AppContextError, Config};
 
 pub struct ListContextsCommand {
-    dir_resolver: Box<dyn DirectoryResolver + 'static>
+    config: Config
 }
 
 impl ListContextsCommand {
-    pub fn new<T>(dir_resolver: T) -> Self where T : DirectoryResolver + 'static {
+    pub fn new(config: &Config) -> Self {
         Self {
-            dir_resolver: Box::new(dir_resolver)
+            config: config.clone(),
         }
     }
 }
@@ -18,14 +18,13 @@ impl Command for ListContextsCommand {
     type Output = Result<(), AppContextError>;
 
     fn handle(&mut self) -> Self::Output {
-        let config_path = self.dir_resolver.get_config_file()?;
-        let config = AppConfig::load(&config_path)?;
+        let context_manager = self.config.lock_context_manager()?;
 
         // TODO: how to test terminal output? 🤔
-        let (biggest_name, contexts) = config.contexts()
+        let (biggest_name, contexts) = context_manager.contexts()
             .iter()
             .fold((0, vec![]), |(acc, mut lines), (ctx_name, ctx)| {
-                let ctx_name = match ctx_name == config.default_context() {
+                let ctx_name = match ctx_name == context_manager.default_context_str() {
                     true => format!("{} (default)", ctx_name),
                     false => ctx_name.to_owned(),
                 };

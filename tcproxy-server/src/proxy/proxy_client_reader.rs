@@ -9,20 +9,17 @@ use crate::proxy::FrameHandler;
 
 /// Responsible for reading commands / frames from client and processing them.
 pub struct ClientFrameReader {
-    frame_tx: Sender<TcpFrame>,
-    reader: Box<dyn TransportReader>,
+    reader: TransportReader,
     frame_handler: Box<dyn FrameHandler>,
 }
 
 impl ClientFrameReader {
-    pub fn new<T, V>(sender: &Sender<TcpFrame>, reader: V, frame_handler: T) -> Self
+    pub fn new<T>(reader: TransportReader, frame_handler: T) -> Self
     where
-        T: FrameHandler + 'static,
-        V: TransportReader + 'static,
+        T: FrameHandler + 'static
     {
         Self {
-            reader: Box::new(reader),
-            frame_tx: sender.clone(),
+            reader,
             frame_handler: Box::new(frame_handler),
         }
     }
@@ -47,13 +44,10 @@ impl ClientFrameReader {
             };
 
             debug!("received new frame from client {}", frame);
-            if let Some(frame_result) = self
+            self
                 .frame_handler
                 .handle(frame, cancellation_token.child_token())
-                .await?
-            {
-                self.frame_tx.send(frame_result).await?
-            }
+                .await?;
         }
 
         Ok(())

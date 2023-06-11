@@ -4,10 +4,10 @@ use chrono::{DateTime, Utc};
 use crate::{Frame, FrameDecodeError};
 use crate::framing::frame_types::PING;
 use crate::framing::utils::{assert_connection_type, parse_naive_date_time};
-use crate::io::{get_i64, get_u8};
+use crate::io::{get_i64, get_u16};
 
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Ping {
     timestamp: DateTime<Utc>
 }
@@ -26,7 +26,7 @@ impl Ping {
 
 impl Frame for Ping {
     fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Ping, FrameDecodeError> where Self: Sized {
-        assert_connection_type(&get_u8(buffer)?, &PING)?;
+        assert_connection_type(&get_u16(buffer)?, &PING)?;
 
         let timestamp_millis = get_i64(buffer)?;
         let naive_datetime = parse_naive_date_time(&timestamp_millis)?;
@@ -39,7 +39,7 @@ impl Frame for Ping {
     fn encode(&self) -> Vec<u8> {
         let mut buffer = Vec::new();
 
-        buffer.put_u8(PING);
+        buffer.put_u16(PING);
         buffer.put_i64(self.timestamp.timestamp_millis());
 
         buffer
@@ -62,7 +62,7 @@ mod tests {
         let timestamp = Utc::now();
         let mut buffer = Vec::new();
 
-        buffer.put_u8(PING);
+        buffer.put_u16(PING);
         buffer.put_i64(timestamp.timestamp_millis());
 
         let mut cursor = Cursor::new(&buffer[..]);
@@ -95,7 +95,7 @@ mod tests {
     pub fn parse_ping_should_return_err_if_timestamp_is_invalid() {
         // Arrange
         let mut buffer = Vec::new();
-        buffer.put_u8(PING);
+        buffer.put_u16(PING);
         buffer.put_i64(i64::MIN);
 
         let mut cursor = Cursor::new(&buffer[..]);

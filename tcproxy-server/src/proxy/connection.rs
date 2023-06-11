@@ -1,6 +1,3 @@
-
-
-
 use std::sync::Arc;
 use tcproxy_core::tcp::SocketConnection;
 use tcproxy_core::transport::TcpFrameTransport;
@@ -9,21 +6,27 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
-use crate::proxy::DefaultFrameHandler;
+use crate::proxy::{DefaultFrameHandler, DefaultTokenHandler};
 use crate::proxy::{ClientFrameReader, ClientFrameWriter};
-use crate::{ClientState};
-use crate::managers::IFeatureManager;
+use crate::{ClientState, ServerConfig};
+use crate::managers::{UserManager, AuthenticationManagerGuard, IFeatureManager, PortManagerGuard};
 
 pub struct ClientConnection {
-    server_config: Arc<IFeatureManager>,
     state: Arc<ClientState>,
+    server_config: Arc<ServerConfig>,
 }
 
 impl ClientConnection {
-    pub fn new(feature_manager: &Arc<IFeatureManager>) -> Self {
+    pub fn new(
+        port_guard: Arc<PortManagerGuard>,
+        auth_guard: Arc<AuthenticationManagerGuard>,
+        server_config: &Arc<ServerConfig>,
+        account_manager: &Arc<Box<dyn UserManager + 'static>>
+    ) -> Self
+    {
         Self {
-            server_config: feature_manager.clone(),
-            state: ClientState::new(feature_manager),
+            state: ClientState::new(port_guard, auth_guard, server_config, account_manager),
+            server_config: server_config.clone(),
         }
     }
 
@@ -33,16 +36,18 @@ impl ClientConnection {
         tcp_stream: T,
         cancellation_token: CancellationToken,
     ) -> Result<()>
-    where
-        T: SocketConnection,
+        where
+            T: SocketConnection,
     {
         let local_cancellation_token = CancellationToken::new();
         let (transport_reader, transport_writer) = TcpFrameTransport::new(tcp_stream).split();
 
         let (frame_tx, frame_rx) = mpsc::channel::<TcpFrame>(10000);
 
-        let frame_handler = DefaultFrameHandler::new(&self.server_config, &frame_tx, &self.state);
-        let client_reader = ClientFrameReader::new(&frame_tx, transport_reader, frame_handler);
+        let token_handler = DefaultTokenHandler::new(&self.server_config);
+        let frame_handler = DefaultFrameHandler::new(&frame_tx, &self.state, token_handler);
+
+        let client_reader = ClientFrameReader::new(transport_reader, frame_handler);
         let proxy_writer = ClientFrameWriter::new(frame_rx, transport_writer, &local_cancellation_token);
 
         tokio::select! {
@@ -55,7 +60,8 @@ impl ClientConnection {
             _ = cancellation_token.cancelled() => {
                 debug!("received global stop signal..");
             },
-        };
+        }
+        ;
 
         local_cancellation_token.cancel();
         Ok(())

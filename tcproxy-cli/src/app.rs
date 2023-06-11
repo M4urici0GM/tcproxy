@@ -1,59 +1,17 @@
+use crate::commands::contexts::{
+    CreateContextCommand, ListContextsCommand, SetDefaultContextCommand,
+};
+use crate::commands::{ListenCommand, LoginCommand};
+use crate::{config::{directory_resolver, self}, AppCommandType, ClientArgs, ContextCommands};
 use std::future::Future;
-use std::path::PathBuf;
 use std::sync::Arc;
-use directories::ProjectDirs;
-use tokio::sync::{mpsc, broadcast};
-
+use tcproxy_core::{AsyncCommand, Command, Result};
+use tokio::sync::{broadcast, mpsc};
 use tracing::debug;
-
-use tcproxy_core::Result;
-use tcproxy_core::{AsyncCommand, Command};
-
-use crate::{ClientArgs};
-use crate::commands::ListenCommand;
-use crate::commands::contexts::{CreateContextCommand, DirectoryResolver, ListContextsCommand, SetDefaultContextCommand};
-use crate::{AppCommandType, ContextCommands};
-use crate::config::AppConfig;
 
 /// represents main app logic.
 pub struct App {
     args: Arc<ClientArgs>,
-}
-
-pub struct DefaultDirectoryResolver;
-
-impl DefaultDirectoryResolver {
-    pub fn new() -> Self {
-        Self {}
-    }
-
-    fn get_config_dir() -> Result<ProjectDirs> {
-        let project_dir = ProjectDirs::from("", "m4urici0gm", "tcproxy");
-        match project_dir {
-            Some(dir) => Ok(dir),
-            None => Err("Couldnt access config folder".into()),
-        }
-    }
-}
-
-impl DirectoryResolver for DefaultDirectoryResolver {
-    fn get_config_folder(&self) -> Result<PathBuf> {
-        let project_dir = DefaultDirectoryResolver::get_config_dir()?;
-        let config_dir = project_dir.config_dir();
-
-        if !config_dir.exists() {
-            std::fs::create_dir_all(config_dir)?;
-        }
-
-        Ok(PathBuf::from(&config_dir))
-    }
-
-    fn get_config_file(&self) -> Result<PathBuf> {
-        let mut base_path = self.get_config_folder()?;
-        base_path.push("config.yaml");
-
-        Ok(base_path)
-    }
 }
 
 impl App {
@@ -65,12 +23,23 @@ impl App {
 
     /// does initial handshake and start listening for remote connections.
     pub async fn start(&self, shutdown_signal: impl Future) -> Result<()> {
-        let directory_resolver = DefaultDirectoryResolver::new();
-        let config_path = directory_resolver.get_config_file()?;
-        let config = AppConfig::load(&config_path)?;
+        let directory_resolver = directory_resolver::load()?;
+        let config = config::load(&directory_resolver)?;
 
         match self.args.get_type() {
+            AppCommandType::Login(args) => {
+                let mut command = LoginCommand::new(args, &config);
+                match command.handle().await {
+                    Ok(_) => {
+                        println!("authenticated successfully");
+                    }
+                    Err(err) => {
+                        println!("unexpected error when trying to authenticate: {}", err);
+                    }
+                }
+            }
             AppCommandType::Listen(args) => {
+                // TODO: abstract this into a better way.
                 // used to notify running threads that stop signal was received.
                 let (notify_shutdown, _) = broadcast::channel::<()>(1);
 
@@ -90,7 +59,7 @@ impl App {
                         match res {
                             Ok(_) => {},
                             Err(err) => {
-                                println!("error: {:?}", err);
+                                println!("{}", err);
                             }
                         }
                     },
@@ -108,30 +77,27 @@ impl App {
             AppCommandType::Context(args) => {
                 let result = match args {
                     ContextCommands::Create(args) => {
-                        CreateContextCommand::new(args, DefaultDirectoryResolver).handle()
-                    },
-                    ContextCommands::List => {
-                        ListContextsCommand::new(DefaultDirectoryResolver).handle()
-                    },
+                        CreateContextCommand::new(args, &config).handle()
+                    }
+                    ContextCommands::List => ListContextsCommand::new(&config).handle(),
                     ContextCommands::SetDefault(args) => {
-                        SetDefaultContextCommand::new(args, DefaultDirectoryResolver).handle()
-                    },
+                        SetDefaultContextCommand::new(args, &config).handle()
+                    }
                     _ => {
                         todo!()
                     }
                 };
 
                 match result {
-                    Ok(_) => {},
+                    Ok(_) => {}
                     Err(err) => {
                         println!("Failed when running command: {}", err);
                     }
                 }
-
-                // let mut command = ConfigCommand::new(args);
-                // let _ = command.handle().await;
             }
         }
+
+        config::save_to_disk(&config, &directory_resolver)?;
         Ok(())
     }
 }

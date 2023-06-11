@@ -1,11 +1,11 @@
 use std::fmt::Display;
 use std::io::Cursor;
-use bytes::{Buf, BufMut, BytesMut};
+use bytes::{Buf, BytesMut};
+use tracing::debug;
 
 use crate::FrameDecodeError;
-use crate::io::{get_u8};
 use crate::framing::frame_types::*;
-use crate::framing::{ClientConnected, ClientConnectedAck, DataPacket, Error, SocketConnected, Ping, Pong, SocketDisconnected};
+use crate::framing::*;
 
 
 pub trait Frame {
@@ -13,11 +13,13 @@ pub trait Frame {
     fn encode(&self) -> Vec<u8>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TcpFrame {
     Ping(Ping),
     Pong(Pong),
     Error(Error),
+    Authenticate(Authenticate),
+    AuthenticateAck(AuthenticateAck),
     DataPacket(DataPacket),
     SocketConnected(SocketConnected),
     ClientConnectedAck(ClientConnectedAck),
@@ -30,8 +32,10 @@ impl TcpFrame {
         if !cursor.has_remaining() {
             return Err(FrameDecodeError::Incomplete);
         }
+        let grant_type_buf = [cursor.chunk()[0], cursor.chunk()[1]];
+        let raw_grant_type = u16::from_be_bytes(grant_type_buf);
 
-        let frame = match cursor.chunk()[0] {
+        let frame = match raw_grant_type {
             CLIENT_CONNECTED => TcpFrame::ClientConnected(ClientConnected::decode(cursor)?),
             CLIENT_CONNECTED_ACK => TcpFrame::ClientConnectedAck(ClientConnectedAck::decode(cursor)?),
             PING => TcpFrame::Ping(Ping::decode(cursor)?),
@@ -39,13 +43,10 @@ impl TcpFrame {
             SOCKET_CONNECTED => TcpFrame::SocketConnected(SocketConnected::decode(cursor)?),
             ERROR => TcpFrame::Error(Error::decode(cursor)?),
             DATA_PACKET => TcpFrame::DataPacket(DataPacket::decode(cursor)?),
+            AUTHENTICATE => TcpFrame::Authenticate(Authenticate::decode(cursor)?),
+            AUTHENTICATE_ACK => TcpFrame::AuthenticateAck(AuthenticateAck::decode(cursor)?),
             actual => {
-                let msg = format!(
-                    "proto error. invalid frame type. {} {}",
-                    actual,
-                    String::from_utf8(vec![actual])?);
-
-                return Err(msg.into())
+                return Err(format!("proto error. invalid frame type. {}", actual).into())
             },
         };
 
@@ -53,7 +54,10 @@ impl TcpFrame {
     }
 
     pub fn to_buffer(&self) -> BytesMut {
+        debug!("sending frame {}", &self);
         let buffer = match self {
+            TcpFrame::AuthenticateAck(data) => data.encode(),
+            TcpFrame::Authenticate(data) => data.encode(),
             TcpFrame::ClientConnected(data) => data.encode(),
             TcpFrame::ClientConnectedAck(data) => data.encode(),
             TcpFrame::Ping(data) => data.encode(),
@@ -80,8 +84,14 @@ impl Display for TcpFrame {
             TcpFrame::Pong(_) => {
                 "Pong".to_string()
             }
-            TcpFrame::ClientConnectedAck(data) => {
-                format!("ClientConnectedACK ({})", data.port())
+            TcpFrame::Authenticate(_) => {
+                format!("Authenticate")
+            },
+            TcpFrame::AuthenticateAck(_) => {
+                format!("AuthenticateAck")
+            },
+            TcpFrame::ClientConnectedAck(_) => {
+                format!("ClientConnectedACK")
             }
             TcpFrame::SocketConnected(data) => {
                 format!("IncomingSocket ({})", data.connection_id())
@@ -99,5 +109,11 @@ impl Display for TcpFrame {
 
         let msg = format!("tcpframe: {}", data_type);
         write!(f, "{}", msg)
+    }
+}
+
+impl From<Authenticate> for TcpFrame {
+    fn from(value: Authenticate) -> Self {
+        Self::Authenticate(value)
     }
 }

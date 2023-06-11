@@ -13,26 +13,26 @@ use crate::commands::{DataPacketCommand, IncomingSocketCommand, RemoteDisconnect
 
 pub struct TcpFrameReader {
     sender: Sender<TcpFrame>,
-    reader: Box<dyn TransportReader>,
+    reader: TransportReader,
     state: Arc<ClientState>,
     args: Arc<ListenArgs>,
     _shutdown_complete_tx: Sender<()>,
 }
 
 impl TcpFrameReader {
-    pub fn new<T>(
+    pub fn new(
         sender: &Sender<TcpFrame>,
         state: &Arc<ClientState>,
-        reader: T,
         args: &Arc<ListenArgs>,
+        reader: TransportReader,
         shutdown_complete_tx: &Sender<()>,
     ) -> Self
-        where T: TransportReader + 'static {
+    {
         Self {
             args: args.clone(),
             sender: sender.clone(),
             state: state.clone(),
-            reader: Box::new(reader),
+            reader,
             _shutdown_complete_tx: shutdown_complete_tx.clone(),
         }
     }
@@ -72,18 +72,13 @@ impl TcpFrameReader {
                     TcpFrame::SocketDisconnected(data) => {
                         debug!("remote socket disconnected");
                         Box::new(RemoteDisconnectedCommand::new(data.connection_id(), &self.state))
-                    }
-                    TcpFrame::ClientConnectedAck(data) => {
-                        debug!("Remote proxy listening in {}:{}", "127.0.0.1", data.port());
-                        self.state.update_remote_ip(&data.port().to_string());
-                        continue;
-                    }
+                    },
                     TcpFrame::Pong(_) => {
                         let time = Utc::now();
                         self.state.update_last_ping(time);
 
                         continue;
-                    }
+                    },
                     packet => {
                         debug!("invalid data packet received. {}", packet);
                         continue;

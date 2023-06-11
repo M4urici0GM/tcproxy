@@ -7,14 +7,15 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
 
 use tcproxy_core::tcp::{ISocketListener, SocketConnection, SocketListener};
-use crate::managers::{FeatureManager, IFeatureManager};
+use crate::managers::{UserManager, AuthenticationManager, AuthenticationManagerGuard, DefaultAccountManager, FeatureManager, IFeatureManager, PortManager, PortManagerGuard};
 
 use crate::proxy::ClientConnection;
 
-/// Represents the server application
+/// Represents the ser ver application
 pub struct Server {
     feature_manager: Arc<IFeatureManager>,
     server_listener: ISocketListener,
+
 }
 
 impl Server {
@@ -30,6 +31,8 @@ impl Server {
     }
 
     pub async fn run(&mut self, shutdown_signal: impl Future) -> Result<()> {
+        DefaultAccountManager::new().create_default_user()?;
+
         let cancellation_token = CancellationToken::new();
         tokio::select! {
             _ = self.start(cancellation_token.child_token()) => {},
@@ -41,6 +44,7 @@ impl Server {
 
         Ok(())
     }
+
 
     pub fn get_listen_ip(&self) -> Result<SocketAddr> {
         self.server_listener.listen_ip()
@@ -65,7 +69,20 @@ impl Server {
     where
         T: SocketConnection + 'static,
     {
-        let mut proxy_client = ClientConnection::new(&self.feature_manager);
+        let server_config = self.feature_manager.get_config();
+        let auth_manager = AuthenticationManager::new();
+        let port_manager = PortManager::new(server_config.get_port_range());
+        let account_manager: Arc<Box<dyn UserManager + 'static>> = Arc::new(Box::new(DefaultAccountManager::new()));
+
+        let port_guard = Arc::new(PortManagerGuard::new(port_manager));
+        let auth_guard = Arc::new(AuthenticationManagerGuard::new(auth_manager));
+
+        let mut proxy_client = ClientConnection::new(
+            port_guard,
+            auth_guard,
+            &server_config,
+            &account_manager);
+
         tokio::spawn(async move {
             let socket_addr = socket.addr();
 
