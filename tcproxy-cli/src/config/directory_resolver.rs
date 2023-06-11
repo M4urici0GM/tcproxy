@@ -1,5 +1,6 @@
 use std::path::{PathBuf, Path};
 use directories::ProjectDirs;
+use tracing::info;
 
 use tcproxy_core::Result;
 
@@ -34,7 +35,9 @@ pub fn load() -> Result<DirectoryResolver> {
     let project_dir = get_config_dir()?;
     let config_dir = project_dir.config_dir();
 
+    info!("checking if config file exists in {:?}", config_dir);
     if !config_dir.exists() {
+        info!("config file not found, creating file: {:?}", config_dir);
         std::fs::create_dir_all(config_dir)?;
     }
 

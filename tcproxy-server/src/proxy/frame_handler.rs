@@ -5,7 +5,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
 use crate::commands::{AuthenticateCommand, ClientConnectedCommand, DataPacketClientCommand, LocalClientDisconnectedCommand, PingCommand, AuthenticateCommandArgs};
-use crate::{ClientState};
+use crate::ClientState;
 use tcproxy_core::TcpFrame;
 use tcproxy_core::{AsyncCommand, Result};
 use tcproxy_core::auth::token_handler::TokenHandler;

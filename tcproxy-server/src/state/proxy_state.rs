@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::managers::{UserManager, AuthenticationManagerGuard, ConnectionsManager, DefaultAccountManager, PortManagerGuard};
+use crate::managers::{UserManager, AuthenticationManagerGuard, ConnectionsManager, PortManagerGuard};
 use crate::ServerConfig;
 
 pub struct ClientState {

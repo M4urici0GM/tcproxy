@@ -31,6 +31,8 @@ impl Server {
     }
 
     pub async fn run(&mut self, shutdown_signal: impl Future) -> Result<()> {
+        DefaultAccountManager::new().create_default_user()?;
+
         let cancellation_token = CancellationToken::new();
         tokio::select! {
             _ = self.start(cancellation_token.child_token()) => {},
@@ -42,6 +44,7 @@ impl Server {
 
         Ok(())
     }
+
 
     pub fn get_listen_ip(&self) -> Result<SocketAddr> {
         self.server_listener.listen_ip()

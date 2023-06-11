@@ -1,12 +1,11 @@
-use std::str::FromStr;
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 use async_trait::async_trait;
 use bcrypt::verify;
 use chrono::{Utc, Duration};
 use tcproxy_core::auth::User;
 use uuid::Uuid;
 use tokio::sync::mpsc::Sender;
-use tracing::error;
+use tracing::{info, error, debug};
 
 use tcproxy_core::{AsyncCommand, Result, TcpFrame};
 use tcproxy_core::auth::token_handler::{TokenHandler, Claims, AuthToken, TokenHandlerError};
@@ -147,7 +146,8 @@ impl AsyncCommand for AuthenticateCommand {
             }
         };
 
-        
+       
+        info!("successfully authenticated, sending AuthenticateAck frame back");
         let authenticate_ack = AuthenticateAck::new(
             user.id().to_string().as_ref(),
             user.email(),
@@ -182,9 +182,9 @@ fn create_user_token(
 
 async fn authenticate_with_password(
     args: &PasswordAuthArgs,
-    manager: &Arc<Box<dyn UserManager + 'static>>) -> std::result::Result<tcproxy_core::auth::User, AuthenticateCommandError>
+    manager: &Arc<Box<dyn UserManager + 'static>>) -> std::result::Result<User, AuthenticateCommandError>
 {
-    let account_details = manager.find_user_by_email(args.username()).await?;
+    let account_details = manager.find_user_by_email(args.username())?;
     let user_hash = account_details.password();
 
     if !verify(args.password(), user_hash)? {
@@ -199,7 +199,7 @@ async fn authenticate_with_password(
 async fn authenticate_with_token(
     args: &TokenAuthenticationArgs,
     manager: &Arc<Box<dyn UserManager + 'static>>,
-    token_handler: &Arc<Box<dyn TokenHandler + 'static>>) -> std::result::Result<tcproxy_core::auth::User, AuthenticateCommandError>
+    token_handler: &Arc<Box<dyn TokenHandler + 'static>>) -> std::result::Result<User,AuthenticateCommandError>
 {
     let token = args.token();
     let maybe_claims = match token_handler.decode(token) {
@@ -215,8 +215,11 @@ async fn authenticate_with_token(
     };
 
     let account_id = Uuid::from_str(token_details.sub()).unwrap(); // TODO: fix me
-    let user_details = manager.find_account_by_id(&account_id).await?;
-    
+
+    info!("trying to find user with id: {}", account_id);
+    let user_details = manager.find_account_by_id(&account_id)?;
+
+    info!("successfully found user with id {}", account_id);
     Ok(user_details)
 }
 

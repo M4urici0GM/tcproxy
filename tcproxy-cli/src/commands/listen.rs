@@ -146,6 +146,10 @@ async fn authenticate(config: &Arc<Config>, token: &str, client: &mut TcpFrameTr
     match client.send_frame(&authenticate_frame).await? {
         TcpFrame::AuthenticateAck(data) => {
             debug!("authenticated successfully");
+            if String::default() == data.token() {
+                return Ok(());
+            }
+
             debug!("trying to save user token into config file..");
             let mut auth_manager = config.lock_auth_manager()?;
 

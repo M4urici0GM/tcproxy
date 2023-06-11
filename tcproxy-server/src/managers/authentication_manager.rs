@@ -1,6 +1,7 @@
-use std::sync::Mutex;
 use chrono::{DateTime, Utc};
 use tcproxy_core::auth::User;
+use std::sync::Mutex;
+
 
 pub struct AuthenticationManager {
     is_authenticated: bool,
@@ -18,27 +19,21 @@ impl AuthenticationManagerGuard {
             manager: Mutex::new(manager),
         }
     }
-    
+
     pub fn is_authenticated(&self) -> bool {
-        let lock = self.manager
-            .lock()
-            .unwrap();
-        
+        let lock = self.manager.lock().unwrap();
+
         lock.is_authenticated()
     }
 
     pub fn set_authentication_details(&self, details: &User) {
-        let mut lock = self.manager
-            .lock()
-            .unwrap();
+        let mut lock = self.manager.lock().unwrap();
 
         lock.set_authentication_details(details.clone());
     }
 
     pub fn revoke_authentication(&self) {
-        let mut lock = self.manager
-            .lock()
-            .unwrap();
+        let mut lock = self.manager.lock().unwrap();
 
         lock.revoke_authentication();
     }
@@ -80,9 +75,9 @@ impl AuthenticationManager {
 
 #[cfg(test)]
 pub mod tests {
+    use crate::managers::AuthenticationManager;
     use tcproxy_core::auth::User;
     use uuid::Uuid;
-    use crate::managers::AuthenticationManager;
 
     #[test]
     pub fn should_set_authentication_correctly() {
@@ -91,7 +86,8 @@ pub mod tests {
             &Uuid::new_v4(),
             "some name",
             "some@email.com",
-            "someStrongPassword");
+            "someStrongPassword",
+        );
 
         let mut auth_manager = AuthenticationManager::new();
 
@@ -103,9 +99,7 @@ pub mod tests {
         assert!(auth_manager.account_details.is_some());
         assert!(auth_manager.authenticated_at.is_some());
 
-        let got_account_details = auth_manager.user_details()
-            .as_ref()
-            .unwrap();
+        let got_account_details = auth_manager.user_details().as_ref().unwrap();
 
         assert_eq!(got_account_details, &user_details);
     }
@@ -113,11 +107,12 @@ pub mod tests {
     #[test]
     pub fn should_revoke_authentication_correctly() {
         // Arrange
-       let user_details = User::new(
+        let user_details = User::new(
             &Uuid::new_v4(),
             "some name",
             "some@email.com",
-            "someStrongPassword");
+            "someStrongPassword",
+        );
 
         let mut auth_manager = AuthenticationManager::new();
 

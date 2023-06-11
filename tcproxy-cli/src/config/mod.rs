@@ -10,6 +10,7 @@ pub use app_context::*;
 pub use app_config_error::AppConfigError;
 pub use app_context_error::AppContextError;
 
+use tracing::info;
 use std::sync::{Arc, MutexGuard, Mutex};
 
 use crate::config::app_config::AppConfig;
@@ -64,15 +65,11 @@ impl Config {
     pub fn lock_auth_manager(&self) -> Result<MutexGuard<'_, AuthManager>> {
         Ok(self.auth.lock().unwrap()) // TODO: fix me
     }
-
-    pub async fn save_to_disk(&self) -> Result<()> {
-        save_to_disk(self, &self.directory_resolver)?;
-        todo!()
-    }
 }
 
 pub fn save_to_disk(config: &Config, directory_resolver: &DirectoryResolver) -> Result<()> {
     let path = directory_resolver.get_config_file();
+    info!("trying to load config file from {:?}", path);
     let context_manager = config.lock_context_manager()?;
     let auth_manager = config.lock_auth_manager()?;
 
@@ -93,8 +90,7 @@ pub fn load(directory_resolver: &DirectoryResolver) -> Result<Config> {
         config_file.default_context(),
         config_file.contexts());
 
-    let auth = AuthManager::new(None);
-
+    let auth = AuthManager::new(config_file.user_token().clone());
     let config = Config::new(&context_manager, &auth, directory_resolver);
     Ok(config)
 }

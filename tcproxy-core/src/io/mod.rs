@@ -15,10 +15,10 @@ fn check_cursor_size<T>(src: &mut Cursor<&[u8]>) -> Result<(), FrameDecodeError>
 
 pub fn get_u32_string(src: &mut Cursor<&[u8]>) -> Result<String, FrameDecodeError> {
     let string_size = get_u32(src)?;
-    if 0 >= string_size {
-        return Err(FrameDecodeError::CorruptedFrame);
+    if 0 == string_size {
+        return Ok(String::default());
     }
-
+    
     let buffer = get_buffer(src, string_size)?;
     Ok(String::from_utf8(buffer)?)
 }

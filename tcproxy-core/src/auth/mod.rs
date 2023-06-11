@@ -1,28 +1,16 @@
+use uuid::Uuid;
+
 pub mod token_handler;
 
-use uuid::Uuid;
-use serde::{Deserialize, Serialize};
-
-#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct User {
-    #[serde(rename = "_id")]
     id: Uuid,
     name: String,
     email: String,
-    #[serde(rename = "passwordHash")]
-    password: String,
+    password_hash: String,
 }
 
 impl User {
-    pub fn new(id: &Uuid, name: &str, email: &str, password: &str) -> Self {
-        Self {
-            id: *id,
-            name: String::from(name),
-            email: String::from(email),
-            password: String::from(password),
-        }
-    }
-
     pub fn id(&self) -> &Uuid {
         &self.id
     }
@@ -30,12 +18,23 @@ impl User {
     pub fn name(&self) -> &str {
         &self.name
     }
-
+    
     pub fn email(&self) -> &str {
         &self.email
     }
-
+    
     pub fn password(&self) -> &str {
-        &self.password
+        &self.password_hash
+    }
+}
+
+impl User {
+    pub fn new(id: &Uuid, name: &str, email: &str, password: &str) -> Self {
+        Self {
+            id: id.clone(),
+            name: String::from(name),
+            email: String::from(email),
+            password_hash: String::from(password),
+        }
     }
 }

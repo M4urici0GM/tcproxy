@@ -4,6 +4,8 @@ mod args;
 mod server;
 mod tests;
 
+pub mod schema;
+pub mod models;
 pub mod commands;
 pub mod managers;
 pub mod proxy;
