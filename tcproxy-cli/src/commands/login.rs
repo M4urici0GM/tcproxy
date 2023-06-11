@@ -8,7 +8,7 @@ use tcproxy_core::transport::TcpFrameTransport;
 use tcproxy_core::{Result, TcpFrame};
 use tcproxy_core::AsyncCommand;
 
-use crate::config::{AppContext, Config, self};
+use crate::config::{AppContext, Config};
 use crate::server_addr::ServerAddr;
 use crate::LoginArgs;
 

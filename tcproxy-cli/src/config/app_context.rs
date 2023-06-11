@@ -37,7 +37,7 @@ impl AppContext {
 }
 
 impl From<ServerAddr> for AppContext {
-    fn from(value: ServerAddr) -> Self {
+    fn from(_value: ServerAddr) -> Self {
         todo!()
     }
 }

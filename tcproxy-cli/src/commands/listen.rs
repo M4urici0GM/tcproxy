@@ -10,7 +10,7 @@ use tcproxy_core::framing::Reason;
 use tcproxy_core::framing::{Authenticate, ClientConnected, GrantType, TokenAuthenticationArgs};
 use tcproxy_core::{transport::TcpFrameTransport, AsyncCommand, Result, TcpFrame};
 
-use crate::config::{self, AppContext, Config};
+use crate::config::{AppContext, Config};
 use crate::server_addr::ServerAddr;
 use crate::{
     ClientState, ConsoleUpdater, ListenArgs, PingSender, Shutdown, TcpFrameReader, TcpFrameWriter,
@@ -126,8 +126,8 @@ fn get_context(args: &Arc<ListenArgs>, config: &Arc<Config>) -> Result<AppContex
     let contexts = match config.lock_context_manager() {
         Ok(lock) => lock,
         Err(err) => {
-            error!("error when trying to lock context_manager");
-            return Err("".into());
+            error!("error when trying to lock context_manager: {}", err);
+            return Err(err.into());
         }
     };
     let fallback = contexts.default_context_str().to_string();

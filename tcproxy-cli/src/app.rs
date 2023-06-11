@@ -1,15 +1,13 @@
+use crate::commands::contexts::{
+    CreateContextCommand, ListContextsCommand, SetDefaultContextCommand,
+};
+use crate::commands::{ListenCommand, LoginCommand};
+use crate::{config::{directory_resolver, self}, AppCommandType, ClientArgs, ContextCommands};
 use std::future::Future;
 use std::sync::Arc;
-use tokio::sync::{mpsc, broadcast};
-
-use tcproxy_core::{Result, AsyncCommand, Command};
+use tcproxy_core::{AsyncCommand, Command, Result};
+use tokio::sync::{broadcast, mpsc};
 use tracing::debug;
-
-use crate::commands::contexts::{CreateContextCommand, ListContextsCommand, SetDefaultContextCommand};
-use crate::commands::{LoginCommand, ListenCommand};
-use crate::config::directory_resolver::DirectoryResolver;
-use crate::{ClientArgs, AppCommandType, ContextCommands, config};
-use crate::config::{directory_resolver, app_config};
 
 /// represents main app logic.
 pub struct App {
@@ -28,19 +26,18 @@ impl App {
         let directory_resolver = directory_resolver::load()?;
         let config = config::load(&directory_resolver)?;
 
-
         match self.args.get_type() {
             AppCommandType::Login(args) => {
                 let mut command = LoginCommand::new(args, &config);
                 match command.handle().await {
                     Ok(_) => {
                         println!("authenticated successfully");
-                    },
+                    }
                     Err(err) => {
                         println!("unexpected error when trying to authenticate: {}", err);
                     }
                 }
-            },
+            }
             AppCommandType::Listen(args) => {
                 // TODO: abstract this into a better way.
                 // used to notify running threads that stop signal was received.
@@ -69,8 +66,7 @@ impl App {
                     _ = shutdown_signal => {
                         debug!("app received stop signal..");
                     },
-                }
-                ;
+                };
 
                 drop(command);
 
@@ -83,9 +79,7 @@ impl App {
                     ContextCommands::Create(args) => {
                         CreateContextCommand::new(args, &config).handle()
                     }
-                    ContextCommands::List => {
-                        ListContextsCommand::new(&config).handle()
-                    }
+                    ContextCommands::List => ListContextsCommand::new(&config).handle(),
                     ContextCommands::SetDefault(args) => {
                         SetDefaultContextCommand::new(args, &config).handle()
                     }
@@ -102,6 +96,8 @@ impl App {
                 }
             }
         }
+
+        config::save_to_disk(&config, &directory_resolver)?;
         Ok(())
     }
 }

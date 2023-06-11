@@ -100,10 +100,9 @@ fn exists(path: &Path) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use crate::config::app_config::AppConfig;
     use crate::config::app_config::{read_from_file, save_to_file};
-    use crate::config::{app_config::AppConfig, AppContext};
     use std::fs;
-    use std::net::IpAddr;
     use std::path::Path;
     use uuid::Uuid;
 
@@ -111,10 +110,8 @@ mod tests {
     fn should_write_to_disk() {
         let file_path = format!("./{}.yaml", Uuid::new_v4());
         let file_path = Path::new(&file_path);
-        let (host, port) = create_socket_addr();
 
-        let mut config = AppConfig::default();
-        let context = AppContext::new("context1", &host, &port);
+        let config = AppConfig::default();
 
         // Act
         save_to_file(&config, file_path).unwrap();
@@ -174,12 +171,6 @@ mod tests {
         assert_eq!(read_config.default_context(), String::default());
 
         remove_file(file_path);
-    }
-
-    fn create_socket_addr() -> (String, u16) {
-        let ip = IpAddr::from([127, 0, 0, 1]);
-
-        (ip.to_string(), 80)
     }
 
     fn create_file_name() -> String {
