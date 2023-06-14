@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
-use tcproxy_core::auth::User;
 use std::sync::Mutex;
-
+use tcproxy_core::auth::User;
 
 pub struct AuthenticationManager {
     is_authenticated: bool,

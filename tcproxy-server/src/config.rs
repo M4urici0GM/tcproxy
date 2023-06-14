@@ -1,10 +1,14 @@
-
-use std::{fs, net::{IpAddr, SocketAddr}, str::FromStr, ops::Range};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use serde::{Serialize, Deserialize};
-use tracing::error;
+use std::{
+    fs,
+    net::{IpAddr, SocketAddr},
+    ops::Range,
+    str::FromStr,
+};
 use tcproxy_core::config::{Config, ConfigLoader};
+use tracing::error;
 
 use tcproxy_core::Result;
 
@@ -151,7 +155,6 @@ impl Config<AppArguments> for ServerConfig {
         }
     }
 
-
     fn validate(&self) -> Result<()> {
         if self.port_min == 0 {
             return Err("Min port cannot be zero".into());
@@ -195,10 +198,7 @@ impl ConfigLoader<'_, AppArguments> for ServerConfig {
 
     fn get_config_path(env_vars: &HashMap<String, String>) -> PathBuf {
         if env_vars.contains_key(env::CONFIG_FILE) {
-            let config_path = env_vars
-                .get(env::CONFIG_FILE)
-                .unwrap()
-                .to_owned();
+            let config_path = env_vars.get(env::CONFIG_FILE).unwrap().to_owned();
 
             return PathBuf::from(&config_path);
         }
@@ -206,7 +206,6 @@ impl ConfigLoader<'_, AppArguments> for ServerConfig {
         PathBuf::from("./config.json")
     }
 }
-
 
 impl Default for ServerConfig {
     fn default() -> Self {
@@ -224,11 +223,11 @@ impl Default for ServerConfig {
 
 #[cfg(test)]
 mod tests {
-    use std::net::IpAddr;
-    use uuid::Uuid;
-    use std::str::FromStr;
-    use crate::{AppArguments, env, ServerConfig};
     use super::ConfigLoader;
+    use crate::{env, AppArguments, ServerConfig};
+    use std::net::IpAddr;
+    use std::str::FromStr;
+    use uuid::Uuid;
 
     #[test]
     pub fn should_read_from_file() {
@@ -238,7 +237,8 @@ mod tests {
         let args = AppArguments::default();
         let config = create_default_file(&file_name);
 
-        let env_vars: Vec<(String, String)> = vec![(env::CONFIG_FILE.to_owned(), file_name.to_owned())];
+        let env_vars: Vec<(String, String)> =
+            vec![(env::CONFIG_FILE.to_owned(), file_name.to_owned())];
 
         // Act
         let parsed_config = ServerConfig::load(&env_vars, &args).unwrap();
@@ -248,7 +248,10 @@ mod tests {
         assert_eq!(parsed_config.get_listen_port(), config.get_listen_port());
         assert_eq!(parsed_config.get_port_range(), config.get_port_range());
         assert_eq!(parsed_config.get_socket_addr(), config.get_socket_addr());
-        assert_eq!(parsed_config.get_max_connections_per_proxy(), config.get_max_connections_per_proxy());
+        assert_eq!(
+            parsed_config.get_max_connections_per_proxy(),
+            config.get_max_connections_per_proxy()
+        );
 
         remove_file(&file_name);
     }
@@ -264,7 +267,7 @@ mod tests {
         let expected_port = 3337;
         let env_vars: Vec<(String, String)> = vec![
             (env::CONFIG_FILE.to_owned(), file_name.to_owned()),
-            (env::LISTEN_PORT.to_owned(), expected_port.to_string())
+            (env::LISTEN_PORT.to_owned(), expected_port.to_string()),
         ];
 
         // Act
@@ -292,7 +295,8 @@ mod tests {
             Some(expected_port),
             Some(expected_ip),
             Some(expected_port_range.clone()),
-            Some(expected_connections_per_proxy));
+            Some(expected_connections_per_proxy),
+        );
 
         let env_vars: Vec<(String, String)> = vec![
             (env::CONFIG_FILE.to_owned(), file_name.to_owned()),
@@ -309,7 +313,10 @@ mod tests {
         assert_eq!(parsed_config.get_listen_port(), expected_port);
         assert_eq!(parsed_config.get_listen_ip(), expected_ip);
         assert_eq!(parsed_config.get_port_range(), expected_port_range);
-        assert_eq!(parsed_config.get_max_connections_per_proxy(), expected_connections_per_proxy);
+        assert_eq!(
+            parsed_config.get_max_connections_per_proxy(),
+            expected_connections_per_proxy
+        );
 
         remove_file(&file_name);
     }
@@ -321,9 +328,8 @@ mod tests {
         let file_name = format!("{}.json", &file_id);
         let args = AppArguments::default();
 
-        let env_vars: Vec<(String, String)> = vec![
-            (env::CONFIG_FILE.to_owned(), file_name.to_owned())
-        ];
+        let env_vars: Vec<(String, String)> =
+            vec![(env::CONFIG_FILE.to_owned(), file_name.to_owned())];
 
         // Act
         let created_config = ServerConfig::load(&env_vars, &args).unwrap();
@@ -332,7 +338,8 @@ mod tests {
         assert!(std::fs::metadata(&file_name).is_ok());
         assert_eq!(
             serde_json::to_string(&created_config).unwrap(),
-            std::fs::read_to_string(&file_name).unwrap());
+            std::fs::read_to_string(&file_name).unwrap()
+        );
 
         remove_file(&file_name);
     }
@@ -351,7 +358,8 @@ mod tests {
             8080,
             "proxy.server.local",
             120,
-            "SOME_SECRET");
+            "SOME_SECRET",
+        );
 
         let config_str = serde_json::to_string(&config).unwrap();
         std::fs::write(file_name, config_str).unwrap();

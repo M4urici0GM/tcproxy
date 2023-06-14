@@ -1,9 +1,9 @@
-use tokio::{sync::mpsc::Sender, task::JoinHandle};
+use tokio::{task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
 
 use tcproxy_core::transport::TransportReader;
-use tcproxy_core::{Result, TcpFrame};
+use tcproxy_core::{Result};
 
 use crate::proxy::FrameHandler;
 
@@ -16,7 +16,7 @@ pub struct ClientFrameReader {
 impl ClientFrameReader {
     pub fn new<T>(reader: TransportReader, frame_handler: T) -> Self
     where
-        T: FrameHandler + 'static
+        T: FrameHandler + 'static,
     {
         Self {
             reader,
@@ -44,8 +44,7 @@ impl ClientFrameReader {
             };
 
             debug!("received new frame from client {}", frame);
-            self
-                .frame_handler
+            self.frame_handler
                 .handle(frame, cancellation_token.child_token())
                 .await?;
         }

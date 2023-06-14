@@ -1,9 +1,8 @@
-
 use tokio::sync::broadcast::Receiver;
 
 pub struct Shutdown {
     is_shutdown: bool,
-    notify: Receiver<()>
+    notify: Receiver<()>,
 }
 
 impl Shutdown {

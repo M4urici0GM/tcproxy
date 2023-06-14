@@ -95,7 +95,7 @@ impl AsyncCommand for ListenCommand {
     }
 }
 
-fn get_token(config: &Arc<Config>) -> Result<String>  {
+fn get_token(config: &Arc<Config>) -> Result<String> {
     let auth_manager = match config.lock_auth_manager() {
         Ok(lock) => lock,
         Err(err) => {
@@ -104,9 +104,10 @@ fn get_token(config: &Arc<Config>) -> Result<String>  {
         }
     };
 
-    let token = auth_manager.current_token()
+    let token = auth_manager
+        .current_token()
         .clone()
-        .unwrap_or(String::default()); 
+        .unwrap_or(String::default());
 
     Ok(token.to_owned())
 }
@@ -139,7 +140,11 @@ fn get_context(args: &Arc<ListenArgs>, config: &Arc<Config>) -> Result<AppContex
     }
 }
 
-async fn authenticate(config: &Arc<Config>, token: &str, client: &mut TcpFrameTransport) -> Result<()> {
+async fn authenticate(
+    config: &Arc<Config>,
+    token: &str,
+    client: &mut TcpFrameTransport,
+) -> Result<()> {
     let grant_type = GrantType::TOKEN(TokenAuthenticationArgs::new(token));
     let authenticate_frame = TcpFrame::Authenticate(Authenticate::new(grant_type));
 

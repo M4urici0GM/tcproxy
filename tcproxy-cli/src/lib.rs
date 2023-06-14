@@ -6,11 +6,11 @@ mod frame_reader;
 mod frame_writer;
 mod local_connection;
 mod ping_sender;
-mod shutdown;
 mod server_addr;
+mod shutdown;
 
-pub mod config;
 pub mod commands;
+pub mod config;
 
 pub use app::*;
 pub use args::*;

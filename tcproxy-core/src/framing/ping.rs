@@ -1,15 +1,14 @@
-use std::io::Cursor;
-use bytes::BufMut;
-use chrono::{DateTime, Utc};
-use crate::{Frame, FrameDecodeError};
 use crate::framing::frame_types::PING;
 use crate::framing::utils::{assert_connection_type, parse_naive_date_time};
 use crate::io::{get_i64, get_u16};
-
+use crate::{Frame, FrameDecodeError};
+use bytes::BufMut;
+use chrono::{DateTime, Utc};
+use std::io::Cursor;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Ping {
-    timestamp: DateTime<Utc>
+    timestamp: DateTime<Utc>,
 }
 
 impl Ping {
@@ -25,7 +24,10 @@ impl Ping {
 }
 
 impl Frame for Ping {
-    fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Ping, FrameDecodeError> where Self: Sized {
+    fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Ping, FrameDecodeError>
+    where
+        Self: Sized,
+    {
         assert_connection_type(&get_u16(buffer)?, &PING)?;
 
         let timestamp_millis = get_i64(buffer)?;
@@ -33,7 +35,7 @@ impl Frame for Ping {
 
         return Ok(Self {
             timestamp: DateTime::from_utc(naive_datetime, Utc),
-        })
+        });
     }
 
     fn encode(&self) -> Vec<u8> {
@@ -48,13 +50,13 @@ impl Frame for Ping {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
+    use crate::framing::frame_types::PING;
+    use crate::framing::Ping;
+    use crate::tcp_frame::Frame;
+    use crate::{is_type, FrameDecodeError};
     use bytes::BufMut;
     use chrono::Utc;
-    use crate::tcp_frame::Frame;
-    use crate::framing::Ping;
-    use crate::{FrameDecodeError, is_type};
-    use crate::framing::frame_types::PING;
+    use std::io::Cursor;
 
     #[test]
     pub fn should_parse_ping() {
@@ -73,12 +75,12 @@ mod tests {
         // Assert
         assert_eq!(
             timestamp.timestamp_millis(),
-            result.timestamp().timestamp_millis());
+            result.timestamp().timestamp_millis()
+        );
     }
 
     #[test]
     pub fn parse_ping_should_return_err_if_buffer_is_missing_timestamp() {
-
         // Arrange
         let buffer: Vec<u8> = Vec::new();
         let mut cursor = Cursor::new(&buffer[..]);

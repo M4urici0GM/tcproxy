@@ -1,4 +1,4 @@
-use crate::config::{self, AppContext, AppContextError, Config};
+use crate::config::{AppContext, AppContextError, Config};
 use crate::server_addr::ServerAddrType;
 use crate::CreateContextArgs;
 use tcproxy_core::Command;
@@ -137,4 +137,3 @@ mod tests {
     //     std::fs::remove_file(path).unwrap();
     // }
 }
-

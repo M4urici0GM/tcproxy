@@ -1,24 +1,28 @@
 use tcproxy_core::transport::TransportWriter;
 use tcproxy_core::Result;
 use tcproxy_core::TcpFrame;
-use tokio::{sync::mpsc::Receiver, task::JoinHandle};
 use tokio::sync::mpsc::Sender;
+use tokio::{sync::mpsc::Receiver, task::JoinHandle};
 
-use tracing::{info, debug};
 use crate::Shutdown;
+use tracing::{debug, info};
 
 pub struct TcpFrameWriter {
     receiver: Receiver<TcpFrame>,
     writer: TransportWriter,
-    _shutdown_complete_tx: Sender<()>
+    _shutdown_complete_tx: Sender<()>,
 }
 
 impl TcpFrameWriter {
-    pub fn new(receiver: Receiver<TcpFrame>, writer: TransportWriter, shutdown_complete_tx: &Sender<()>) -> Self {
+    pub fn new(
+        receiver: Receiver<TcpFrame>,
+        writer: TransportWriter,
+        shutdown_complete_tx: &Sender<()>,
+    ) -> Self {
         Self {
             receiver,
             writer,
-            _shutdown_complete_tx: shutdown_complete_tx.clone()
+            _shutdown_complete_tx: shutdown_complete_tx.clone(),
         }
     }
 

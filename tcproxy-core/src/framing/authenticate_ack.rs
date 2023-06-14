@@ -1,11 +1,11 @@
-use std::io::Cursor;
-use bytes::BufMut;
 use crate::auth::token_handler::AuthToken;
-use crate::{Frame, FrameDecodeError, PutU32String};
 use crate::framing::frame_types::AUTHENTICATE_ACK;
 use crate::framing::utils::assert_connection_type;
-use crate::io::{get_u32_string, get_u16};
+use crate::io::{get_u16, get_u32_string};
+use crate::{Frame, FrameDecodeError, PutU32String};
+use bytes::BufMut;
 use std::fmt::{Display, Formatter};
+use std::io::Cursor;
 
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct AuthenticateAck {
@@ -42,7 +42,7 @@ impl Frame for AuthenticateAck {
         Ok(Self {
             account_id,
             email,
-            token
+            token,
         })
     }
 
@@ -60,18 +60,22 @@ impl Frame for AuthenticateAck {
 
 impl Display for AuthenticateAck {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "AuthenticateACK details: [email = {}, account-id = {}, token = {}]", self.email, self.account_id, self.token)
+        write!(
+            f,
+            "AuthenticateACK details: [email = {}, account-id = {}, token = {}]",
+            self.email, self.account_id, self.token
+        )
     }
 }
 
 #[cfg(test)]
 pub mod tests {
-    use std::io::Cursor;
-    use bytes::BufMut;
     use crate::auth::token_handler::AuthToken;
-    use crate::{Frame, FrameDecodeError, is_type};
-    use crate::framing::AuthenticateAck;
     use crate::framing::frame_types::AUTHENTICATE_ACK;
+    use crate::framing::AuthenticateAck;
+    use crate::{is_type, Frame, FrameDecodeError};
+    use bytes::BufMut;
+    use std::io::Cursor;
 
     #[test]
     pub fn should_be_able_to_encode() {
@@ -87,7 +91,10 @@ pub mod tests {
         println!("{:?}", encoded);
 
         // Assert
-        assert_eq!(encoded.len(), account_id.len() + token.len() + email.len() + std::mem::size_of::<u16>() + 12); // ID_SIZE + EMAIL_SIZE + FRAME_TYPE + 3x STRING SIZES
+        assert_eq!(
+            encoded.len(),
+            account_id.len() + token.len() + email.len() + std::mem::size_of::<u16>() + 12
+        ); // ID_SIZE + EMAIL_SIZE + FRAME_TYPE + 3x STRING SIZES
     }
 
     #[test]
@@ -104,7 +111,10 @@ pub mod tests {
         println!("{:?}", encoded);
 
         // Assert
-        assert_eq!(encoded.len(), account_id.len() + token.len() + email.len() + std::mem::size_of::<u16>() + 12); // ID_SIZE + EMAIL_SIZE + FRAME_TYPE + 3x STRING SIZES
+        assert_eq!(
+            encoded.len(),
+            account_id.len() + token.len() + email.len() + std::mem::size_of::<u16>() + 12
+        ); // ID_SIZE + EMAIL_SIZE + FRAME_TYPE + 3x STRING SIZES
     }
 
     #[test]
@@ -142,7 +152,6 @@ pub mod tests {
 
         buffer.put_u16(AUTHENTICATE_ACK);
         buffer.put_u32(id.len() as u32);
-
 
         let mut cursor = Cursor::new(&buffer[..]);
 

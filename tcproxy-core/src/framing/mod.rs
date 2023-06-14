@@ -1,24 +1,24 @@
-mod data_packet;
-mod client_connected_ack;
-mod socket_disconnected;
+mod authenticate;
+mod authenticate_ack;
 mod client_connected;
-mod socket_connected;
+mod client_connected_ack;
+mod data_packet;
 mod error;
 mod ping;
 mod pong;
-mod authenticate;
-mod authenticate_ack;
+mod socket_connected;
+mod socket_disconnected;
 
 pub use authenticate::*;
 pub use authenticate_ack::*;
-pub use pong::*;
-pub use ping::*;
-pub use error::*;
-pub use socket_disconnected::*;
-pub use socket_connected::*;
 pub use client_connected::*;
 pub use client_connected_ack::*;
 pub use data_packet::*;
+pub use error::*;
+pub use ping::*;
+pub use pong::*;
+pub use socket_connected::*;
+pub use socket_disconnected::*;
 
 pub mod frame_types {
     pub const PING: u16 = 0x15;
@@ -49,10 +49,13 @@ pub mod authentication_grant_types {
 }
 
 pub mod utils {
-    use chrono::NaiveDateTime;
     use crate::FrameDecodeError;
+    use chrono::NaiveDateTime;
 
-    pub fn assert_connection_type(frame_type: &u16, expected_type: &u16) -> Result<(), FrameDecodeError> {
+    pub fn assert_connection_type(
+        frame_type: &u16,
+        expected_type: &u16,
+    ) -> Result<(), FrameDecodeError> {
         if frame_type != expected_type {
             return Err(FrameDecodeError::UnexpectedFrameType(*frame_type));
         }
@@ -60,11 +63,15 @@ pub mod utils {
         Ok(())
     }
 
-    pub fn parse_naive_date_time(timestamp_millis: &i64) -> Result<NaiveDateTime, FrameDecodeError> {
+    pub fn parse_naive_date_time(
+        timestamp_millis: &i64,
+    ) -> Result<NaiveDateTime, FrameDecodeError> {
         match NaiveDateTime::from_timestamp_millis(*timestamp_millis) {
             Some(date) => Ok(date),
             None => {
-                return Err(FrameDecodeError::Other(format!("failed to decode timestamp: {}", timestamp_millis).into()));
+                return Err(FrameDecodeError::Other(
+                    format!("failed to decode timestamp: {}", timestamp_millis).into(),
+                ));
             }
         }
     }

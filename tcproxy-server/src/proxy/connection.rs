@@ -6,10 +6,10 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
-use crate::proxy::{DefaultFrameHandler, DefaultTokenHandler};
+use crate::managers::{AuthenticationManagerGuard, PortManagerGuard, UserManager};
 use crate::proxy::{ClientFrameReader, ClientFrameWriter};
+use crate::proxy::{DefaultFrameHandler, DefaultTokenHandler};
 use crate::{ClientState, ServerConfig};
-use crate::managers::{UserManager, AuthenticationManagerGuard, IFeatureManager, PortManagerGuard};
 
 pub struct ClientConnection {
     state: Arc<ClientState>,
@@ -21,9 +21,8 @@ impl ClientConnection {
         port_guard: Arc<PortManagerGuard>,
         auth_guard: Arc<AuthenticationManagerGuard>,
         server_config: &Arc<ServerConfig>,
-        account_manager: &Arc<Box<dyn UserManager + 'static>>
-    ) -> Self
-    {
+        account_manager: &Arc<Box<dyn UserManager + 'static>>,
+    ) -> Self {
         Self {
             state: ClientState::new(port_guard, auth_guard, server_config, account_manager),
             server_config: server_config.clone(),
@@ -36,8 +35,8 @@ impl ClientConnection {
         tcp_stream: T,
         cancellation_token: CancellationToken,
     ) -> Result<()>
-        where
-            T: SocketConnection,
+    where
+        T: SocketConnection,
     {
         let local_cancellation_token = CancellationToken::new();
         let (transport_reader, transport_writer) = TcpFrameTransport::new(tcp_stream).split();
@@ -48,7 +47,8 @@ impl ClientConnection {
         let frame_handler = DefaultFrameHandler::new(&frame_tx, &self.state, token_handler);
 
         let client_reader = ClientFrameReader::new(transport_reader, frame_handler);
-        let proxy_writer = ClientFrameWriter::new(frame_rx, transport_writer, &local_cancellation_token);
+        let proxy_writer =
+            ClientFrameWriter::new(frame_rx, transport_writer, &local_cancellation_token);
 
         tokio::select! {
             res = proxy_writer.spawn() => {
@@ -60,8 +60,7 @@ impl ClientConnection {
             _ = cancellation_token.cancelled() => {
                 debug!("received global stop signal..");
             },
-        }
-        ;
+        };
 
         local_cancellation_token.cancel();
         Ok(())

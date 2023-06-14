@@ -1,7 +1,7 @@
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
-use serde::{Deserialize, Serialize};
 use tracing::info;
 
 use crate::Result;
@@ -12,12 +12,12 @@ pub trait Config<T> {
     fn validate(&self) -> Result<()>;
 }
 
-pub trait ConfigLoader<'a, Args, T=Self>
-    where
-        T: 'a + Config<Args>,
-        T: Deserialize<'a>,
-        T: Serialize,
-        T: Default
+pub trait ConfigLoader<'a, Args, T = Self>
+where
+    T: 'a + Config<Args>,
+    T: Deserialize<'a>,
+    T: Serialize,
+    T: Default,
 {
     /// function that return available environment names.
     fn named_environment_variables() -> HashSet<String>;

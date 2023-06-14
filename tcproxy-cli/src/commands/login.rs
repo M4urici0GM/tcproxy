@@ -1,12 +1,12 @@
 use async_trait::async_trait;
-use tcproxy_core::auth::token_handler::AuthToken;
 use std::io::{stdout, Write};
+use tcproxy_core::auth::token_handler::AuthToken;
 use tracing::debug;
 
-use tcproxy_core::framing::{PasswordAuthArgs, Authenticate, GrantType, Reason};
+use tcproxy_core::framing::{Authenticate, GrantType, PasswordAuthArgs, Reason};
 use tcproxy_core::transport::TcpFrameTransport;
-use tcproxy_core::{Result, TcpFrame};
 use tcproxy_core::AsyncCommand;
+use tcproxy_core::{Result, TcpFrame};
 
 use crate::config::{AppContext, Config};
 use crate::server_addr::ServerAddr;
@@ -21,10 +21,9 @@ impl LoginCommand {
     pub fn new(args: &LoginArgs, config: &Config) -> Self {
         Self {
             args: args.clone(),
-            config: config.clone()
+            config: config.clone(),
         }
     }
-
 }
 
 #[async_trait]
@@ -66,7 +65,8 @@ impl AsyncCommand for LoginCommand {
 
 async fn get_context(args: &LoginArgs, config: &Config) -> Result<AppContext> {
     let contexts = config.lock_context_manager()?;
-    let context_name = args.app_context()
+    let context_name = args
+        .app_context()
         .clone()
         .unwrap_or(contexts.default_context_str().to_string());
 

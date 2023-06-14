@@ -31,7 +31,8 @@ impl AsyncCommand for LocalClientDisconnectedCommand {
     async fn handle(&mut self) -> Self::Output {
         debug!("connection {} disconnected from client", self.connection_id);
 
-        match self.proxy_state
+        match self
+            .proxy_state
             .get_connection_manager()
             .remove_connection(&self.connection_id)
         {

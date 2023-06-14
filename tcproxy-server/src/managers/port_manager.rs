@@ -1,10 +1,10 @@
+use rand::Rng;
+use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
-use std::collections::HashSet;
 use std::sync::Mutex;
-use rand::Rng;
 use tcproxy_core::Error;
-use tracing::log::{warn, debug, error};
+use tracing::log::{debug, error, warn};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PortPermit {
@@ -36,7 +36,7 @@ impl PortPermit {
 }
 
 pub struct PortManagerGuard {
-    manager: Mutex<PortManager>
+    manager: Mutex<PortManager>,
 }
 
 impl PortManagerGuard {
@@ -47,28 +47,24 @@ impl PortManagerGuard {
     }
 
     pub fn free_port(&self, permit: PortPermit) {
-        let mut lock = self.manager
-            .lock()
-            .unwrap();
+        let mut lock = self.manager.lock().unwrap();
 
         debug!("disposing used port: {permit}");
         lock.free_port(permit);
     }
 
     pub fn reserve_port(&self, conn_id: &u32, conn_token: &str) -> Result<PortPermit, PortError> {
-        let mut lock = self.manager
-            .lock()
-            .unwrap();
+        let mut lock = self.manager.lock().unwrap();
 
         match lock.reserve_port(conn_id, conn_token) {
             Err(PortError::PortLimitReached) => {
                 warn!("port limit reached!.");
                 Err(PortError::PortLimitReached)
-            },
+            }
             Err(err) => {
                 error!("failed when trying to reserve port: {err}");
                 Err(err)
-            },
+            }
             actual => actual,
         }
     }
@@ -90,7 +86,7 @@ impl PortManager {
     pub fn new(port_range: Range<u16>) -> Self {
         let mut available_ports = Vec::new();
         for i in port_range.start..port_range.end {
-            available_ports.push(i);        
+            available_ports.push(i);
         }
 
         Self {
@@ -116,9 +112,12 @@ impl PortManager {
         self.used_ports.remove(&permit);
         self.available_ports.push(*permit.port());
     }
-    
 
-    pub fn reserve_port(&mut self, conn_id: &u32, conn_token: &str) -> Result<PortPermit, PortError> {
+    pub fn reserve_port(
+        &mut self,
+        conn_id: &u32,
+        conn_token: &str,
+    ) -> Result<PortPermit, PortError> {
         if 0 == self.available_ports.len() {
             return Err(PortError::PortLimitReached);
         }
@@ -126,14 +125,13 @@ impl PortManager {
         let mut rng = rand::thread_rng();
         let random_idx = rng.gen_range(0..self.available_ports.len());
         let selected_port = self.available_ports.remove(random_idx);
-        
+
         let port_permit = PortPermit::new(conn_id, conn_token, &selected_port);
         self.used_ports.insert(port_permit.clone());
 
         Ok(port_permit)
     }
 }
-
 
 impl Display for PortError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -150,16 +148,13 @@ impl Display for PortPermit {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let msg = format!(
             "PortPermit[token = {}, port = {}, conn_id = {}]",
-            self.connection_token,
-            self.used_port,
-            self.connection_id);
+            self.connection_token, self.used_port, self.connection_id
+        );
 
         write!(f, "{}", msg)
     }
 }
-impl std::error::Error for PortError {
-
-}
+impl std::error::Error for PortError {}
 
 #[cfg(test)]
 pub mod tests {
@@ -173,7 +168,9 @@ pub mod tests {
         let mut port_manager = PortManager::new(10..20);
 
         // Act
-        let port_permit = port_manager.reserve_port(&conn_id, &connection_token).unwrap(); 
+        let port_permit = port_manager
+            .reserve_port(&conn_id, &connection_token)
+            .unwrap();
 
         // Assert
         assert!(!port_manager.available_ports.contains(port_permit.port()));
@@ -191,7 +188,9 @@ pub mod tests {
         let mut port_manager = PortManager::new(min_port..max_port);
 
         // Act
-        let port_permit = port_manager.reserve_port(&conn_id, &connection_token).unwrap(); 
+        let port_permit = port_manager
+            .reserve_port(&conn_id, &connection_token)
+            .unwrap();
 
         // Assert
         assert!(port_permit.port() >= &min_port);
@@ -206,7 +205,9 @@ pub mod tests {
         let mut port_manager = PortManager::new(10..20);
 
         // Act
-        let port_permit = port_manager.reserve_port(&conn_id, &connection_token).unwrap();
+        let port_permit = port_manager
+            .reserve_port(&conn_id, &connection_token)
+            .unwrap();
 
         port_manager.free_port(port_permit.clone());
 

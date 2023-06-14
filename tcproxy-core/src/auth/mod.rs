@@ -18,11 +18,11 @@ impl User {
     pub fn name(&self) -> &str {
         &self.name
     }
-    
+
     pub fn email(&self) -> &str {
         &self.email
     }
-    
+
     pub fn password(&self) -> &str {
         &self.password_hash
     }

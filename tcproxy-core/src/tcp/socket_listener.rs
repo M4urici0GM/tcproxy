@@ -1,8 +1,8 @@
 use std::{fmt::Debug, net::SocketAddr};
 
-use mockall::automock;
-use async_trait::async_trait;
 use crate::Result;
+use async_trait::async_trait;
+use mockall::automock;
 
 use super::TcpStream;
 

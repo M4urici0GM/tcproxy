@@ -2,7 +2,6 @@ use std::net::SocketAddr;
 
 use tokio::io::{AsyncRead, AsyncWrite};
 
-
 pub trait SocketConnection: Sync + Send {
     fn split(
         self,

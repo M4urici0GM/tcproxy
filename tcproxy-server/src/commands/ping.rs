@@ -1,7 +1,7 @@
 use async_trait::async_trait;
+use tcproxy_core::framing::Pong;
 use tcproxy_core::{AsyncCommand, Result, TcpFrame};
 use tokio::sync::mpsc::Sender;
-use tcproxy_core::framing::Pong;
 
 pub struct PingCommand {
     sender: Sender<TcpFrame>,
@@ -20,9 +20,7 @@ impl AsyncCommand for PingCommand {
     type Output = Result<()>;
 
     async fn handle(&mut self) -> Self::Output {
-        self.sender
-            .send(TcpFrame::Pong(Pong::new()))
-            .await?;
+        self.sender.send(TcpFrame::Pong(Pong::new())).await?;
 
         Ok(())
     }

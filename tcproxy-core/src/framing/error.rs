@@ -1,15 +1,18 @@
+use bytes::BufMut;
 use std::fmt;
 use std::fmt::Formatter;
 use std::io::Cursor;
-use bytes::BufMut;
 use tracing::trace;
 
-use crate::{Frame, FrameDecodeError};
 use crate::framing::frame_types::ERROR;
 use crate::framing::utils::assert_connection_type;
 use crate::io::{get_buffer, get_u16, get_u32};
+use crate::{Frame, FrameDecodeError};
 
-use super::error_types::{CLIENT_UNABLE_TO_CONNECT, PORT_LIMIT_REACHED, FAILED_TO_CREATE_PROXY, AUTHENTICATION_FAILED, UNEXPECTED_ERROR, ALREADY_AUTHENTICATED};
+use super::error_types::{
+    ALREADY_AUTHENTICATED, AUTHENTICATION_FAILED, CLIENT_UNABLE_TO_CONNECT, FAILED_TO_CREATE_PROXY,
+    PORT_LIMIT_REACHED, UNEXPECTED_ERROR,
+};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Reason {
@@ -59,14 +62,19 @@ impl Error {
             UNEXPECTED_ERROR => Ok(Reason::UnexpectedError),
             ALREADY_AUTHENTICATED => Ok(Reason::AlreadyAuthenticated),
             actual => {
-                return Err(FrameDecodeError::Other(format!("invalid reason: {}", actual).into()));
+                return Err(FrameDecodeError::Other(
+                    format!("invalid reason: {}", actual).into(),
+                ));
             }
         }
     }
 }
 
 impl Frame for Error {
-    fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError> where Self: Sized {
+    fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError>
+    where
+        Self: Sized,
+    {
         assert_connection_type(&get_u16(buffer)?, &ERROR)?;
         trace!("decoding Error frame");
 
@@ -76,7 +84,10 @@ impl Frame for Error {
         let data_len = get_u32(buffer)?;
         let data_buff = get_buffer(buffer, data_len)?;
 
-        Ok(Self { reason, data: data_buff })
+        Ok(Self {
+            reason,
+            data: data_buff,
+        })
     }
 
     fn encode(&self) -> Vec<u8> {
@@ -100,7 +111,7 @@ impl fmt::Display for Reason {
             Reason::AuthenticationFailed => format!("authentication failed!"),
             Reason::FailedToCreateProxy => format!("Failed to create proxy"),
             Reason::PortLimitReached => format!("port limit reached"),
-            Reason::ClientUnableToConnect => format!("target host unable to connect")
+            Reason::ClientUnableToConnect => format!("target host unable to connect"),
         };
 
         write!(f, "{}", format!("reason: {}", msg))

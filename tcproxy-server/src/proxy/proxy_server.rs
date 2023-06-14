@@ -1,17 +1,17 @@
 use std::sync::Arc;
-use tcproxy_core::{TcpFrame};
-use tokio::sync::{mpsc, OwnedSemaphorePermit};
+use tcproxy_core::TcpFrame;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Semaphore;
+use tokio::sync::{mpsc, OwnedSemaphorePermit};
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
-use tcproxy_core::framing::{SocketConnected};
+use tcproxy_core::framing::SocketConnected;
 use tcproxy_core::tcp::{SocketListener, TcpStream};
 use tcproxy_core::Result;
 
 use crate::managers::PortPermit;
-use crate::tcp::{RemoteConnection};
+use crate::tcp::RemoteConnection;
 use crate::ClientState;
 
 pub struct ProxyServer {
@@ -28,7 +28,9 @@ impl ProxyServer {
         sender: &Sender<TcpFrame>,
         listener: T,
     ) -> Self
-        where T: SocketListener + 'static {
+    where
+        T: SocketListener + 'static,
+    {
         Self {
             port_permit,
             proxy_state: state.clone(),
@@ -56,10 +58,7 @@ impl ProxyServer {
         let semaphore = Arc::new(Semaphore::new(120));
 
         loop {
-            let permit = semaphore.clone()
-                .acquire_owned()
-                .await
-                .unwrap();
+            let permit = semaphore.clone().acquire_owned().await.unwrap();
 
             let connection = self.listener.accept().await?;
             self.spawn_remote_connection(connection, permit).await?;
@@ -72,10 +71,7 @@ impl ProxyServer {
         permit: OwnedSemaphorePermit,
     ) -> Result<()> {
         let (connection_id, receiver) = self.create_connection_state();
-        let remote_connection = RemoteConnection::new(
-            &connection_id,
-            permit,
-            &self.client_sender);
+        let remote_connection = RemoteConnection::new(&connection_id, permit, &self.client_sender);
 
         self.send_incoming_connection_frame(&connection_id).await?;
         tokio::spawn(async move {
@@ -84,9 +80,11 @@ impl ProxyServer {
         Ok(())
     }
 
-    async fn send_incoming_connection_frame(&self, connection_id: &u32) -> Result<()>{
+    async fn send_incoming_connection_frame(&self, connection_id: &u32) -> Result<()> {
         self.client_sender
-            .send(TcpFrame::SocketConnected(SocketConnected::new(connection_id)))
+            .send(TcpFrame::SocketConnected(SocketConnected::new(
+                connection_id,
+            )))
             .await?;
 
         Ok(())
@@ -96,13 +94,9 @@ impl ProxyServer {
         let connection_manager = self.proxy_state.get_connection_manager();
 
         let (connection_sender, connection_receiver) = mpsc::channel::<Vec<u8>>(100);
-        let connection_id = connection_manager.insert_connection(
-            connection_sender,
-            CancellationToken::new());
+        let connection_id =
+            connection_manager.insert_connection(connection_sender, CancellationToken::new());
 
         (connection_id, connection_receiver)
     }
 }
-
-
-

@@ -37,7 +37,10 @@ impl ClientFrameWriter {
         while !self.cancellation_token.is_cancelled() {
             match self.receiver.recv().await {
                 Some(frame) => {
-                    debug!("received new frame from tx. {}, sending it to client..", frame);
+                    debug!(
+                        "received new frame from tx. {}, sending it to client..",
+                        frame
+                    );
                     self.writer.send(frame).await?;
                 }
                 None => {

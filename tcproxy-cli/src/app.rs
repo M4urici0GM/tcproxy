@@ -2,7 +2,10 @@ use crate::commands::contexts::{
     CreateContextCommand, ListContextsCommand, SetDefaultContextCommand,
 };
 use crate::commands::{ListenCommand, LoginCommand};
-use crate::{config::{directory_resolver, self}, AppCommandType, ClientArgs, ContextCommands};
+use crate::{
+    config::{self, directory_resolver},
+    AppCommandType, ClientArgs, ContextCommands,
+};
 use std::future::Future;
 use std::sync::Arc;
 use tcproxy_core::{AsyncCommand, Command, Result};

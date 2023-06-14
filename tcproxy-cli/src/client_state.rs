@@ -22,7 +22,6 @@ pub struct ConsoleStatus {
     pub connections: i32,
 }
 
-
 impl ClientState {
     pub fn new(console_sender: &Sender<i32>) -> Self {
         Self {

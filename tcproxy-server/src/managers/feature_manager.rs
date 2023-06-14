@@ -8,7 +8,7 @@ pub trait FeatureManager: Sync + Send {
 
 #[derive(Debug)]
 pub struct DefaultFeatureManager {
-    server_config: Arc<ServerConfig>
+    server_config: Arc<ServerConfig>,
 }
 
 impl DefaultFeatureManager {

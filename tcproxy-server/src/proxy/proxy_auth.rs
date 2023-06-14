@@ -1,15 +1,13 @@
-use std::sync::Arc;
-use jsonwebtoken::{decode, encode, DecodingKey, Validation, Header, EncodingKey};
-use tracing::warn;
-use tcproxy_core::auth::token_handler::{Claims, TokenHandler, TokenHandlerError, AuthToken};
 use crate::ServerConfig;
-use tracing::info;
+use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use std::sync::Arc;
+use tcproxy_core::auth::token_handler::{AuthToken, Claims, TokenHandler, TokenHandlerError};
 
-
+use tracing::warn;
 
 #[derive(Clone)]
-pub struct  DefaultTokenHandler {
-    server_config: Arc<ServerConfig>
+pub struct DefaultTokenHandler {
+    server_config: Arc<ServerConfig>,
 }
 
 impl DefaultTokenHandler {
@@ -39,7 +37,7 @@ impl TokenHandler for DefaultTokenHandler {
     fn encode(&self, claims: &Claims) -> Result<AuthToken, TokenHandlerError> {
         let secret = self.get_encoding_secret();
         let header = Header::default();
-        
+
         match encode(&header, claims, &secret) {
             Ok(token) => Ok(AuthToken::new(&token)),
             Err(err) => {
@@ -58,7 +56,7 @@ impl TokenHandler for DefaultTokenHandler {
             Err(err) => {
                 warn!("error trying to decode the token: {}", err);
                 Err(TokenHandlerError::InvalidToken)
-            },
+            }
         }
     }
 }

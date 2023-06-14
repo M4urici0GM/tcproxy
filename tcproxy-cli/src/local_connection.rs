@@ -1,5 +1,8 @@
 use bytes::BytesMut;
 use std::net::SocketAddrV4;
+use tcproxy_core::framing::{DataPacket, Error, Reason};
+use tcproxy_core::Result;
+use tcproxy_core::TcpFrame;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
@@ -7,9 +10,6 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
-use tcproxy_core::framing::{DataPacket, Error, Reason};
-use tcproxy_core::TcpFrame;
-use tcproxy_core::Result;
 
 pub struct LocalConnection {
     connection_id: u32,
@@ -36,11 +36,10 @@ impl LocalConnection {
                 );
 
                 let error_data = self.connection_id.to_be_bytes();
-                let error_frame = TcpFrame::Error(Error::new(&Reason::ClientUnableToConnect, &error_data));
+                let error_frame =
+                    TcpFrame::Error(Error::new(&Reason::ClientUnableToConnect, &error_data));
 
-                let _ = self.sender
-                    .send(error_frame)
-                    .await;
+                let _ = self.sender.send(error_frame).await;
 
                 Err(err.into())
             }

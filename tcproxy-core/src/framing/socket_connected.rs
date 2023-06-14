@@ -1,13 +1,13 @@
-use std::io::Cursor;
-use bytes::BufMut;
-use crate::{Frame, FrameDecodeError};
-use crate::framing::frame_types::{PING, SOCKET_CONNECTED};
+use crate::framing::frame_types::{SOCKET_CONNECTED};
 use crate::framing::utils::assert_connection_type;
-use crate::io::{get_u32, get_u16};
+use crate::io::{get_u16, get_u32};
+use crate::{Frame, FrameDecodeError};
+use bytes::BufMut;
+use std::io::Cursor;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SocketConnected {
-    connection_id: u32
+    connection_id: u32,
 }
 
 impl SocketConnected {
@@ -22,9 +22,11 @@ impl SocketConnected {
     }
 }
 
-
 impl Frame for SocketConnected {
-    fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError> where Self : Sized {
+    fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError>
+    where
+        Self: Sized,
+    {
         assert_connection_type(&get_u16(buffer)?, &SOCKET_CONNECTED)?;
 
         let connection_id = get_u32(buffer)?;
