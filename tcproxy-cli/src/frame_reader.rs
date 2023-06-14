@@ -5,11 +5,11 @@ use tokio::{sync::mpsc::Sender, task::JoinHandle};
 use tracing::debug;
 
 use tcproxy_core::transport::TransportReader;
-use tcproxy_core::{AsyncCommand};
+use tcproxy_core::AsyncCommand;
 use tcproxy_core::{Result, TcpFrame};
 
-use crate::{ClientState, ListenArgs, Shutdown};
 use crate::commands::{DataPacketCommand, IncomingSocketCommand, RemoteDisconnectedCommand};
+use crate::{ClientState, ListenArgs, Shutdown};
 
 pub struct TcpFrameReader {
     sender: Sender<TcpFrame>,
@@ -26,8 +26,7 @@ impl TcpFrameReader {
         args: &Arc<ListenArgs>,
         reader: TransportReader,
         shutdown_complete_tx: &Sender<()>,
-    ) -> Self
-    {
+    ) -> Self {
         Self {
             args: args.clone(),
             sender: sender.clone(),
@@ -57,7 +56,7 @@ impl TcpFrameReader {
                 };
 
                 debug!("received new frame from server: {}", msg);
-                let mut command: Box<dyn AsyncCommand<Output=Result<()>>> = match msg {
+                let mut command: Box<dyn AsyncCommand<Output = Result<()>>> = match msg {
                     TcpFrame::DataPacket(data) => Box::new(DataPacketCommand::new(
                         data.connection_id(),
                         data.buffer(),
@@ -71,14 +70,17 @@ impl TcpFrameReader {
                     )),
                     TcpFrame::SocketDisconnected(data) => {
                         debug!("remote socket disconnected");
-                        Box::new(RemoteDisconnectedCommand::new(data.connection_id(), &self.state))
-                    },
+                        Box::new(RemoteDisconnectedCommand::new(
+                            data.connection_id(),
+                            &self.state,
+                        ))
+                    }
                     TcpFrame::Pong(_) => {
                         let time = Utc::now();
                         self.state.update_last_ping(time);
 
                         continue;
-                    },
+                    }
                     packet => {
                         debug!("invalid data packet received. {}", packet);
                         continue;

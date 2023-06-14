@@ -1,11 +1,11 @@
 use std::net::SocketAddr;
 
-use tokio::net::TcpListener as TokioTcpListener;
 use async_trait::async_trait;
-use tracing::{error, debug};
+use tokio::net::TcpListener as TokioTcpListener;
+use tracing::{debug, error};
 
-use crate::Result;
 use crate::tcp::SocketListener;
+use crate::Result;
 
 use super::TcpStream;
 
@@ -34,7 +34,11 @@ impl SocketListener for TcpListener {
                     return Ok(TcpStream::new(inner, addr));
                 }
                 Err(err) => {
-                    error!("Failed to accept new socket at listener {}. retrying.. {}", self.inner.local_addr()?, err);
+                    error!(
+                        "Failed to accept new socket at listener {}. retrying.. {}",
+                        self.inner.local_addr()?,
+                        err
+                    );
                     if backoff > 64 {
                         error!("Failed to accept new socket. aborting.. {}", err);
                         return Err(err.into());

@@ -58,7 +58,7 @@ pub struct CreateContextArgs {
 #[derive(Parser, Debug, Clone)]
 pub struct LoginArgs {
     username: Option<String>,
-    app_context: Option<String>
+    app_context: Option<String>,
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -75,7 +75,7 @@ pub struct ListenArgs {
     ping_interval: u8,
 
     #[clap(long, short)]
-    app_context: Option<String>
+    app_context: Option<String>,
 }
 
 impl LoginArgs {
@@ -145,7 +145,6 @@ fn parse_server_addr(given_str: &str) -> Result<ServerAddr> {
     let result = ServerAddr::from_str(given_str)?;
     Ok(result)
 }
-
 
 fn parse_ping_interval(s: &str) -> Result<u8> {
     let parsed_value = match s.parse::<u8>() {

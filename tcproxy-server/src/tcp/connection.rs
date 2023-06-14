@@ -2,10 +2,10 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::OwnedSemaphorePermit;
 use tracing::debug;
 
-use tcproxy_core::framing::{SocketDisconnected};
+use tcproxy_core::framing::SocketDisconnected;
 use tcproxy_core::tcp::{DefaultStreamReader, SocketConnection};
-use tcproxy_core::TcpFrame;
 use tcproxy_core::Result;
+use tcproxy_core::TcpFrame;
 
 use crate::tcp::{RemoteConnectionReader, RemoteConnectionWriter};
 
@@ -16,11 +16,7 @@ pub struct RemoteConnection {
 }
 
 impl RemoteConnection {
-    pub fn new(
-        id: &u32,
-        permit: OwnedSemaphorePermit,
-        client_sender: &Sender<TcpFrame>,
-    ) -> Self {
+    pub fn new(id: &u32, permit: OwnedSemaphorePermit, client_sender: &Sender<TcpFrame>) -> Self {
         Self {
             _permit: permit,
             connection_id: *id,
@@ -36,7 +32,8 @@ impl RemoteConnection {
         let (reader, writer) = connection.split();
 
         let stream_reader = DefaultStreamReader::new(1024 * 8, reader);
-        let mut reader = RemoteConnectionReader::new(&self.connection_id, &self.client_sender, stream_reader);
+        let mut reader =
+            RemoteConnectionReader::new(&self.connection_id, &self.client_sender, stream_reader);
         let mut writer = RemoteConnectionWriter::new(receiver, connection_addr, writer);
 
         tokio::spawn(async move {
@@ -49,11 +46,14 @@ impl RemoteConnection {
             });
 
             tokio::select! {
-            _ = reader_task => {},
-            _ = writer_task => {},
-        };
+                _ = reader_task => {},
+                _ = writer_task => {},
+            };
 
-            debug!("received stop signal from connection {}. aborting..", self.connection_id);
+            debug!(
+                "received stop signal from connection {}. aborting..",
+                self.connection_id
+            );
             let frame = TcpFrame::SocketDisconnected(SocketDisconnected::new(&self.connection_id));
             let _ = self.client_sender.send(frame).await;
         });

@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use tokio::sync::mpsc::Sender;
 use tracing::debug;
 
-use tcproxy_core::{AsyncCommand, Result, TcpFrame};
 use tcproxy_core::framing::ClientConnectedAck;
+use tcproxy_core::{AsyncCommand, Result, TcpFrame};
 
 pub struct ClientConnectedCommand {
     client_sender: Sender<TcpFrame>,

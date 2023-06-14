@@ -1,20 +1,22 @@
+use tcproxy_core::framing::DataPacket;
 use tcproxy_core::tcp::StreamReader;
 use tokio::sync::mpsc::Sender;
 use tracing::{error, trace};
-use tcproxy_core::framing::DataPacket;
 
-use tcproxy_core::TcpFrame;
 use tcproxy_core::Result;
+use tcproxy_core::TcpFrame;
 
 pub struct RemoteConnectionReader {
     connection_id: u32,
     client_sender: Sender<TcpFrame>,
-    reader: Box<dyn StreamReader>
+    reader: Box<dyn StreamReader>,
 }
 
-
 impl RemoteConnectionReader {
-    pub fn new<T>(connection_id: &u32, sender: &Sender<TcpFrame>, reader: T) -> Self  where T : StreamReader + 'static {
+    pub fn new<T>(connection_id: &u32, sender: &Sender<TcpFrame>, reader: T) -> Self
+    where
+        T: StreamReader + 'static,
+    {
         Self {
             connection_id: *connection_id,
             client_sender: sender.clone(),
@@ -24,10 +26,7 @@ impl RemoteConnectionReader {
 
     pub async fn start(&mut self) -> Result<()> {
         while let Some(buffer) = self.reader.read().await? {
-            let frame = TcpFrame::DataPacket(DataPacket::new(
-                &self.connection_id,
-                &buffer,
-            ));
+            let frame = TcpFrame::DataPacket(DataPacket::new(&self.connection_id, &buffer));
 
             match self.client_sender.send(frame).await {
                 Ok(_) => {}
@@ -49,10 +48,9 @@ mod tests {
     use mockall::Sequence;
     use rand::random;
     use tokio::sync::mpsc;
-    
 
     use crate::tests::utils::generate_random_buffer;
-    use tcproxy_core::{TcpFrame, tcp::MockStreamReader};
+    use tcproxy_core::{tcp::MockStreamReader, TcpFrame};
 
     use super::*;
 
@@ -63,13 +61,9 @@ mod tests {
         let (sender, mut receiver) = mpsc::channel::<TcpFrame>(1);
         let mut reader = MockStreamReader::new();
 
-        reader.expect_read()
-            .returning(|| {
-                Ok(None)
-            });
+        reader.expect_read().returning(|| Ok(None));
 
         let mut connection_reader = RemoteConnectionReader::new(&connection_id, &sender, reader);
-
 
         // Act
         let result = connection_reader.start().await;
@@ -93,34 +87,29 @@ mod tests {
         let random_buffer = generate_random_buffer(expected_buff_size);
         let (sender, mut receiver) = mpsc::channel::<TcpFrame>(3);
 
-
         let mut reader = MockStreamReader::new();
         let mut sequence = Sequence::new();
         let buff_clone = random_buffer.clone();
-        reader.expect_read()
+        reader
+            .expect_read()
             .times(1)
-            .returning(move || {
-                Ok(Some(BytesMut::from(&buff_clone[..(buff_clone.len()/2)])))
-            })
+            .returning(move || Ok(Some(BytesMut::from(&buff_clone[..(buff_clone.len() / 2)]))))
             .in_sequence(&mut sequence);
 
         let buff_clone = random_buffer.clone();
-        reader.expect_read()
+        reader
+            .expect_read()
             .times(1)
-            .returning(move || {
-                Ok(Some(BytesMut::from(&buff_clone[(buff_clone.len()/2)..])))
-            })
+            .returning(move || Ok(Some(BytesMut::from(&buff_clone[(buff_clone.len() / 2)..]))))
             .in_sequence(&mut sequence);
 
-        reader.expect_read()
+        reader
+            .expect_read()
             .times(1)
             .returning(|| Ok(None))
             .in_sequence(&mut sequence);
 
-        let mut connection_reader = RemoteConnectionReader::new(
-            &connection_id,
-            &sender,
-            reader);
+        let mut connection_reader = RemoteConnectionReader::new(&connection_id, &sender, reader);
 
         // At this point stream is already closed, but underlying buffer still there for reading.
         let _ = connection_reader.start().await;

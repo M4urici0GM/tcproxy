@@ -1,14 +1,14 @@
 pub mod reader;
 pub mod writer;
 
-use tracing::{debug, error};
-use tokio::net::TcpStream as TokioTcpStream;
 use std::net::SocketAddr;
+use tokio::net::TcpStream as TokioTcpStream;
+use tracing::{debug, error};
 
 pub use reader::*;
 pub use writer::*;
 
-use crate::tcp::{TcpStream, SocketConnection};
+use crate::tcp::{SocketConnection, TcpStream};
 use crate::{Result, TcpFrame};
 
 /// represents TcpFrame buffer transport reader.

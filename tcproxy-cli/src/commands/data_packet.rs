@@ -15,11 +15,7 @@ pub struct DataPacketCommand {
 }
 
 impl DataPacketCommand {
-    pub fn new(
-        connection_id: &u32,
-        buffer: &[u8],
-        state: &Arc<ClientState>,
-    ) -> Self {
+    pub fn new(connection_id: &u32, buffer: &[u8], state: &Arc<ClientState>) -> Self {
         Self {
             connection_id: *connection_id,
             buffer: buffer.to_vec(),

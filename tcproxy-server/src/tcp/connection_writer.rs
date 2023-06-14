@@ -13,8 +13,10 @@ pub struct RemoteConnectionWriter<'a> {
 
 /// Writes buffers into remote connection.
 impl<'a> RemoteConnectionWriter<'a> {
-    pub fn new<T>(receiver: Receiver<Vec<u8>>, connection_addr: SocketAddr, writer: T) -> Self where
-        T: AsyncWrite + Unpin + Send + 'a {
+    pub fn new<T>(receiver: Receiver<Vec<u8>>, connection_addr: SocketAddr, writer: T) -> Self
+    where
+        T: AsyncWrite + Unpin + Send + 'a,
+    {
         Self {
             receiver,
             connection_addr,
@@ -70,7 +72,6 @@ mod tests {
         }
     }
 
-
     #[tokio::test]
     async fn should_write_buffer_correctly() {
         let random_buffer = generate_random_buffer(1024);
@@ -104,7 +105,8 @@ mod tests {
             .expect_poll_write()
             .returning(|_, _| Poll::Ready(Err(std::io::Error::new(ErrorKind::Other, ""))));
 
-        let mut connection_writer = RemoteConnectionWriter::new(receiver, addr, Box::new(mocked_stream));
+        let mut connection_writer =
+            RemoteConnectionWriter::new(receiver, addr, Box::new(mocked_stream));
 
         // Act
 
@@ -117,5 +119,4 @@ mod tests {
         assert!(result.is_ok());
         assert!(sender.is_closed());
     }
-
 }

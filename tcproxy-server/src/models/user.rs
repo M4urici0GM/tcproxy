@@ -1,11 +1,10 @@
-
 use diesel::prelude::*;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-
-#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[derive(Queryable, Selectable, Insertable)]
+#[derive(
+    Default, Clone, Debug, PartialEq, Serialize, Deserialize, Queryable, Selectable, Insertable,
+)]
 #[diesel(table_name = crate::schema::users)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct UserModel {
@@ -26,7 +25,7 @@ impl UserModel {
         }
     }
 
-    pub fn id(&self) -> &[u8]{
+    pub fn id(&self) -> &[u8] {
         &self.id
     }
 

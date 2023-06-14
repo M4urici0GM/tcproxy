@@ -16,7 +16,7 @@ pub struct ClientFrameReader {
 impl ClientFrameReader {
     pub fn new<T>(reader: TransportReader, frame_handler: T) -> Self
     where
-        T: FrameHandler + 'static
+        T: FrameHandler + 'static,
     {
         Self {
             reader,
@@ -44,8 +44,7 @@ impl ClientFrameReader {
             };
 
             debug!("received new frame from client {}", frame);
-            self
-                .frame_handler
+            self.frame_handler
                 .handle(frame, cancellation_token.child_token())
                 .await?;
         }

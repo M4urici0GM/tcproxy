@@ -1,25 +1,26 @@
-mod connections_manager;
-mod port_manager;
-mod feature_manager;
-mod authentication_manager;
 mod account_manager;
+mod authentication_manager;
+mod connections_manager;
+mod feature_manager;
+mod port_manager;
 
+pub use account_manager::*;
+pub use authentication_manager::*;
+pub use connections_manager::*;
+pub use feature_manager::*;
+pub use port_manager::*;
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::sync::Arc;
-pub use connections_manager::*;
-pub use port_manager::*;
-pub use feature_manager::*;
-pub use authentication_manager::*;
-pub use account_manager::*;
 
 pub type IFeatureManager = Box<dyn FeatureManager>;
-
 
 pub struct Service<T: ?Sized>(Arc<T>);
 
 impl<T> Service<T> {
-    pub fn new(service: T) -> Service<T> { Service(Arc::new(service)) }
+    pub fn new(service: T) -> Service<T> {
+        Service(Arc::new(service))
+    }
 }
 
 impl<T: ?Sized> Service<T> {
@@ -40,21 +41,18 @@ impl<T: ?Sized> From<Arc<T>> for Service<T> {
     }
 }
 
-
 pub struct AppContext {
-    services: HashMap<TypeId, Box<dyn Any>>
+    services: HashMap<TypeId, Box<dyn Any>>,
 }
 
 fn downcast_owned<T: 'static>(boxed: Box<dyn Any>) -> Option<T> {
-    boxed.downcast()
-        .ok()
-        .map(|boxed| *boxed)
+    boxed.downcast().ok().map(|boxed| *boxed)
 }
 
 impl AppContext {
     pub fn new() -> Self {
         Self {
-            services: HashMap::new()
+            services: HashMap::new(),
         }
     }
 
@@ -77,14 +75,12 @@ impl AppContext {
 
 #[cfg(test)]
 pub mod tests {
-    use std::sync::Arc;
     use crate::managers::{AppContext, Service};
+    use std::sync::Arc;
 
     #[test]
     pub fn should_insert_service() {
-        struct MyService {
-
-        }
+        struct MyService {}
 
         impl MyService {
             pub fn test(&self) -> u32 {
@@ -105,12 +101,12 @@ pub mod tests {
     pub fn should_insert_unsized_svc() {
         struct A;
         trait MyService {
-            fn test(&self) -> u32 { 32 }
+            fn test(&self) -> u32 {
+                32
+            }
         }
 
-        impl MyService for A {
-
-        }
+        impl MyService for A {}
 
         let mut context = AppContext::new();
         let dyn_arc: Arc<dyn MyService> = Arc::new(A {});
@@ -120,6 +116,6 @@ pub mod tests {
 
         let extracted_service = context.get::<Service<dyn MyService>>().unwrap();
 
-        assert_eq!(A{}.test(), extracted_service.get_ref().test());
+        assert_eq!(A {}.test(), extracted_service.get_ref().test());
     }
 }

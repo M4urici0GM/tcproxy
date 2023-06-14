@@ -1,6 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::Error;
-
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -12,13 +11,7 @@ pub struct Claims {
 }
 
 impl Claims {
-    pub fn new(
-        exp: &usize,
-        iat: &usize,
-        sub: &str,
-        iss: &str,
-        aud: &str,
-    ) -> Self {
+    pub fn new(exp: &usize, iat: &usize, sub: &str, iss: &str, aud: &str) -> Self {
         Self {
             exp: *exp,
             iat: *iat,
@@ -61,9 +54,7 @@ impl std::fmt::Display for TokenHandlerError {
     }
 }
 
-impl std::error::Error for TokenHandlerError {
-    
-}
+impl std::error::Error for TokenHandlerError {}
 
 #[derive(Default)]
 pub struct AuthToken(String);
@@ -90,8 +81,7 @@ impl From<&str> for AuthToken {
     }
 }
 
-
 pub trait TokenHandler: Sync + Send {
     fn encode(&self, claims: &Claims) -> Result<AuthToken, TokenHandlerError>;
-    fn decode(&self, token: &str) ->  Result<Claims, TokenHandlerError>;
+    fn decode(&self, token: &str) -> Result<Claims, TokenHandlerError>;
 }

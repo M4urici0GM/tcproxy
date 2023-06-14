@@ -1,13 +1,14 @@
-use std::net::{SocketAddr, IpAddr, AddrParseError};
-use std::{str::FromStr, fmt::Display, num::ParseIntError};
-use std::error::Error;
 use fancy_regex::Regex;
 use lazy_static::lazy_static;
+use std::error::Error;
+use std::net::{AddrParseError, IpAddr, SocketAddr};
+use std::{fmt::Display, num::ParseIntError, str::FromStr};
 
 use crate::config::AppContext;
 
 lazy_static! {
-    static ref IP_REGEX: Regex = Regex::new(r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$").unwrap();
+    static ref IP_REGEX: Regex =
+        Regex::new(r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$").unwrap();
 }
 
 #[derive(Debug)]
@@ -15,13 +16,13 @@ pub enum ServerAddrError {
     InvalidString,
     InvalidPort,
     InvalidHost,
-    Other(tcproxy_core::Error)
+    Other(tcproxy_core::Error),
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ServerAddrType {
     IpAddr,
-    Dns
+    Dns,
 }
 
 #[derive(Debug, Clone)]
@@ -44,13 +45,13 @@ impl TryFrom<AppContext> for ServerAddr {
 impl ServerAddr {
     pub fn new(host: &str, port: &u16) -> Result<Self, ServerAddrError> {
         if host == String::default() {
-            return Err(ServerAddrError::InvalidHost)
+            return Err(ServerAddrError::InvalidHost);
         }
 
         Ok(Self {
             host: host.to_owned(),
             port: port.to_owned(),
-            addr_type: Self::parse_type(host)?
+            addr_type: Self::parse_type(host)?,
         })
     }
 
@@ -80,7 +81,7 @@ impl ServerAddr {
     pub fn to_socket_addr(&self) -> Result<SocketAddr, ServerAddrError> {
         let ip = IpAddr::from_str(&self.host)?;
         let addr = SocketAddr::new(ip, self.port);
-        
+
         Ok(addr)
     }
 }
@@ -103,9 +104,7 @@ impl FromStr for ServerAddr {
     }
 }
 
-impl Error for ServerAddrError {
-    
-}
+impl Error for ServerAddrError {}
 
 impl From<AddrParseError> for ServerAddrError {
     fn from(_: AddrParseError) -> Self {
@@ -140,9 +139,9 @@ impl Display for ServerAddrError {
 
 #[cfg(test)]
 mod tests {
+    use crate::server_addr::{ServerAddr, ServerAddrError, ServerAddrType};
     use std::str::FromStr;
     use tcproxy_core::is_type;
-    use crate::server_addr::{ServerAddr, ServerAddrError, ServerAddrType};
 
     #[test]
     pub fn should_recognize_ip_addr() {
@@ -185,7 +184,10 @@ mod tests {
 
         // Assert
         assert!(result.is_err());
-        assert!(is_type!(result.unwrap_err(), ServerAddrError::InvalidString));
+        assert!(is_type!(
+            result.unwrap_err(),
+            ServerAddrError::InvalidString
+        ));
     }
 
     #[test]

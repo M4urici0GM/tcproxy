@@ -1,15 +1,16 @@
+use bytes::{Buf, BytesMut};
 use std::fmt::Display;
 use std::io::Cursor;
-use bytes::{Buf, BytesMut};
 use tracing::debug;
 
-use crate::FrameDecodeError;
 use crate::framing::frame_types::*;
 use crate::framing::*;
-
+use crate::FrameDecodeError;
 
 pub trait Frame {
-    fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError> where Self: Sized;
+    fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError>
+    where
+        Self: Sized;
     fn encode(&self) -> Vec<u8>;
 }
 
@@ -24,7 +25,7 @@ pub enum TcpFrame {
     SocketConnected(SocketConnected),
     ClientConnectedAck(ClientConnectedAck),
     ClientConnected(ClientConnected),
-    SocketDisconnected(SocketDisconnected)
+    SocketDisconnected(SocketDisconnected),
 }
 
 impl TcpFrame {
@@ -37,7 +38,9 @@ impl TcpFrame {
 
         let frame = match raw_grant_type {
             CLIENT_CONNECTED => TcpFrame::ClientConnected(ClientConnected::decode(cursor)?),
-            CLIENT_CONNECTED_ACK => TcpFrame::ClientConnectedAck(ClientConnectedAck::decode(cursor)?),
+            CLIENT_CONNECTED_ACK => {
+                TcpFrame::ClientConnectedAck(ClientConnectedAck::decode(cursor)?)
+            }
             PING => TcpFrame::Ping(Ping::decode(cursor)?),
             PONG => TcpFrame::Pong(Pong::decode(cursor)?),
             SOCKET_CONNECTED => TcpFrame::SocketConnected(SocketConnected::decode(cursor)?),
@@ -45,9 +48,7 @@ impl TcpFrame {
             DATA_PACKET => TcpFrame::DataPacket(DataPacket::decode(cursor)?),
             AUTHENTICATE => TcpFrame::Authenticate(Authenticate::decode(cursor)?),
             AUTHENTICATE_ACK => TcpFrame::AuthenticateAck(AuthenticateAck::decode(cursor)?),
-            actual => {
-                return Err(format!("proto error. invalid frame type. {}", actual).into())
-            },
+            actual => return Err(format!("proto error. invalid frame type. {}", actual).into()),
         };
 
         Ok(frame)
@@ -75,21 +76,15 @@ impl TcpFrame {
 impl Display for TcpFrame {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let data_type = match self {
-            TcpFrame::ClientConnected(_) => {
-                "ClientConnected".to_string()
-            }
-            TcpFrame::Ping(_) => {
-                "Ping".to_string()
-            }
-            TcpFrame::Pong(_) => {
-                "Pong".to_string()
-            }
+            TcpFrame::ClientConnected(_) => "ClientConnected".to_string(),
+            TcpFrame::Ping(_) => "Ping".to_string(),
+            TcpFrame::Pong(_) => "Pong".to_string(),
             TcpFrame::Authenticate(_) => {
                 format!("Authenticate")
-            },
+            }
             TcpFrame::AuthenticateAck(_) => {
                 format!("AuthenticateAck")
-            },
+            }
             TcpFrame::ClientConnectedAck(_) => {
                 format!("ClientConnectedACK")
             }
@@ -100,7 +95,11 @@ impl Display for TcpFrame {
                 format!("Socket Disconnected ({})", data.connection_id())
             }
             TcpFrame::DataPacket(data) => {
-                format!("DataPacketHost, {}, size: {}", data.connection_id(), data.buffer().len())
+                format!(
+                    "DataPacketHost, {}, size: {}",
+                    data.connection_id(),
+                    data.buffer().len()
+                )
             }
             TcpFrame::Error(data) => {
                 format!("Error[reason = {}]", data.reason())

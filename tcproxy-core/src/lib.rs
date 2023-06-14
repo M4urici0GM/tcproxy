@@ -2,16 +2,16 @@ mod command;
 mod frame_error;
 mod tcp_frame;
 
-pub mod tcp;
-pub mod transport;
+pub mod auth;
+pub mod config;
 pub mod framing;
 pub mod io;
-pub mod config;
-pub mod auth;
+pub mod tcp;
+pub mod transport;
 
-use std::io::{Cursor, Read};
-use bytes::{BufMut, Buf};
+use bytes::{Buf, BufMut};
 use mongodb::bson::Uuid;
+use std::io::{Cursor, Read};
 
 pub use command::*;
 pub use frame_error::*;
@@ -78,12 +78,13 @@ pub mod test_util {
         use bytes::{BufMut, BytesMut};
 
         let initial_vec: Vec<u8> = vec![];
-        let result = (0..buffer_size)
-            .map(|_| rand::random::<u8>())
-            .fold(initial_vec, |mut a, b| {
-                a.put_u8(b);
-                a
-            });
+        let result =
+            (0..buffer_size)
+                .map(|_| rand::random::<u8>())
+                .fold(initial_vec, |mut a, b| {
+                    a.put_u8(b);
+                    a
+                });
 
         BytesMut::from(result.as_slice())
     }
@@ -93,14 +94,10 @@ pub mod test_util {
         macro_rules! is_type {
             ($value:expr, $pattern:pat) => {
                 match &$value {
-                    $pattern => {
-                        true
-                    },
-                    _ => {
-                        false
-                    }
+                    $pattern => true,
+                    _ => false,
                 }
-            }
+            };
         }
     }
 }

@@ -53,7 +53,10 @@ impl ConnectionsManager {
         Some(state.remove(connection_id).unwrap())
     }
 
-    pub fn get_connection(&self, connection_id: &u32) -> Option<(Sender<Vec<u8>>, CancellationToken)> {
+    pub fn get_connection(
+        &self,
+        connection_id: &u32,
+    ) -> Option<(Sender<Vec<u8>>, CancellationToken)> {
         let state = self.connections.lock().unwrap();
         match state.get(connection_id) {
             Some(item) => Some(item.clone()),

@@ -1,12 +1,12 @@
-use std::io::Cursor;
-use bytes::Buf;
-use bytes::buf::BufMut;
-use crate::{Frame, FrameDecodeError, PutU32String, ReadU32String};
 use crate::framing::frame_types::AUTHENTICATE;
 use crate::framing::utils::assert_connection_type;
 use crate::io::get_u16;
+use crate::{Frame, FrameDecodeError, PutU32String, ReadU32String};
+use bytes::buf::BufMut;
+use bytes::Buf;
+use std::io::Cursor;
 
-use super::authentication_grant_types::{PASSWORD_AUTHENTICATION, AUTH_TOKEN_AUTHENTICATION};
+use super::authentication_grant_types::{AUTH_TOKEN_AUTHENTICATION, PASSWORD_AUTHENTICATION};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum GrantType {
@@ -18,7 +18,7 @@ pub enum GrantType {
 pub struct PasswordAuthArgs {
     username: String,
     password: String,
-    remember_me: bool
+    remember_me: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -28,21 +28,18 @@ pub struct TokenAuthenticationArgs {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Authenticate {
-    grant_type: GrantType 
+    grant_type: GrantType,
 }
 
 impl Authenticate {
     pub fn new(grant_type: GrantType) -> Self {
-        Self {
-            grant_type
-        }
+        Self { grant_type }
     }
 
     pub fn grant_type(&self) -> &GrantType {
         &self.grant_type
     }
 }
-
 
 impl TokenAuthenticationArgs {
     pub fn new(token: &str) -> Self {
@@ -61,7 +58,7 @@ impl PasswordAuthArgs {
         Self {
             username: String::from(username),
             password: String::from(password),
-            remember_me: remember_me.unwrap_or(false)
+            remember_me: remember_me.unwrap_or(false),
         }
     }
 
@@ -75,17 +72,20 @@ impl PasswordAuthArgs {
 }
 
 impl Frame for PasswordAuthArgs {
-    fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError> where Self: Sized {
+    fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError>
+    where
+        Self: Sized,
+    {
         assert_connection_type(&get_u16(buffer)?, &PASSWORD_AUTHENTICATION)?;
 
         let username = buffer.read_u32_str()?;
         let password = buffer.read_u32_str()?;
-        let remember_me = buffer.get_u8() == 1; 
+        let remember_me = buffer.get_u8() == 1;
 
         Ok(Self {
             username,
             password,
-            remember_me
+            remember_me,
         })
     }
 
@@ -101,11 +101,16 @@ impl Frame for PasswordAuthArgs {
 }
 
 impl Frame for TokenAuthenticationArgs {
-    fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError> where Self: Sized {
+    fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError>
+    where
+        Self: Sized,
+    {
         assert_connection_type(&get_u16(buffer)?, &AUTH_TOKEN_AUTHENTICATION)?;
 
         let token = buffer.read_u32_str()?;
-        Ok(Self { account_token: token })
+        Ok(Self {
+            account_token: token,
+        })
     }
 
     fn encode(&self) -> Vec<u8> {
@@ -131,12 +136,12 @@ impl Frame for Authenticate {
             }
         };
 
-        Ok(Self { grant_type, })
+        Ok(Self { grant_type })
     }
 
     fn encode(&self) -> Vec<u8> {
         let mut buffer = Vec::new();
-        let grant_type_buff =  match &self.grant_type {
+        let grant_type_buff = match &self.grant_type {
             GrantType::PASSWORD(data) => data.encode(),
             GrantType::TOKEN(data) => data.encode(),
         };
@@ -147,7 +152,6 @@ impl Frame for Authenticate {
         buffer
     }
 }
-
 
 impl From<PasswordAuthArgs> for GrantType {
     fn from(value: PasswordAuthArgs) -> Self {
@@ -163,12 +167,10 @@ impl From<TokenAuthenticationArgs> for GrantType {
 
 #[cfg(test)]
 pub mod tests {
-    use std::io::Cursor;
+    use crate::framing::frame_types::AUTHENTICATE;
+    use crate::framing::Authenticate;
+    use crate::{is_type, Frame, FrameDecodeError};
     use bytes::BufMut;
     use mongodb::bson::Uuid;
-    use crate::{Frame, FrameDecodeError, is_type};
-    use crate::framing::Authenticate;
-    use crate::framing::frame_types::AUTHENTICATE;
-
-    
+    use std::io::Cursor;
 }

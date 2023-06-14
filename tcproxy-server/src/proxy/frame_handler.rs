@@ -4,12 +4,14 @@ use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
-use crate::commands::{AuthenticateCommand, ClientConnectedCommand, DataPacketClientCommand, LocalClientDisconnectedCommand, PingCommand, AuthenticateCommandArgs};
+use crate::commands::{
+    AuthenticateCommand, AuthenticateCommandArgs, ClientConnectedCommand, DataPacketClientCommand,
+    LocalClientDisconnectedCommand, PingCommand,
+};
 use crate::ClientState;
+use tcproxy_core::auth::token_handler::TokenHandler;
 use tcproxy_core::TcpFrame;
 use tcproxy_core::{AsyncCommand, Result};
-use tcproxy_core::auth::token_handler::TokenHandler;
-
 
 #[async_trait]
 pub trait FrameHandler: Send + Sync {
@@ -27,12 +29,9 @@ pub struct DefaultFrameHandler {
 }
 
 impl DefaultFrameHandler {
-    pub fn new<T>(
-        sender: &Sender<TcpFrame>,
-        state: &Arc<ClientState>,
-        token_handler: T,
-    ) -> Self
-        where T: TokenHandler + 'static
+    pub fn new<T>(sender: &Sender<TcpFrame>, state: &Arc<ClientState>, token_handler: T) -> Self
+    where
+        T: TokenHandler + 'static,
     {
         Self {
             sender: sender.clone(),
@@ -49,7 +48,7 @@ impl FrameHandler for DefaultFrameHandler {
         frame: TcpFrame,
         _cancellation_token: CancellationToken,
     ) -> Result<Option<TcpFrame>> {
-        let mut command_handler: Box<dyn AsyncCommand<Output=Result<()>>> = match frame {
+        let mut command_handler: Box<dyn AsyncCommand<Output = Result<()>>> = match frame {
             TcpFrame::Ping(_) => Box::new(PingCommand::new(&self.sender)),
             TcpFrame::SocketDisconnected(data) => {
                 LocalClientDisconnectedCommand::boxed_new(data.connection_id(), &self.state)
@@ -61,7 +60,8 @@ impl FrameHandler for DefaultFrameHandler {
                 &self.sender,
                 self.state.get_auth_manager(),
                 &self.token_handler,
-                &self.state.get_accounts_manager()),
+                &self.state.get_accounts_manager(),
+            ),
             _ => {
                 debug!("invalid frame received.");
                 return Ok(None);
@@ -72,4 +72,3 @@ impl FrameHandler for DefaultFrameHandler {
         Ok(None)
     }
 }
-

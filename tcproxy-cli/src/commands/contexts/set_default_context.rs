@@ -1,6 +1,6 @@
-use tcproxy_core::Command;
-use crate::config::{AppContextError, Config, AppContext};
+use crate::config::{AppContext, AppContextError, Config};
 use crate::SetDefaultContextArgs;
+use tcproxy_core::Command;
 
 pub struct SetDefaultContextCommand {
     args: SetDefaultContextArgs,
@@ -63,7 +63,6 @@ mod tests {
 
     //     let config = config::load(&directory_resolver).unwrap();
 
-        
     //     let command_args = SetDefaultContextArgs::new("test-ctx");
     //     let mut command = SetDefaultContextCommand::new(&command_args, &directory_resolver);
 

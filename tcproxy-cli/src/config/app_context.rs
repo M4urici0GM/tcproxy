@@ -1,5 +1,5 @@
-use std::fmt::{Display, Formatter};
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 use crate::server_addr::ServerAddr;
 
@@ -15,7 +15,7 @@ impl AppContext {
         Self {
             name: String::from(name),
             target_host: host.to_owned(),
-            target_port: port.to_owned()
+            target_port: port.to_owned(),
         }
     }
 
@@ -44,6 +44,10 @@ impl From<ServerAddr> for AppContext {
 
 impl Display for AppContext {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[name = {}, host = {}, port = {}]", self.name, self.target_host, self.target_host)
+        write!(
+            f,
+            "[name = {}, host = {}, port = {}]",
+            self.name, self.target_host, self.target_host
+        )
     }
 }

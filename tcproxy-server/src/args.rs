@@ -1,4 +1,4 @@
-use std::{net::{IpAddr}, ops::Range};
+use std::{net::IpAddr, ops::Range};
 
 use clap::Parser;
 use tcproxy_core::Result;
@@ -16,7 +16,7 @@ pub struct AppArguments {
     port_range: Option<Range<u16>>,
 
     #[clap(long = "max-connections-per-proxy")]
-    max_connections_per_proxy: Option<u16>
+    max_connections_per_proxy: Option<u16>,
 }
 
 impl AppArguments {
@@ -24,7 +24,7 @@ impl AppArguments {
         port: Option<u16>,
         ip: Option<IpAddr>,
         port_range: Option<Range<u16>>,
-        max_connections_per_proxy: Option<u16>
+        max_connections_per_proxy: Option<u16>,
     ) -> Self {
         Self {
             port,
@@ -50,7 +50,6 @@ impl AppArguments {
         self.max_connections_per_proxy
     }
 }
-
 
 fn parse_port_range(s: &str) -> Result<Range<u16>> {
     let groups: Vec<&str> = s.split(':').collect();

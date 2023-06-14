@@ -1,5 +1,8 @@
 use std::net::SocketAddr;
-use tokio::{net::TcpStream as TokioTcpStream, io::{AsyncRead, AsyncWrite}};
+use tokio::{
+    io::{AsyncRead, AsyncWrite},
+    net::TcpStream as TokioTcpStream,
+};
 
 use crate::tcp::SocketConnection;
 
@@ -36,4 +39,3 @@ impl SocketConnection for TcpStream {
         self.addr
     }
 }
-

@@ -6,8 +6,8 @@ use tokio::sync::mpsc::Sender;
 use tokio::time;
 use tokio::{task::JoinHandle, time::Instant};
 
-use tracing::{debug, error};
 use tcproxy_core::framing::Ping;
+use tracing::{debug, error};
 
 use crate::{ClientState, Shutdown};
 
@@ -15,7 +15,7 @@ pub struct PingSender {
     interval: u64,
     state: Arc<ClientState>,
     sender: Sender<TcpFrame>,
-    _shutdown_signal: Sender<()>
+    _shutdown_signal: Sender<()>,
 }
 
 impl PingSender {
@@ -23,13 +23,14 @@ impl PingSender {
         sender: &Sender<TcpFrame>,
         state: &Arc<ClientState>,
         interval: u8,
-        shutdown_signal: &Sender<()>) -> Self {
+        shutdown_signal: &Sender<()>,
+    ) -> Self {
         let interval = interval as u64;
         Self {
             interval,
             state: state.clone(),
             sender: sender.clone(),
-            _shutdown_signal: shutdown_signal.clone()
+            _shutdown_signal: shutdown_signal.clone(),
         }
     }
 

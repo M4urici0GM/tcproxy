@@ -3,7 +3,7 @@ use tcproxy_core::Command;
 use crate::config::{AppContextError, Config};
 
 pub struct ListContextsCommand {
-    config: Config
+    config: Config,
 }
 
 impl ListContextsCommand {
@@ -21,9 +21,9 @@ impl Command for ListContextsCommand {
         let context_manager = self.config.lock_context_manager()?;
 
         // TODO: how to test terminal output? 🤔
-        let (biggest_name, contexts) = context_manager.contexts()
-            .iter()
-            .fold((0, vec![]), |(acc, mut lines), (ctx_name, ctx)| {
+        let (biggest_name, contexts) = context_manager.contexts().iter().fold(
+            (0, vec![]),
+            |(acc, mut lines), (ctx_name, ctx)| {
                 let ctx_name = match ctx_name == context_manager.default_context_str() {
                     true => format!("{} (default)", ctx_name),
                     false => ctx_name.to_owned(),
@@ -36,12 +36,22 @@ impl Command for ListContextsCommand {
 
                 lines.push((ctx_name, ctx.host().to_owned()));
                 (name_len, lines)
-            });
+            },
+        );
 
-
-        println!("{0: <width$}  {1: <width$}", "Context Name", "Server Address", width = biggest_name);
+        println!(
+            "{0: <width$}  {1: <width$}",
+            "Context Name",
+            "Server Address",
+            width = biggest_name
+        );
         for (ctx_name, host) in contexts {
-            println!("{0: <width$}  {1: <width$}", ctx_name, host, width = biggest_name);
+            println!(
+                "{0: <width$}  {1: <width$}",
+                ctx_name,
+                host,
+                width = biggest_name
+            );
         }
 
         Ok(())

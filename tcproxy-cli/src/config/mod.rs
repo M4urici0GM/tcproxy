@@ -1,25 +1,24 @@
-mod app_context;
-mod app_config_error;
-mod app_context_error;
 pub mod app_config;
+mod app_config_error;
+mod app_context;
+mod app_context_error;
 pub mod context_manager;
 pub mod directory_resolver;
 
-
-pub use app_context::*;
 pub use app_config_error::AppConfigError;
+pub use app_context::*;
 pub use app_context_error::AppContextError;
 
+use std::sync::{Arc, Mutex, MutexGuard};
 use tracing::info;
-use std::sync::{Arc, MutexGuard, Mutex};
 
+use self::{context_manager::ContextManager, directory_resolver::DirectoryResolver};
 use crate::config::app_config::AppConfig;
-use self::{directory_resolver::DirectoryResolver, context_manager::ContextManager};
-use tcproxy_core::{Result, auth::token_handler::AuthToken};
+use tcproxy_core::{auth::token_handler::AuthToken, Result};
 
 #[derive(Debug, Clone)]
 pub struct AuthManager {
-    current_token: Option<String>
+    current_token: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -28,7 +27,6 @@ pub struct Config {
     contexts: Arc<Mutex<ContextManager>>,
     auth: Arc<Mutex<AuthManager>>,
 }
-
 
 impl AuthManager {
     pub fn new(token: Option<String>) -> Self {
@@ -50,7 +48,11 @@ impl AuthManager {
 }
 
 impl Config {
-    pub fn new(contexts: &ContextManager, auth: &AuthManager, directory_resolver: &DirectoryResolver) -> Self {
+    pub fn new(
+        contexts: &ContextManager,
+        auth: &AuthManager,
+        directory_resolver: &DirectoryResolver,
+    ) -> Self {
         Self {
             directory_resolver: directory_resolver.clone(),
             contexts: Arc::new(Mutex::new(contexts.clone())),
@@ -76,7 +78,8 @@ pub fn save_to_disk(config: &Config, directory_resolver: &DirectoryResolver) -> 
     let app_config = AppConfig::new(
         context_manager.contexts_arr(),
         context_manager.default_context(),
-        auth_manager.current_token().clone());
+        auth_manager.current_token().clone(),
+    );
 
     app_config::save_to_file(&app_config, &path)?;
     Ok(())
@@ -86,9 +89,8 @@ pub fn load(directory_resolver: &DirectoryResolver) -> Result<Config> {
     let config_file = app_config::load(&directory_resolver)?;
 
     // initialize managers
-    let context_manager = ContextManager::new(
-        config_file.default_context(),
-        config_file.contexts());
+    let context_manager =
+        ContextManager::new(config_file.default_context(), config_file.contexts());
 
     let auth = AuthManager::new(config_file.user_token().clone());
     let config = Config::new(&context_manager, &auth, directory_resolver);

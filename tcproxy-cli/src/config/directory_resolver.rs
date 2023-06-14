@@ -1,5 +1,5 @@
-use std::path::{PathBuf, Path};
 use directories::ProjectDirs;
+use std::path::{Path, PathBuf};
 use tracing::info;
 
 use tcproxy_core::Result;
@@ -26,7 +26,7 @@ impl DirectoryResolver {
     pub fn get_config_file(&self) -> PathBuf {
         let mut base_path = self.path.clone();
         base_path.push(&self.file_name);
-    
+
         base_path
     }
 }
@@ -45,7 +45,6 @@ pub fn load() -> Result<DirectoryResolver> {
 
     Ok(DirectoryResolver::new(&path_buff, FILE_NAME))
 }
-
 
 fn get_config_dir() -> Result<ProjectDirs> {
     match ProjectDirs::from(&QUALIFIER, &ORGANIZATION_NAME, &APPLICATION_NAME) {

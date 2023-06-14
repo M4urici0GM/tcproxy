@@ -12,7 +12,7 @@ pub struct TransportReader {
     reader: Box<dyn AsyncRead + Send + Unpin>,
 }
 
-impl TransportReader  {
+impl TransportReader {
     pub fn new<T>(reader: T, buffer_size: usize) -> Self
     where
         T: AsyncRead + Send + Unpin + 'static,
@@ -50,7 +50,7 @@ impl TransportReader  {
     }
 
     /// Tries to parse a frame if present on underlying buffer
-    /// If frame is yet not complete, it will return None, hoping that 
+    /// If frame is yet not complete, it will return None, hoping that
     /// in the next iteration, the frame should be complete.
     fn probe_frame(&mut self) -> Result<Option<TcpFrame>> {
         let mut cursor = Cursor::new(&self.buffer[..]);
@@ -59,16 +59,15 @@ impl TransportReader  {
                 trace!("found new frame on buffer: {}", frame);
                 self.buffer.advance(cursor.position() as usize);
                 Ok(Some(frame))
-            },
+            }
             Err(FrameDecodeError::Incomplete) => {
                 trace!("incomplete frame on buffer.. {}", self.buffer.len());
                 Ok(None)
-            },
+            }
             Err(err) => {
                 error!("error trying to parse frame {}", err);
                 Err(err.into())
-            },
+            }
         }
     }
 }
-

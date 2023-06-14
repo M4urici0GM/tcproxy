@@ -1,9 +1,9 @@
+mod authenticate;
 mod client_connected;
 mod data_packet_client;
 mod get_port;
 mod local_client_disconnected;
 mod ping;
-mod authenticate;
 
 pub use authenticate::*;
 pub use client_connected::*;

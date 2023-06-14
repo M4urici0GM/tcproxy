@@ -1,16 +1,16 @@
-use std::io::Cursor;
-use bytes::BufMut;
-use crate::FrameDecodeError;
 use crate::framing::frame_types::DATA_PACKET;
 use crate::framing::utils::assert_connection_type;
-use crate::io::{get_buffer, get_u32, get_u16};
+use crate::io::{get_buffer, get_u16, get_u32};
 use crate::tcp_frame::Frame;
+use crate::FrameDecodeError;
+use bytes::BufMut;
+use std::io::Cursor;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataPacket {
     connection_id: u32,
     buffer_size: u32,
-    buffer: Vec<u8>
+    buffer: Vec<u8>,
 }
 
 impl DataPacket {
@@ -32,7 +32,10 @@ impl DataPacket {
 }
 
 impl Frame for DataPacket {
-    fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError> where Self : Sized {
+    fn decode(buffer: &mut Cursor<&[u8]>) -> Result<Self, FrameDecodeError>
+    where
+        Self: Sized,
+    {
         assert_connection_type(&get_u16(buffer)?, &DATA_PACKET)?;
 
         let connection_id = get_u32(buffer)?;

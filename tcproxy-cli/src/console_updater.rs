@@ -1,8 +1,8 @@
 use emoji_printer::print_emojis;
 use std::sync::Arc;
 use tcproxy_core::Result;
-use tokio::{sync::mpsc::Receiver, task::JoinHandle};
 use tokio::sync::mpsc::Sender;
+use tokio::{sync::mpsc::Receiver, task::JoinHandle};
 
 use tracing::debug;
 
@@ -15,23 +15,28 @@ macro_rules! MSG {
 :dizzy: Ping: {:.2}ms
 :anchor: Connections: {}
         "
-    }
+    };
 }
 
 pub struct ConsoleUpdater {
     receiver: Receiver<i32>,
     state: Arc<ClientState>,
     args: Arc<ListenArgs>,
-    _shutdown_complete_tx: Sender<()>
+    _shutdown_complete_tx: Sender<()>,
 }
 
 impl ConsoleUpdater {
-    pub fn new(receiver: Receiver<i32>, state: &Arc<ClientState>, args: &Arc<ListenArgs>, shutdown_complete_signal: &Sender<()>) -> Self {
+    pub fn new(
+        receiver: Receiver<i32>,
+        state: &Arc<ClientState>,
+        args: &Arc<ListenArgs>,
+        shutdown_complete_signal: &Sender<()>,
+    ) -> Self {
         Self {
             receiver,
             args: args.clone(),
             state: state.clone(),
-            _shutdown_complete_tx: shutdown_complete_signal.clone()
+            _shutdown_complete_tx: shutdown_complete_signal.clone(),
         }
     }
 
@@ -77,7 +82,6 @@ impl ConsoleUpdater {
                     return;
                 }
             }
-
         }
 
         self.clear();

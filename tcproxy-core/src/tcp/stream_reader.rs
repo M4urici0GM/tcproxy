@@ -1,6 +1,6 @@
-use mockall::automock;
 use async_trait::async_trait;
 use bytes::BytesMut;
+use mockall::automock;
 use tokio::io::{AsyncRead, AsyncReadExt};
 use tracing::trace;
 
@@ -15,12 +15,13 @@ pub trait StreamReader: Send {
 pub struct DefaultStreamReader {
     buffer: BytesMut,
     stream: Box<dyn AsyncRead + Unpin + Send>,
-
 }
 
 impl DefaultStreamReader {
     pub fn new<T>(buffer_size: usize, stream: T) -> Self
-        where T: AsyncRead + Unpin + Send + 'static {
+    where
+        T: AsyncRead + Unpin + Send + 'static,
+    {
         Self {
             buffer: BytesMut::with_capacity(buffer_size),
             stream: Box::new(stream),
@@ -34,10 +35,7 @@ impl StreamReader for DefaultStreamReader {
         let bytes_read = match self.stream.read_buf(&mut self.buffer).await {
             Ok(read) => read,
             Err(err) => {
-                trace!(
-                        "failed to read from connection: {}",
-                        err
-                    );
+                trace!("failed to read from connection: {}", err);
                 return Err(err.into());
             }
         };
@@ -54,17 +52,15 @@ impl StreamReader for DefaultStreamReader {
 
 #[cfg(test)]
 pub mod test {
-    use std::io::ErrorKind;
-    use tokio_test::io::Builder;
     use crate::tcp::{DefaultStreamReader, StreamReader};
     use crate::test_util::generate_random_buffer;
+    use std::io::ErrorKind;
+    use tokio_test::io::Builder;
 
     #[tokio::test]
     pub async fn test() {
         let expected_err = std::io::Error::new(ErrorKind::BrokenPipe, "failed when reading");
-        let mock = Builder::new()
-            .read_error(expected_err)
-            .build();
+        let mock = Builder::new().read_error(expected_err).build();
 
         let mut reader = DefaultStreamReader::new(1024, mock);
 
@@ -79,9 +75,7 @@ pub mod test {
     pub async fn should_read_correctly() {
         // Arrange
         let expected_buffer = generate_random_buffer(1024);
-        let reader_mock = Builder::new()
-            .read(&expected_buffer[..])
-            .build();
+        let reader_mock = Builder::new().read(&expected_buffer[..]).build();
 
         let mut reader = DefaultStreamReader::new(1024, reader_mock);
 
@@ -97,9 +91,7 @@ pub mod test {
     pub async fn should_return_none_if_buffer_is_empty() {
         // Arrange
         let expected_buffer = Vec::new();
-        let reader_mock = Builder::new()
-            .read(&expected_buffer[..])
-            .build();
+        let reader_mock = Builder::new().read(&expected_buffer[..]).build();
 
         let mut reader = DefaultStreamReader::new(1024, reader_mock);
 
