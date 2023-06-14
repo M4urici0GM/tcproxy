@@ -23,7 +23,6 @@ pub struct AuthManager {
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    directory_resolver: DirectoryResolver,
     contexts: Arc<Mutex<ContextManager>>,
     auth: Arc<Mutex<AuthManager>>,
 }
@@ -51,10 +50,8 @@ impl Config {
     pub fn new(
         contexts: &ContextManager,
         auth: &AuthManager,
-        directory_resolver: &DirectoryResolver,
     ) -> Self {
         Self {
-            directory_resolver: directory_resolver.clone(),
             contexts: Arc::new(Mutex::new(contexts.clone())),
             auth: Arc::new(Mutex::new(auth.clone())),
         }
@@ -93,6 +90,6 @@ pub fn load(directory_resolver: &DirectoryResolver) -> Result<Config> {
         ContextManager::new(config_file.default_context(), config_file.contexts());
 
     let auth = AuthManager::new(config_file.user_token().clone());
-    let config = Config::new(&context_manager, &auth, directory_resolver);
+    let config = Config::new(&context_manager, &auth); 
     Ok(config)
 }

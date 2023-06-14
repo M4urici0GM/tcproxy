@@ -1,9 +1,9 @@
-use tokio::{sync::mpsc::Sender, task::JoinHandle};
+use tokio::{task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
 
 use tcproxy_core::transport::TransportReader;
-use tcproxy_core::{Result, TcpFrame};
+use tcproxy_core::{Result};
 
 use crate::proxy::FrameHandler;
 

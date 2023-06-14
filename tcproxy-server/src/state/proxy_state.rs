@@ -6,7 +6,6 @@ use crate::managers::{
 use crate::ServerConfig;
 
 pub struct ClientState {
-    is_authenticated: bool,
     server_config: Arc<ServerConfig>,
     port_manager: Arc<PortManagerGuard>,
     auth_manager: Arc<AuthenticationManagerGuard>,
@@ -24,7 +23,6 @@ impl ClientState {
         Arc::new(Self {
             auth_manager,
             port_manager,
-            is_authenticated: false,
             server_config: server_config.clone(),
             accounts_manager: account_manager.clone(),
             connection_manager: Arc::new(ConnectionsManager::new()),

@@ -1,4 +1,4 @@
-use crate::framing::frame_types::{PING, SOCKET_CONNECTED};
+use crate::framing::frame_types::{SOCKET_CONNECTED};
 use crate::framing::utils::assert_connection_type;
 use crate::io::{get_u16, get_u32};
 use crate::{Frame, FrameDecodeError};

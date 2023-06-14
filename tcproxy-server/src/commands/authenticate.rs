@@ -4,7 +4,7 @@ use chrono::{Duration, Utc};
 use std::{str::FromStr, sync::Arc};
 use tcproxy_core::auth::User;
 use tokio::sync::mpsc::Sender;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::managers::{AccountManagerError, AuthenticationManagerGuard, UserManager};

@@ -2,7 +2,7 @@ use crate::ServerConfig;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use std::sync::Arc;
 use tcproxy_core::auth::token_handler::{AuthToken, Claims, TokenHandler, TokenHandlerError};
-use tracing::info;
+
 use tracing::warn;
 
 #[derive(Clone)]
