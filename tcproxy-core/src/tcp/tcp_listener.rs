@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 
 use async_trait::async_trait;
 use tokio::net::TcpListener as TokioTcpListener;
+use tokio_native_tls::TlsAcceptor;
 use tracing::{debug, error};
 
 use crate::tcp::SocketListener;
@@ -31,6 +32,8 @@ impl SocketListener for TcpListener {
             match self.inner.accept().await {
                 Ok((inner, addr)) => {
                     debug!("New socket {} connected.", addr);
+                    let tls = TlsAcceptor::accept(inner).await?;
+                    
                     return Ok(TcpStream::new(inner, addr));
                 }
                 Err(err) => {

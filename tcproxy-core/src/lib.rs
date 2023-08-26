@@ -8,6 +8,7 @@ pub mod framing;
 pub mod io;
 pub mod tcp;
 pub mod transport;
+pub mod stream;
 
 use bytes::{Buf, BufMut};
 use mongodb::bson::Uuid;
