@@ -5,7 +5,7 @@ use std::{
         atomic::{AtomicBool, Ordering::Acquire},
         Arc,
     },
-    task::{Context, Poll},
+    task::{ready, Context, Poll},
 };
 
 use tokio::{
@@ -21,11 +21,11 @@ impl AsyncStream for TcpStream {}
 impl AsyncStream for TlsStream<TcpStream> {}
 
 pub struct Stream {
-    inner: Box<dyn AsyncStream>,
+    inner: Box<dyn AsyncStream + Send + 'static>,
 }
 
 impl Stream {
-    pub fn new<T: AsyncStream>(inner: T) -> Self {
+    pub fn new<T: AsyncStream + Send + 'static>(inner: T) -> Self {
         Self {
             inner: Box::new(inner),
         }
@@ -95,14 +95,20 @@ impl Inner {
     }
 }
 
+impl InnerGuard<'_> {
+    fn stream_pin(&mut self) -> Pin<&mut Stream> {
+        unsafe { Pin::new_unchecked(&mut *self.inner.stream.get() ) }
+    }
+}
+
 impl Inner {
-    pub(crate) fn poll_lock<'a>(&self, cx: &mut Context<'_>) -> Poll<InnerGuard<'a>> {
+    pub(crate) fn poll_lock<'a>(&'a self, cx: &mut Context<'_>) -> Poll<InnerGuard<'a>> {
         if self
             .lock
             .compare_exchange(false, true, Acquire, Acquire)
             .is_ok()
         {
-            return Poll::Ready(InnerGuard { inner: self });
+            return Poll::Ready(InnerGuard { inner: &self });
         }
 
         std::thread::yield_now();
@@ -124,3 +130,38 @@ unsafe impl Send for OwnedWriteHalf {}
 unsafe impl Send for OwnedReadHalf {}
 unsafe impl Sync for OwnedWriteHalf {}
 unsafe impl Sync for OwnedReadHalf {}
+
+impl AsyncRead for OwnedReadHalf {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        let mut guard = ready!(self.inner.poll_lock(cx));
+        guard.stream_pin().poll_read(cx, buf)
+    }
+}
+
+impl AsyncWrite for OwnedWriteHalf {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        let mut guard = ready!(self.inner.poll_lock(cx));
+        guard.stream_pin().poll_write(cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), std::io::Error>> {
+        let mut guard = ready!(self.inner.poll_lock(cx));
+        guard.stream_pin().poll_flush(cx)
+    }
+
+    fn poll_shutdown(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        let mut guard = ready!(self.inner.poll_lock(cx));
+        guard.stream_pin().poll_shutdown(cx)
+    }
+}

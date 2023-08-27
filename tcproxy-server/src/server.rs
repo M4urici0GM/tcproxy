@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tcproxy_core::Result;
+use tcproxy_core::{Result, tcp::RemoteConnection};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
@@ -10,7 +10,7 @@ use crate::managers::{
     AuthenticationManager, AuthenticationManagerGuard, DefaultAccountManager, FeatureManager,
     IFeatureManager, PortManager, PortManagerGuard, UserManager,
 };
-use tcproxy_core::tcp::{ISocketListener, SocketConnection, SocketListener};
+use tcproxy_core::tcp::{ISocketListener, SocketListener};
 
 use crate::proxy::ClientConnection;
 
@@ -61,20 +61,17 @@ impl Server {
         );
         loop {
             let socket = self.server_listener.accept().await?;
-            info!("received new socket from {}", socket.addr);
 
             let cancellation_token = cancellation_token.child_token();
             self.spawn_proxy_connection(socket, cancellation_token);
         }
     }
 
-    fn spawn_proxy_connection<T>(
+    fn spawn_proxy_connection(
         &self,
-        socket: T,
+        socket: RemoteConnection,
         cancellation_token: CancellationToken,
     ) -> JoinHandle<Result<()>>
-    where
-        T: SocketConnection + 'static,
     {
         let server_config = self.feature_manager.get_config();
         let auth_manager = AuthenticationManager::new();
@@ -89,10 +86,9 @@ impl Server {
             ClientConnection::new(port_guard, auth_guard, &server_config, &account_manager);
 
         tokio::spawn(async move {
-            let socket_addr = socket.addr();
-
+            let socket_addr = *socket.remote_addr();
             match proxy_client
-                .start_streaming(socket, cancellation_token)
+                .start_streaming(socket.stream, cancellation_token)
                 .await
             {
                 Ok(_) => debug!("Socket {} has been closed gracefully.", socket_addr),

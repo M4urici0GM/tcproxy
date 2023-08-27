@@ -1,3 +1,4 @@
+use tcproxy_core::stream::Stream;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::OwnedSemaphorePermit;
 use tracing::debug;
@@ -23,18 +24,17 @@ impl RemoteConnection {
             client_sender: client_sender.clone(),
         }
     }
+    
 
-    pub async fn start<T>(self, connection: T, receiver: Receiver<Vec<u8>>) -> Result<()>
-    where
-        T: SocketConnection,
+    pub async fn start(self, connection: tcproxy_core::tcp::RemoteConnection, receiver: Receiver<Vec<u8>>) -> Result<()>
     {
-        let connection_addr = connection.addr();
-        let (reader, writer) = connection.split();
+        let connection_addr = *connection.remote_addr();
+        let (reader, writer) = connection.stream.into_split();
 
         let stream_reader = DefaultStreamReader::new(1024 * 8, reader);
         let mut reader =
             RemoteConnectionReader::new(&self.connection_id, &self.client_sender, stream_reader);
-        let mut writer = RemoteConnectionWriter::new(receiver, connection_addr, writer);
+        let mut writer = RemoteConnectionWriter::new(receiver, connection_addr.clone(), writer);
 
         tokio::spawn(async move {
             let reader_task = tokio::spawn(async move {

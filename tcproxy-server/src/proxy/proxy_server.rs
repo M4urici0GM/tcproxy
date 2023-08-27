@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use tcproxy_core::TcpFrame;
+use tcproxy_core::stream::Stream;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Semaphore;
 use tokio::sync::{mpsc, OwnedSemaphorePermit};
@@ -67,7 +68,7 @@ impl ProxyServer {
 
     async fn spawn_remote_connection(
         &self,
-        connection: TcpStream,
+        connection: tcproxy_core::tcp::RemoteConnection,
         permit: OwnedSemaphorePermit,
     ) -> Result<()> {
         let (connection_id, receiver) = self.create_connection_state();

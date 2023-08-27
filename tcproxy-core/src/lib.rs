@@ -9,6 +9,7 @@ pub mod io;
 pub mod tcp;
 pub mod transport;
 pub mod stream;
+pub mod tls;
 
 use bytes::{Buf, BufMut};
 use mongodb::bson::Uuid;

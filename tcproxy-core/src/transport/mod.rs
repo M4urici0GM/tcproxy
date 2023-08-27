@@ -3,12 +3,14 @@ pub mod writer;
 
 use std::net::SocketAddr;
 use tokio::net::TcpStream as TokioTcpStream;
+use tokio_native_tls::TlsAcceptor as TokioTlsAcceptor;
+use tokio_native_tls::native_tls::{Identity, TlsAcceptor};
 use tracing::{debug, error};
 
 pub use reader::*;
 pub use writer::*;
 
-use crate::tcp::{SocketConnection, TcpStream};
+use crate::stream::{AsyncStream, Stream};
 use crate::{Result, TcpFrame};
 
 /// represents TcpFrame buffer transport reader.
@@ -20,11 +22,9 @@ pub struct TcpFrameTransport {
 
 impl TcpFrameTransport {
     /// creates new instance of TcpFrameTransport.
-    pub fn new<T>(connection: T) -> Self
-    where
-        T: SocketConnection,
+    pub fn new(connection: Stream) -> Self
     {
-        let (reader, writer) = connection.split();
+        let (reader, writer) = connection.into_split();
         Self {
             writer: TransportWriter::new(writer),
             reader: TransportReader::new(reader, 1024 * 8),
@@ -46,12 +46,21 @@ impl TcpFrameTransport {
         (self.reader, self.writer)
     }
 
-    pub async fn connect(addr: SocketAddr) -> Result<TcpFrameTransport> {
+    pub async fn connect(addr: SocketAddr, identity: Option<Identity>) -> Result<TcpFrameTransport> {
         match TokioTcpStream::connect(addr).await {
             Ok(stream) => {
                 debug!("Connected to server..");
-                let socket_addr = stream.peer_addr().unwrap();
-                let stream = TcpStream::new(stream, socket_addr);
+                let stream = match identity {
+                    None => Stream::new(stream),
+                    Some(identity) => {
+                        
+                        let acceptor = TlsAcceptor::new(identity)?;
+                        let acceptor = TokioTlsAcceptor::from(acceptor);
+
+                        let stream = crate::tls::accept_tls(stream, &acceptor).await?;
+                        stream
+                    }
+                };
 
                 Ok(Self::new(stream))
             }
@@ -76,3 +85,4 @@ impl TcpFrameTransport {
         }
     }
 }
+    

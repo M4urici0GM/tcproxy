@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use tcproxy_core::tcp::SocketConnection;
+use tcproxy_core::stream::{AsyncStream, Stream};
 use tcproxy_core::transport::TcpFrameTransport;
 use tcproxy_core::{Result, TcpFrame};
 use tokio::sync::mpsc;
@@ -30,16 +30,14 @@ impl ClientConnection {
     }
 
     /// Starts reading and writing to client.
-    pub async fn start_streaming<T>(
+    pub async fn start_streaming(
         &mut self,
-        tcp_stream: T,
+        stream: Stream,
         cancellation_token: CancellationToken,
     ) -> Result<()>
-    where
-        T: SocketConnection,
     {
         let local_cancellation_token = CancellationToken::new();
-        let (transport_reader, transport_writer) = TcpFrameTransport::new(tcp_stream).split();
+        let (transport_reader, transport_writer) = TcpFrameTransport::new(stream).split();
 
         let (frame_tx, frame_rx) = mpsc::channel::<TcpFrame>(10000);
 

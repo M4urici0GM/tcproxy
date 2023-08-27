@@ -28,7 +28,7 @@ async fn main() -> Result<()> {
 
     let socket_addr = config.get_socket_addr();
     let feature_manager = DefaultFeatureManager::new(config);
-    let listener = TcpListener::bind(socket_addr).await?;
+    let listener = TcpListener::bind(socket_addr, None).await?;
 
     Server::new(feature_manager, listener)
         .run(signal::ctrl_c())

@@ -118,7 +118,7 @@ async fn get_transport(app_context: &AppContext) -> Result<TcpFrameTransport> {
     let addr = ServerAddr::try_from(app_context.clone())
         .unwrap()
         .to_socket_addr()?;
-    let transport = TcpFrameTransport::connect(addr).await?;
+    let transport = TcpFrameTransport::connect(addr, None).await?;
 
     Ok(transport)
 }
