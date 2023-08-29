@@ -2,7 +2,7 @@ use std::{
     cell::UnsafeCell,
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, Ordering::Acquire},
+        atomic::{AtomicBool, Ordering::{Acquire, Release}},
         Arc,
     },
     task::{ready, Context, Poll},
@@ -101,6 +101,12 @@ impl InnerGuard<'_> {
     }
 }
 
+impl Drop for InnerGuard<'_> {
+    fn drop(&mut self) {
+        self.inner.lock.store(false, Release)  
+    }
+}
+
 impl Inner {
     pub(crate) fn poll_lock<'a>(&'a self, cx: &mut Context<'_>) -> Poll<InnerGuard<'a>> {
         if self
@@ -108,7 +114,7 @@ impl Inner {
             .compare_exchange(false, true, Acquire, Acquire)
             .is_ok()
         {
-            return Poll::Ready(InnerGuard { inner: &self });
+            return Poll::Ready(InnerGuard { inner: self });
         }
 
         std::thread::yield_now();

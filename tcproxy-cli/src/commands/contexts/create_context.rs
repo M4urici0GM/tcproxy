@@ -41,7 +41,7 @@ impl Command for CreateContextCommand {
 
 fn push_context(config: &Config, context: &AppContext) -> tcproxy_core::Result<()> {
     let mut context_manager = config.lock_context_manager()?;
-    context_manager.push_context(&context)?;
+    context_manager.push_context(context)?;
 
     Ok(())
 }

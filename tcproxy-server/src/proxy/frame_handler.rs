@@ -54,13 +54,13 @@ impl FrameHandler for DefaultFrameHandler {
                 LocalClientDisconnectedCommand::boxed_new(data.connection_id(), &self.state)
             }
             TcpFrame::DataPacket(data) => DataPacketClientCommand::boxed_new(&data, &self.state),
-            TcpFrame::ClientConnected(_) => ClientConnectedCommand::boxed_new(&self.sender),
+            TcpFrame::ClientConnected(_) => ClientConnectedCommand::boxed_new(&self.sender, &self.state),
             TcpFrame::Authenticate(data) => AuthenticateCommand::boxed_new(
                 AuthenticateCommandArgs::from(data),
                 &self.sender,
                 self.state.get_auth_manager(),
                 &self.token_handler,
-                &self.state.get_accounts_manager(),
+                self.state.get_accounts_manager(),
             ),
             _ => {
                 debug!("invalid frame received.");

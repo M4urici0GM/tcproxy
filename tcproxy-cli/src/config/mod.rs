@@ -39,10 +39,7 @@ impl AuthManager {
     }
 
     pub fn set_current_token(&mut self, value: Option<AuthToken>) {
-        self.current_token = match value {
-            Some(t) => Some(t.get().to_string()),
-            None => None,
-        };
+        self.current_token = value.map(|t| t.get().to_string());
     }
 }
 
@@ -83,7 +80,7 @@ pub fn save_to_disk(config: &Config, directory_resolver: &DirectoryResolver) -> 
 }
 
 pub fn load(directory_resolver: &DirectoryResolver) -> Result<Config> {
-    let config_file = app_config::load(&directory_resolver)?;
+    let config_file = app_config::load(directory_resolver)?;
 
     // initialize managers
     let context_manager =

@@ -6,11 +6,15 @@ use bytes::BufMut;
 use std::io::Cursor;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ClientConnectedAck {}
+pub struct ClientConnectedAck {
+    listening_port: u16
+}
 
 impl ClientConnectedAck {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(port: &u16) -> Self {
+        Self {
+            listening_port: *port
+        }
     }
 }
 
@@ -20,13 +24,15 @@ impl Frame for ClientConnectedAck {
         Self: Sized,
     {
         assert_connection_type(&get_u16(buffer)?, &CLIENT_CONNECTED_ACK)?;
+        let listening_port = get_u16(buffer)?;
 
-        Ok(Self::new())
+        Ok(Self::new(&listening_port))
     }
 
     fn encode(&self) -> Vec<u8> {
         let mut vec = Vec::new();
         vec.put_u16(CLIENT_CONNECTED_ACK);
+        vec.put_u16(self.listening_port);
 
         vec
     }

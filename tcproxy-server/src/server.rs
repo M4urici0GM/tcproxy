@@ -8,7 +8,7 @@ use tracing::{debug, info};
 
 use crate::managers::{
     AuthenticationManager, AuthenticationManagerGuard, DefaultAccountManager, FeatureManager,
-    IFeatureManager, PortManager, PortManagerGuard, UserManager,
+    IFeatureManager, NetworkPortPool, UserManager, PortManager,
 };
 use tcproxy_core::tcp::{ISocketListener, SocketListener};
 
@@ -75,15 +75,16 @@ impl Server {
     {
         let server_config = self.feature_manager.get_config();
         let auth_manager = AuthenticationManager::new();
-        let port_manager = PortManager::new(server_config.get_port_range());
+        let network_port_pool = NetworkPortPool::new(server_config.get_port_range());
+        let port_manager = PortManager::from(network_port_pool);
+
         let account_manager: Arc<Box<dyn UserManager + 'static>> =
             Arc::new(Box::new(DefaultAccountManager::new()));
 
-        let port_guard = Arc::new(PortManagerGuard::new(port_manager));
         let auth_guard = Arc::new(AuthenticationManagerGuard::new(auth_manager));
 
         let mut proxy_client =
-            ClientConnection::new(port_guard, auth_guard, &server_config, &account_manager);
+            ClientConnection::new(port_manager, auth_guard, &server_config, &account_manager);
 
         tokio::spawn(async move {
             let socket_addr = *socket.remote_addr();

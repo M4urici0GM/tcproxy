@@ -80,13 +80,13 @@ impl Display for TcpFrame {
             TcpFrame::Ping(_) => "Ping".to_string(),
             TcpFrame::Pong(_) => "Pong".to_string(),
             TcpFrame::Authenticate(_) => {
-                format!("Authenticate")
+                "Authenticate".to_string()
             }
             TcpFrame::AuthenticateAck(_) => {
-                format!("AuthenticateAck")
+                "AuthenticateAck".to_string()
             }
             TcpFrame::ClientConnectedAck(_) => {
-                format!("ClientConnectedACK")
+                "ClientConnectedACK".to_string()
             }
             TcpFrame::SocketConnected(data) => {
                 format!("IncomingSocket ({})", data.connection_id())

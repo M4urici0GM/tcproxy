@@ -1,6 +1,6 @@
-use std::{fmt::Debug, net::SocketAddr, sync::Arc};
+use std::{fmt::Debug, net::SocketAddr};
 
-use crate::{Result, stream::Stream};
+use crate::{Result};
 use async_trait::async_trait;
 use mockall::automock;
 use tokio_native_tls::native_tls::Identity;

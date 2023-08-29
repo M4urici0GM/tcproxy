@@ -23,6 +23,8 @@ pub mod env {
     pub const LISTEN_IP: &str = "TCPROXY_LISTEN_IP";
     pub const CONFIG_FILE: &str = "TCPROXY_CONFIG_FILE";
     pub const JWT_SECRET: &str = "TCPROXY_JWT_SECRET";
+    pub const CERTIFICATE_PATH: &str = "TCPROXY_CERTIFICATE_PATH";
+    pub const CERTIFICATE_PASS: &str = "TCPROXY_CERTIFICATE_PASS";
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,6 +36,8 @@ pub struct ServerConfig {
     server_fqdn: String,
     max_connections_per_proxy: u16,
     jwt_secret: String,
+    certificate_path: Option<PathBuf>, //TODO: maybe change this to use Option<&str>
+    certificate_pass: Option<String>,
 }
 
 // FILE
@@ -49,6 +53,8 @@ impl ServerConfig {
         server_fqdn: &str,
         max_connections_per_proxy: u16,
         jwt_secret: &str,
+        certificate_path: Option<PathBuf>,
+        certificate_pass: Option<String>,
     ) -> Self {
         Self {
             port_min,
@@ -57,6 +63,8 @@ impl ServerConfig {
             listen_port,
             server_fqdn: String::from(server_fqdn),
             jwt_secret: String::from(jwt_secret),
+            certificate_path,
+            certificate_pass,
             max_connections_per_proxy,
         }
     }
@@ -93,6 +101,14 @@ impl ServerConfig {
         self.server_fqdn.to_owned()
     }
 
+    pub fn get_certificate_path(&self) -> &Option<PathBuf> {
+        &self.certificate_path
+    }
+
+    pub fn get_certificate_pass(&self) -> &Option<String> {
+        &self.certificate_pass
+    }
+
     fn set_port_min(&mut self, min_port: u16) {
         self.port_min = min_port;
     }
@@ -116,6 +132,14 @@ impl ServerConfig {
     fn set_listen_ip(&mut self, ip: IpAddr) {
         self.listen_ip = ip;
     }
+
+    fn set_certificate_path(&mut self, path: Option<PathBuf>) {
+        self.certificate_path = path;
+    }
+
+    fn set_certificate_pass(&mut self, path: Option<String>) {
+        self.certificate_pass = path;
+    }
 }
 
 impl Config<AppArguments> for ServerConfig {
@@ -129,6 +153,18 @@ impl Config<AppArguments> for ServerConfig {
                 env::SERVER_FQDN => self.set_server_fqdn(value),
                 env::CONNECTIONS_PER_PROXY => self.set_connections_per_proxy(value.parse::<u16>()?),
                 env::JWT_SECRET => self.set_jwt_secret(value),
+                env::CERTIFICATE_PATH => {
+                    self.set_certificate_path(match value == &String::default() {
+                        true => Some(value.to_string().into()),
+                        _ => None,
+                    })
+                }
+                env::CERTIFICATE_PASS => {
+                    self.set_certificate_pass(match value == &String::default() {
+                        true => Some(value.to_string()),
+                        _ => None,
+                    })
+                }
                 _ => continue,
             }
         }
@@ -153,6 +189,9 @@ impl Config<AppArguments> for ServerConfig {
             self.set_port_min(range.start);
             self.set_port_max(range.end);
         }
+
+        self.set_certificate_path(args.get_certificate_path());
+        self.set_certificate_pass(args.get_certificate_password());
     }
 
     fn validate(&self) -> Result<()> {
@@ -217,6 +256,8 @@ impl Default for ServerConfig {
             server_fqdn: "proxy.server.local".to_owned(),
             max_connections_per_proxy: 120,
             jwt_secret: "some_secret".to_owned(),
+            certificate_path: None,
+            certificate_pass: None,
         }
     }
 }

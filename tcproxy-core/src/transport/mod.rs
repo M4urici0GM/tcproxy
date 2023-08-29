@@ -10,7 +10,7 @@ use tracing::{debug, error};
 pub use reader::*;
 pub use writer::*;
 
-use crate::stream::{AsyncStream, Stream};
+use crate::stream::{Stream};
 use crate::{Result, TcpFrame};
 
 /// represents TcpFrame buffer transport reader.
@@ -57,8 +57,8 @@ impl TcpFrameTransport {
                         let acceptor = TlsAcceptor::new(identity)?;
                         let acceptor = TokioTlsAcceptor::from(acceptor);
 
-                        let stream = crate::tls::accept_tls(stream, &acceptor).await?;
-                        stream
+                        
+                        crate::tls::accept_tls(stream, &acceptor).await?
                     }
                 };
 

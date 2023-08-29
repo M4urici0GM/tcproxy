@@ -107,6 +107,6 @@ fn get_username(args: &LoginArgs) -> Result<String> {
 fn strip_newline(input: &str) -> &str {
     input
         .strip_suffix("\r\n")
-        .or(input.strip_suffix("\n"))
+        .or(input.strip_suffix('\n'))
         .unwrap_or(input)
 }

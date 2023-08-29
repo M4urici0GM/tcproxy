@@ -100,7 +100,7 @@ fn get_token(config: &Arc<Config>) -> Result<String> {
         Ok(lock) => lock,
         Err(err) => {
             error!("error when trying to lock context_manager: {}", err);
-            return Err(err.into());
+            return Err(err);
         }
     };
 
@@ -128,7 +128,7 @@ fn get_context(args: &Arc<ListenArgs>, config: &Arc<Config>) -> Result<AppContex
         Ok(lock) => lock,
         Err(err) => {
             error!("error when trying to lock context_manager: {}", err);
-            return Err(err.into());
+            return Err(err);
         }
     };
     let fallback = contexts.default_context_str().to_string();

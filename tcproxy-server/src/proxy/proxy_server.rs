@@ -1,14 +1,13 @@
 use std::sync::Arc;
 use tcproxy_core::TcpFrame;
-use tcproxy_core::stream::Stream;
+
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Semaphore;
 use tokio::sync::{mpsc, OwnedSemaphorePermit};
 use tokio_util::sync::CancellationToken;
-use tracing::debug;
 
 use tcproxy_core::framing::SocketConnected;
-use tcproxy_core::tcp::{SocketListener, TcpStream};
+use tcproxy_core::tcp::{SocketListener};
 use tcproxy_core::Result;
 
 use crate::managers::PortPermit;
@@ -42,16 +41,13 @@ impl ProxyServer {
 
     pub fn spawn(mut self, cancellation_token: CancellationToken) {
         tokio::spawn(async move {
-            let port_manager = self.proxy_state.get_port_manager().clone();
             let token = cancellation_token.child_token();
-
             tokio::select! {
                 _ = self.start() => {},
                 _ = token.cancelled() => {},
-            }
+            };
 
-            debug!("proxy server finished.");
-            port_manager.free_port(self.port_permit.clone());
+            self.proxy_state.get_port_manager().free_port(self.port_permit);
         });
     }
 

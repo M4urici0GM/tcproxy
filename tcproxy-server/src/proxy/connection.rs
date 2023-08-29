@@ -1,12 +1,12 @@
 use std::sync::Arc;
-use tcproxy_core::stream::{AsyncStream, Stream};
+use tcproxy_core::stream::{Stream};
 use tcproxy_core::transport::TcpFrameTransport;
 use tcproxy_core::{Result, TcpFrame};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
-use crate::managers::{AuthenticationManagerGuard, PortManagerGuard, UserManager};
+use crate::managers::{AuthenticationManagerGuard, NetworkPortPool, UserManager, PortManager};
 use crate::proxy::{ClientFrameReader, ClientFrameWriter};
 use crate::proxy::{DefaultFrameHandler, DefaultTokenHandler};
 use crate::{ClientState, ServerConfig};
@@ -16,9 +16,10 @@ pub struct ClientConnection {
     server_config: Arc<ServerConfig>,
 }
 
+
 impl ClientConnection {
     pub fn new(
-        port_guard: Arc<PortManagerGuard>,
+        port_guard: PortManager,
         auth_guard: Arc<AuthenticationManagerGuard>,
         server_config: &Arc<ServerConfig>,
         account_manager: &Arc<Box<dyn UserManager + 'static>>,

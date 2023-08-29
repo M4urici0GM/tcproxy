@@ -2276,6 +2276,7 @@ dependencies = [
  "serde_json",
  "tcproxy-core",
  "tokio",
+ "tokio-native-tls",
  "tokio-stream",
  "tokio-util",
  "tracing",

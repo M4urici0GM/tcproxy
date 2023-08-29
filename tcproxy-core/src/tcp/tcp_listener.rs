@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use tokio::net::TcpListener as TokioTcpListener;
 use tokio_native_tls::native_tls::{Identity, TlsAcceptor};
 use tokio_native_tls::TlsAcceptor as TokioTlsAcceptor;
-use tracing::{debug, error};
+use tracing::error;
 
 use crate::stream::Stream;
 use crate::tcp::SocketListener;

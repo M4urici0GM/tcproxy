@@ -2,7 +2,7 @@ use rand::Rng;
 use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
-use std::sync::Mutex;
+use std::sync::{Mutex, Arc};
 use tcproxy_core::Error;
 use tracing::log::{debug, error, warn};
 
@@ -35,26 +35,24 @@ impl PortPermit {
     }
 }
 
-pub struct PortManagerGuard {
-    manager: Mutex<PortManager>,
+pub struct PortManager(Arc<Mutex<NetworkPortPool>>);
+
+impl From<NetworkPortPool> for PortManager {
+    fn from(value: NetworkPortPool) -> Self {
+        Self(Arc::new(Mutex::new(value)))
+    }
 }
 
-impl PortManagerGuard {
-    pub fn new(manager: PortManager) -> Self {
-        Self {
-            manager: Mutex::new(manager),
-        }
-    }
-
-    pub fn free_port(&self, permit: PortPermit) {
-        let mut lock = self.manager.lock().unwrap();
+impl PortManager {
+        pub fn free_port(&self, permit: PortPermit) {
+        let mut lock = self.0.lock().unwrap();
 
         debug!("disposing used port: {permit}");
         lock.free_port(permit);
     }
 
     pub fn reserve_port(&self, conn_id: &u32, conn_token: &str) -> Result<PortPermit, PortError> {
-        let mut lock = self.manager.lock().unwrap();
+        let mut lock = self.0.lock().unwrap();
 
         match lock.reserve_port(conn_id, conn_token) {
             Err(PortError::PortLimitReached) => {
@@ -71,7 +69,7 @@ impl PortManagerGuard {
 }
 
 #[derive(Debug, Clone)]
-pub struct PortManager {
+pub struct NetworkPortPool {
     used_ports: HashSet<PortPermit>,
     available_ports: Vec<u16>,
 }
@@ -82,7 +80,7 @@ pub enum PortError {
     Other(Error),
 }
 
-impl PortManager {
+impl NetworkPortPool {
     pub fn new(port_range: Range<u16>) -> Self {
         let mut available_ports = Vec::new();
         for i in port_range.start..port_range.end {
@@ -118,7 +116,7 @@ impl PortManager {
         conn_id: &u32,
         conn_token: &str,
     ) -> Result<PortPermit, PortError> {
-        if 0 == self.available_ports.len() {
+        if self.available_ports.is_empty() {
             return Err(PortError::PortLimitReached);
         }
 
@@ -158,18 +156,18 @@ impl std::error::Error for PortError {}
 
 #[cfg(test)]
 pub mod tests {
-    use super::PortManager;
+    use super::NetworkPortPool;
 
     #[test]
     pub fn should_be_able_to_reserve_port() {
         // Arrange
         let conn_id = 2u32;
         let connection_token = "some_token";
-        let mut port_manager = PortManager::new(10..20);
+        let mut port_manager = NetworkPortPool::new(10..20);
 
         // Act
         let port_permit = port_manager
-            .reserve_port(&conn_id, &connection_token)
+            .reserve_port(&conn_id, connection_token)
             .unwrap();
 
         // Assert
@@ -185,11 +183,11 @@ pub mod tests {
         let max_port = 20;
         let conn_id = 2u32;
         let connection_token = "some_token";
-        let mut port_manager = PortManager::new(min_port..max_port);
+        let mut port_manager = NetworkPortPool::new(min_port..max_port);
 
         // Act
         let port_permit = port_manager
-            .reserve_port(&conn_id, &connection_token)
+            .reserve_port(&conn_id, connection_token)
             .unwrap();
 
         // Assert
@@ -202,11 +200,11 @@ pub mod tests {
         // Arrange
         let conn_id = 2u32;
         let connection_token = "some_token";
-        let mut port_manager = PortManager::new(10..20);
+        let mut port_manager = NetworkPortPool::new(10..20);
 
         // Act
         let port_permit = port_manager
-            .reserve_port(&conn_id, &connection_token)
+            .reserve_port(&conn_id, connection_token)
             .unwrap();
 
         port_manager.free_port(port_permit.clone());

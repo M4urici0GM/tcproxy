@@ -37,7 +37,7 @@ impl From<TokenHandlerError> for AuthenticateCommandError {
     fn from(value: TokenHandlerError) -> Self {
         match value {
             TokenHandlerError::InvalidToken => Self::AuthenticationFailed,
-            TokenHandlerError::Other(err) => Self::Other(err.into()),
+            TokenHandlerError::Other(err) => Self::Other(err),
         }
     }
 }
@@ -108,14 +108,14 @@ impl AuthenticateCommand {
     ) -> std::result::Result<(User, Option<AuthToken>), AuthenticateCommandError> {
         match &self.args.grant_type {
             GrantType::PASSWORD(data) => {
-                let user_details = authenticate_with_password(&data, &self.account_manager).await?;
+                let user_details = authenticate_with_password(data, &self.account_manager).await?;
                 let token = create_user_token(&user_details, &self.token_handler)?;
 
                 Ok((user_details, Some(token)))
             }
             GrantType::TOKEN(data) => {
                 let user_details =
-                    authenticate_with_token(&data, &self.account_manager, &self.token_handler)
+                    authenticate_with_token(data, &self.account_manager, &self.token_handler)
                         .await?;
 
                 Ok((user_details, None))
@@ -152,7 +152,7 @@ impl AsyncCommand for AuthenticateCommand {
                 self.client_sender
                     .send(TcpFrame::Error(Error::new(
                         &Reason::UnexpectedError,
-                        &vec![],
+                        &[],
                     )))
                     .await?;
                 return Err(format!("unexpected error: {:?}", err).into());
@@ -235,7 +235,7 @@ async fn authenticate_with_token(
 }
 
 fn create_authentication_failed_frame(reason: &Reason) -> TcpFrame {
-    TcpFrame::Error(Error::new(reason, &vec![]))
+    TcpFrame::Error(Error::new(reason, &[]))
 }
 
 async fn send_authentication_failed_frame(

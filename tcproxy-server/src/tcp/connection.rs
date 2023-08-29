@@ -1,10 +1,10 @@
-use tcproxy_core::stream::Stream;
+
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::OwnedSemaphorePermit;
 use tracing::debug;
 
 use tcproxy_core::framing::SocketDisconnected;
-use tcproxy_core::tcp::{DefaultStreamReader, SocketConnection};
+use tcproxy_core::tcp::{DefaultStreamReader};
 use tcproxy_core::Result;
 use tcproxy_core::TcpFrame;
 
@@ -34,7 +34,7 @@ impl RemoteConnection {
         let stream_reader = DefaultStreamReader::new(1024 * 8, reader);
         let mut reader =
             RemoteConnectionReader::new(&self.connection_id, &self.client_sender, stream_reader);
-        let mut writer = RemoteConnectionWriter::new(receiver, connection_addr.clone(), writer);
+        let mut writer = RemoteConnectionWriter::new(receiver, connection_addr, writer);
 
         tokio::spawn(async move {
             let reader_task = tokio::spawn(async move {
