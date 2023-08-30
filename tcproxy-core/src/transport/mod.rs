@@ -3,8 +3,8 @@ pub mod writer;
 
 use std::net::SocketAddr;
 use tokio::net::TcpStream as TokioTcpStream;
-use tokio_native_tls::TlsAcceptor as TokioTlsAcceptor;
-use tokio_native_tls::native_tls::{Identity, TlsAcceptor};
+use tokio_native_tls::TlsConnector as TokioTlsConnector;
+use tokio_native_tls::native_tls::{Identity, TlsAcceptor, TlsStream, TlsConnector};
 use tracing::{debug, error};
 
 pub use reader::*;
@@ -46,19 +46,26 @@ impl TcpFrameTransport {
         (self.reader, self.writer)
     }
 
-    pub async fn connect(addr: SocketAddr, identity: Option<Identity>) -> Result<TcpFrameTransport> {
+    pub async fn connect(addr: SocketAddr, tls: bool) -> Result<TcpFrameTransport> {
         match TokioTcpStream::connect(addr).await {
             Ok(stream) => {
                 debug!("Connected to server..");
-                let stream = match identity {
-                    None => Stream::new(stream),
-                    Some(identity) => {
-                        
-                        let acceptor = TlsAcceptor::new(identity)?;
-                        let acceptor = TokioTlsAcceptor::from(acceptor);
+                let stream = match tls {
+                    false => Stream::new(stream),
+                    true => {
+                        let connector = match TlsConnector::builder().build() {
+                            Ok(c) => c,
+                            Err(err) => {
+                                tracing::error!("error when trying to create TlsAcceptor: {}", err);
+                                return Err(err.into());
+                            }
+                        };
 
+                        let connector = TokioTlsConnector::from(connector);
+                        let stream = connector.connect("127.0.0.1", stream).await?;
+                        tracing::debug!("successfully made TLS handshake! :rocket:");
                         
-                        crate::tls::accept_tls(stream, &acceptor).await?
+                        Stream::new(stream)
                     }
                 };
 

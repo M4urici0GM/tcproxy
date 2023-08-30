@@ -53,6 +53,9 @@ pub struct CreateContextArgs {
 
     #[clap(value_parser = parse_server_addr)]
     host: ServerAddr,
+
+    #[clap(value_parser, long, default_value = "true")]
+    disable_tls: bool
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -111,6 +114,7 @@ impl CreateContextArgs {
         Self {
             name: String::from(name),
             host: host.clone(),
+            disable_tls: false,
         }
     }
 
@@ -121,6 +125,8 @@ impl CreateContextArgs {
     pub fn host(&self) -> &ServerAddr {
         &self.host
     }
+    
+    pub fn disable_tls(&self) -> bool { self.disable_tls } 
 }
 
 impl ListenArgs {

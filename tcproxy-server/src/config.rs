@@ -145,6 +145,7 @@ impl ServerConfig {
 impl Config<AppArguments> for ServerConfig {
     fn apply_env(&mut self, app_vars: &HashMap<String, String>) -> Result<()> {
         for (name, value) in app_vars {
+            print!("{}, {}", name, value);
             match name.as_str() {
                 env::PORT_MIN => self.set_port_min(value.parse::<u16>()?),
                 env::PORT_MAX => self.set_port_max(value.parse::<u16>()?),
@@ -190,8 +191,13 @@ impl Config<AppArguments> for ServerConfig {
             self.set_port_max(range.end);
         }
 
-        self.set_certificate_path(args.get_certificate_path());
-        self.set_certificate_pass(args.get_certificate_password());
+        if let Some(_) = args.get_certificate_path() {
+            self.set_certificate_path(args.get_certificate_path());
+        }
+
+        if let Some(_) = args.get_certificate_password() {
+            self.set_certificate_pass(args.get_certificate_password());
+        }
     }
 
     fn validate(&self) -> Result<()> {
@@ -217,6 +223,8 @@ impl ConfigLoader<'_, AppArguments> for ServerConfig {
             env::LISTEN_IP.to_owned(),
             env::SERVER_FQDN.to_owned(),
             env::PORT_MAX.to_owned(),
+            env::CERTIFICATE_PASS.to_owned(),
+            env::CERTIFICATE_PATH.to_owned(),
         ];
 
         HashSet::from_iter(available_env_vars.iter().cloned())

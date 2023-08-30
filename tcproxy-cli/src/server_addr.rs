@@ -32,14 +32,6 @@ pub struct ServerAddr {
     addr_type: ServerAddrType,
 }
 
-impl TryFrom<AppContext> for ServerAddr {
-    type Error = ServerAddrError;
-
-    fn try_from(value: AppContext) -> Result<Self, Self::Error> {
-        Self::new(value.host(), value.port())
-    }
-}
-
 // Used to represent a ServerAddr
 // It will be useful for allowing app contexts to store domain names, instead of only IPs
 impl ServerAddr {

@@ -115,12 +115,10 @@ fn get_token(config: &Arc<Config>) -> Result<String> {
 async fn get_transport(app_context: &AppContext) -> Result<TcpFrameTransport> {
     info!("Trying to connect...");
 
-    let addr = ServerAddr::try_from(app_context.clone())
-        .unwrap()
+    let addr = ServerAddr::new(app_context.host(), app_context.port())?
         .to_socket_addr()?;
-    let transport = TcpFrameTransport::connect(addr, None).await?;
 
-    Ok(transport)
+    Ok(TcpFrameTransport::connect(addr, app_context.tls()).await?)
 }
 
 fn get_context(args: &Arc<ListenArgs>, config: &Arc<Config>) -> Result<AppContext> {

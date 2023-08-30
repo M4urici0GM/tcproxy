@@ -38,8 +38,8 @@ impl AsyncCommand for LoginCommand {
 
         // creates transport
         let app_context = get_context(&self.args, &self.config).await?;
-        let addr = ServerAddr::try_from(app_context)?.to_socket_addr()?;
-        let mut transport = TcpFrameTransport::connect(addr, None).await?;
+        let addr = ServerAddr::new(app_context.host(), app_context.port())?.to_socket_addr()?;
+        let mut transport = TcpFrameTransport::connect(addr, app_context.tls()).await?;
 
         match transport.send_frame(&authenticate_frame).await? {
             TcpFrame::AuthenticateAck(data) => {
