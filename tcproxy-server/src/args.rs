@@ -15,12 +15,6 @@ pub struct AppArguments {
     #[clap(short = 'D', long, value_parser = parse_port_range)]
     port_range: Option<Range<u16>>,
 
-    #[clap(long, value_parser)]
-    ssl_certificate_path: Option<String>,
-
-    #[clap(long, value_parser)]
-    ssl_certificate_password: Option<String>,
-
     #[clap(long = "max-connections-per-proxy")]
     max_connections_per_proxy: Option<u16>,
 }
@@ -31,16 +25,12 @@ impl AppArguments {
         ip: Option<IpAddr>,
         port_range: Option<Range<u16>>,
         max_connections_per_proxy: Option<u16>,
-        certificate_path: Option<String>,
-        certificate_pass: Option<String>,
-    ) -> Self {
+       ) -> Self {
         Self {
             port,
             ip,
             port_range,
             max_connections_per_proxy,
-            ssl_certificate_path: certificate_path,
-            ssl_certificate_password: certificate_pass
         }
     }
 
@@ -58,20 +48,6 @@ impl AppArguments {
 
     pub fn get_max_connections_per_proxy(&self) -> Option<u16> {
         self.max_connections_per_proxy
-    }
-
-    pub fn get_certificate_path(&self) -> Option<PathBuf> {
-        match &self.ssl_certificate_path {
-            Some(p) => Some(PathBuf::from(p)),
-            None => None,
-        }
-    }
-
-    pub fn get_certificate_password(&self) -> Option<String> {
-        match &self.ssl_certificate_password {
-            Some(p) => Some(String::from(p)),
-            None => None
-        }
     }
 }
 

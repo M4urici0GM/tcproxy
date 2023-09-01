@@ -134,10 +134,12 @@ impl ServerConfig {
     }
 
     fn set_certificate_path(&mut self, path: Option<PathBuf>) {
+        tracing::debug!("setting certificate path to: {:?}", path);
         self.certificate_path = path;
     }
 
     fn set_certificate_pass(&mut self, path: Option<String>) {
+        tracing::debug!("setting certificate password");
         self.certificate_pass = path;
     }
 }
@@ -145,7 +147,6 @@ impl ServerConfig {
 impl Config<AppArguments> for ServerConfig {
     fn apply_env(&mut self, app_vars: &HashMap<String, String>) -> Result<()> {
         for (name, value) in app_vars {
-            print!("{}, {}", name, value);
             match name.as_str() {
                 env::PORT_MIN => self.set_port_min(value.parse::<u16>()?),
                 env::PORT_MAX => self.set_port_max(value.parse::<u16>()?),
@@ -154,18 +155,8 @@ impl Config<AppArguments> for ServerConfig {
                 env::SERVER_FQDN => self.set_server_fqdn(value),
                 env::CONNECTIONS_PER_PROXY => self.set_connections_per_proxy(value.parse::<u16>()?),
                 env::JWT_SECRET => self.set_jwt_secret(value),
-                env::CERTIFICATE_PATH => {
-                    self.set_certificate_path(match value == &String::default() {
-                        true => Some(value.to_string().into()),
-                        _ => None,
-                    })
-                }
-                env::CERTIFICATE_PASS => {
-                    self.set_certificate_pass(match value == &String::default() {
-                        true => Some(value.to_string()),
-                        _ => None,
-                    })
-                }
+                env::CERTIFICATE_PATH => self.set_certificate_path(Some(PathBuf::from(value))),
+                env::CERTIFICATE_PASS => self.set_certificate_pass(Some(String::from(value))),
                 _ => continue,
             }
         }
@@ -189,14 +180,6 @@ impl Config<AppArguments> for ServerConfig {
         if let Some(range) = args.get_port_range() {
             self.set_port_min(range.start);
             self.set_port_max(range.end);
-        }
-
-        if let Some(_) = args.get_certificate_path() {
-            self.set_certificate_path(args.get_certificate_path());
-        }
-
-        if let Some(_) = args.get_certificate_password() {
-            self.set_certificate_pass(args.get_certificate_password());
         }
     }
 
@@ -346,7 +329,6 @@ mod tests {
             Some(expected_port_range.clone()),
             Some(expected_connections_per_proxy),
         );
-
         let env_vars: Vec<(String, String)> = vec![
             (env::CONFIG_FILE.to_owned(), file_name.to_owned()),
             (env::LISTEN_PORT.to_owned(), 120.to_string()),
@@ -408,6 +390,8 @@ mod tests {
             "proxy.server.local",
             120,
             "SOME_SECRET",
+            None,
+            None,
         );
 
         let config_str = serde_json::to_string(&config).unwrap();

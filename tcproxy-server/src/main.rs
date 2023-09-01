@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use tokio::signal;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use tcproxy_core::config::ConfigLoader;
 use tcproxy_core::tcp::{SocketListener, TcpListener};
@@ -46,10 +46,10 @@ async fn main() -> Result<()> {
         }
     };
 
-    print!("\n{:?}", config);
-
+    tracing::info!("config: {:?}", config);
     let password = config.get_certificate_pass().to_owned().unwrap_or_default();
     let identity = match config.get_certificate_path() {
+        None => None,
         Some(path) => match get_identity_from_file(&path, &password) {
             Ok(identity) => {
                 tracing::debug!("successfully loaded certificate identity");
@@ -57,10 +57,10 @@ async fn main() -> Result<()> {
             }
             Err(err) => {
                 error!("Failed when trying to load ssl certificate: {}", err);
-                panic!("Cannot start with invalid certificate!");
+                warn!("ignoring property certificate_path due invalid certificate file. check the path and/or the provided password");
+                None
             }
         },
-        None => None,
     };
 
     tracing::debug!("loaded identity: {}", identity.is_some());
