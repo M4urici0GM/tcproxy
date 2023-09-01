@@ -6,7 +6,7 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
-use crate::managers::{AuthenticationManagerGuard, NetworkPortPool, UserManager, PortManager};
+use crate::managers::{AuthenticationManagerGuard, UserManager, PortManager};
 use crate::proxy::{ClientFrameReader, ClientFrameWriter};
 use crate::proxy::{DefaultFrameHandler, DefaultTokenHandler};
 use crate::{ClientState, ServerConfig};
