@@ -40,8 +40,8 @@ where
 
         let mut config = Self::read_from_file(&config_path)?;
 
-        config.apply_env(&parsed_env_vars)?;
         config.apply_args(args);
+        config.apply_env(&parsed_env_vars)?;
         config.validate()?;
 
         Ok(config)
