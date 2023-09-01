@@ -46,7 +46,6 @@ async fn main() -> Result<()> {
         }
     };
 
-    tracing::info!("config: {:?}", config);
     let password = config.get_certificate_pass().to_owned().unwrap_or_default();
     let identity = match config.get_certificate_path() {
         None => None,
