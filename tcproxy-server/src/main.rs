@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
     let password = config.get_certificate_pass().to_owned().unwrap_or_default();
     let identity = match config.get_certificate_path() {
         None => None,
-        Some(path) => match get_identity_from_file(&path, &password) {
+        Some(path) => match get_identity_from_file(path, &password) {
             Ok(identity) => {
                 tracing::debug!("successfully loaded certificate identity");
                 identity

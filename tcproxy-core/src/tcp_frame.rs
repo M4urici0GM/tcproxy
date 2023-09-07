@@ -48,6 +48,7 @@ impl TcpFrame {
             DATA_PACKET => TcpFrame::DataPacket(DataPacket::decode(cursor)?),
             AUTHENTICATE => TcpFrame::Authenticate(Authenticate::decode(cursor)?),
             AUTHENTICATE_ACK => TcpFrame::AuthenticateAck(AuthenticateAck::decode(cursor)?),
+            SOCKET_DISCONNECTED => TcpFrame::SocketDisconnected(SocketDisconnected::decode(cursor)?),
             actual => return Err(format!("proto error. invalid frame type. {}", actual).into()),
         };
 

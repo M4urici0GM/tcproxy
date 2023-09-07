@@ -68,11 +68,9 @@ pub mod utils {
     ) -> Result<NaiveDateTime, FrameDecodeError> {
         match NaiveDateTime::from_timestamp_millis(*timestamp_millis) {
             Some(date) => Ok(date),
-            None => {
-                Err(FrameDecodeError::Other(
-                    format!("failed to decode timestamp: {}", timestamp_millis).into(),
-                ))
-            }
+            None => Err(FrameDecodeError::Other(
+                format!("failed to decode timestamp: {}", timestamp_millis).into(),
+            )),
         }
     }
 }

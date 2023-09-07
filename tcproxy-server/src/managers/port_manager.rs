@@ -2,7 +2,7 @@ use rand::Rng;
 use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
-use std::sync::{Mutex, Arc};
+use std::sync::{Arc, Mutex};
 use tcproxy_core::Error;
 use tracing::log::{debug, error, warn};
 
@@ -44,7 +44,7 @@ impl From<NetworkPortPool> for PortManager {
 }
 
 impl PortManager {
-        pub fn free_port(&self, permit: PortPermit) {
+    pub fn free_port(&self, permit: PortPermit) {
         let mut lock = self.0.lock().unwrap();
 
         debug!("disposing used port: {permit}");

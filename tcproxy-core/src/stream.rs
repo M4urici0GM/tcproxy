@@ -2,7 +2,10 @@ use std::{
     cell::UnsafeCell,
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, Ordering::{Acquire, Release}},
+        atomic::{
+            AtomicBool,
+            Ordering::{Acquire, Release},
+        },
         Arc,
     },
     task::{ready, Context, Poll},
@@ -97,13 +100,13 @@ impl Inner {
 
 impl InnerGuard<'_> {
     fn stream_pin(&mut self) -> Pin<&mut Stream> {
-        unsafe { Pin::new_unchecked(&mut *self.inner.stream.get() ) }
+        unsafe { Pin::new_unchecked(&mut *self.inner.stream.get()) }
     }
 }
 
 impl Drop for InnerGuard<'_> {
     fn drop(&mut self) {
-        self.inner.lock.store(false, Release)  
+        self.inner.lock.store(false, Release)
     }
 }
 

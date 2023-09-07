@@ -1,42 +1,55 @@
 use async_trait::async_trait;
 use std::sync::Arc;
-use tcproxy_core::{framing::DataPacket, AsyncCommand, Result};
+use tcproxy_core::{framing::DataPacket, Result, TcpFrame};
+use tokio::sync::mpsc::Sender;
 
 use crate::ClientState;
 
-pub struct DataPacketClientCommand {
-    connection_id: u32,
-    buffer: Vec<u8>,
-    proxy_state: Arc<ClientState>,
+use super::NewFrameHandler;
+
+pub struct DataPacketHandler(DataPacket);
+
+impl DataPacketHandler {
+    fn get_buffer(&self) -> &[u8] {
+        self.0.buffer()
+    }
 }
 
-impl DataPacketClientCommand {
-    pub fn new(data_packet: &DataPacket, proxy_state: &Arc<ClientState>) -> Self {
-        Self {
-            buffer: data_packet.buffer().to_vec(),
-            connection_id: *data_packet.connection_id(),
-            proxy_state: proxy_state.clone(),
-        }
+impl From<DataPacket> for DataPacketHandler {
+    fn from(value: DataPacket) -> Self {
+        Self(value)
     }
+}
 
-    pub fn boxed_new(data_packet: &DataPacket, proxy_state: &Arc<ClientState>) -> Box<Self> {
-        let obj = Self::new(data_packet, proxy_state);
-        Box::new(obj)
+impl From<DataPacketHandler> for Box<dyn NewFrameHandler> {
+    fn from(val: DataPacketHandler) -> Self {
+        Box::new(val)
     }
 }
 
 #[async_trait]
-impl AsyncCommand for DataPacketClientCommand {
-    type Output = Result<()>;
-
-    async fn handle(&mut self) -> Self::Output {
-        let connection_manager = self.proxy_state.get_connection_manager();
-        let (connection_sender, _) = match connection_manager.get_connection(&self.connection_id) {
+impl NewFrameHandler for DataPacketHandler {
+    async fn execute(
+        &self,
+        _tx: &Sender<TcpFrame>,
+        state: &Arc<ClientState>,
+    ) -> Result<Option<TcpFrame>> {
+        let connection_id = self.0.connection_id();
+        let connection_manager = state.get_connection_manager();
+        let (connection_sender, _) = match connection_manager.get_connection(connection_id) {
             Some(sender) => sender,
-            None => return Ok(()),
+            None => return Ok(None),
         };
 
-        let _ = connection_sender.send(self.buffer.clone()).await;
-        Ok(())
+        match connection_sender.send(self.get_buffer().into()).await {
+            Ok(_) => {}
+            Err(err) => tracing::warn!(
+                "failed when sending buffer to connection {}: {}",
+                connection_id,
+                err
+            ),
+        }
+
+        Ok(None)
     }
 }

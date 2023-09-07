@@ -61,11 +61,9 @@ impl Error {
             AUTHENTICATION_FAILED => Ok(Reason::AuthenticationFailed),
             UNEXPECTED_ERROR => Ok(Reason::UnexpectedError),
             ALREADY_AUTHENTICATED => Ok(Reason::AlreadyAuthenticated),
-            actual => {
-                Err(FrameDecodeError::Other(
-                    format!("invalid reason: {}", actual).into(),
-                ))
-            }
+            actual => Err(FrameDecodeError::Other(
+                format!("invalid reason: {}", actual).into(),
+            )),
         }
     }
 }

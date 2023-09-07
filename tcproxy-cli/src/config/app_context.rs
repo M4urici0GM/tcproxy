@@ -8,7 +8,7 @@ pub struct AppContext {
     name: String,
     target_host: String,
     target_port: u16,
-    tls: bool
+    tls: bool,
 }
 
 impl AppContext {
@@ -17,7 +17,7 @@ impl AppContext {
             name: String::from(name),
             target_host: host.to_owned(),
             target_port: port.to_owned(),
-            tls: use_ssl 
+            tls: use_ssl,
         }
     }
 

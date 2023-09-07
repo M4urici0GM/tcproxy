@@ -1,4 +1,4 @@
-use std::{net::IpAddr, ops::Range, path::PathBuf};
+use std::{net::IpAddr, ops::Range};
 
 use clap::Parser;
 use tcproxy_core::Result;
@@ -25,7 +25,7 @@ impl AppArguments {
         ip: Option<IpAddr>,
         port_range: Option<Range<u16>>,
         max_connections_per_proxy: Option<u16>,
-       ) -> Self {
+    ) -> Self {
         Self {
             port,
             ip,
