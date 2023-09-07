@@ -12,7 +12,6 @@ use crate::{ClientState, ServerConfig};
 
 pub struct ClientConnection {
     state: Arc<ClientState>,
-    server_config: Arc<ServerConfig>,
 }
 
 impl ClientConnection {
@@ -24,7 +23,6 @@ impl ClientConnection {
     ) -> Self {
         Self {
             state: ClientState::new(port_guard, auth_guard, server_config, account_manager),
-            server_config: server_config.clone(),
         }
     }
 

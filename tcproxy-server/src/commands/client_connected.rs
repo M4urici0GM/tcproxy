@@ -21,9 +21,9 @@ impl From<ClientConnected> for ClientConnectedHandler {
     }
 }
 
-impl Into<Box<dyn NewFrameHandler>> for ClientConnectedHandler {
-    fn into(self) -> Box<dyn NewFrameHandler> {
-        Box::new(self)
+impl From<ClientConnectedHandler> for Box<dyn NewFrameHandler> {
+    fn from(val: ClientConnectedHandler) -> Self {
+        Box::new(val)
     }
 }
 
@@ -43,10 +43,11 @@ impl NewFrameHandler for ClientConnectedHandler {
 
         let target_socket = SocketAddr::new(target_addr, *port_permit.port());
         let listener = TcpListener::bind(target_socket, None).await?;
-        let proxy_server = ProxyServer::new(port_permit, &state, &tx, listener);
+        let proxy_server = ProxyServer::new(port_permit, state, tx, listener);
 
         tokio::spawn(async move {
             let _ = proxy_server.spawn(CancellationToken::new());
+            tracing::info!("proxy listener stopped");
             // TODO: send message to client when server shuts down for any reason.
         });
 

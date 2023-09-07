@@ -30,7 +30,7 @@ pub struct Config {
 impl AuthManager {
     pub fn new(token: Option<String>) -> Self {
         Self {
-            current_token: token.clone(),
+            current_token: token,
         }
     }
 

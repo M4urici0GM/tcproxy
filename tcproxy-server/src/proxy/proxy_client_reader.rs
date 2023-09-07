@@ -70,13 +70,13 @@ async fn handle_frame(
         F::Authenticate(data) => AuthenticateFrameHandler::from(data).into(),
         F::ClientConnected(data) => ClientConnectedHandler::from(data).into(),
         F::SocketDisconnected(data) => SocketDisconnectedHandler::from(data).into(),
-        _ => {
-            debug!("invalid frame received.");
+        actual => {
+            debug!("invalid frame received. {}", actual);
             return Ok(());
         }
     };
 
-    match command_handler.execute(&sender, &state).await? {
+    match command_handler.execute(sender, state).await? {
         None => Ok(()),
         Some(frame) => {
             sender.send(frame.clone()).await?;

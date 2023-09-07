@@ -21,9 +21,9 @@ impl From<Authenticate> for AuthenticateFrameHandler {
     }
 }
 
-impl Into<Box<dyn NewFrameHandler>> for AuthenticateFrameHandler {
-    fn into(self) -> Box<dyn NewFrameHandler> {
-        Box::new(self)
+impl From<AuthenticateFrameHandler> for Box<dyn NewFrameHandler> {
+    fn from(val: AuthenticateFrameHandler) -> Self {
+        Box::new(val)
     }
 }
 

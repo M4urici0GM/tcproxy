@@ -1,4 +1,4 @@
-use std::{net::IpAddr, ops::Range, path::PathBuf};
+use std::{net::IpAddr, ops::Range};
 
 use clap::Parser;
 use tcproxy_core::Result;

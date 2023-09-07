@@ -48,6 +48,7 @@ impl TcpFrame {
             DATA_PACKET => TcpFrame::DataPacket(DataPacket::decode(cursor)?),
             AUTHENTICATE => TcpFrame::Authenticate(Authenticate::decode(cursor)?),
             AUTHENTICATE_ACK => TcpFrame::AuthenticateAck(AuthenticateAck::decode(cursor)?),
+            SOCKET_DISCONNECTED => TcpFrame::SocketDisconnected(SocketDisconnected::decode(cursor)?),
             actual => return Err(format!("proto error. invalid frame type. {}", actual).into()),
         };
 
@@ -79,9 +80,15 @@ impl Display for TcpFrame {
             TcpFrame::ClientConnected(_) => "ClientConnected".to_string(),
             TcpFrame::Ping(_) => "Ping".to_string(),
             TcpFrame::Pong(_) => "Pong".to_string(),
-            TcpFrame::Authenticate(_) => "Authenticate".to_string(),
-            TcpFrame::AuthenticateAck(_) => "AuthenticateAck".to_string(),
-            TcpFrame::ClientConnectedAck(_) => "ClientConnectedACK".to_string(),
+            TcpFrame::Authenticate(_) => {
+                "Authenticate".to_string()
+            }
+            TcpFrame::AuthenticateAck(_) => {
+                "AuthenticateAck".to_string()
+            }
+            TcpFrame::ClientConnectedAck(_) => {
+                "ClientConnectedACK".to_string()
+            }
             TcpFrame::SocketConnected(data) => {
                 format!("IncomingSocket ({})", data.connection_id())
             }

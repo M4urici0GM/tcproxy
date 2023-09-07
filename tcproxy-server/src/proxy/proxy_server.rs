@@ -47,6 +47,7 @@ impl ProxyServer {
                 _ = token.cancelled() => {},
             };
 
+            tracing::debug!("socket server {} is being shut down..", self.port_permit);
             self.proxy_state
                 .get_port_manager()
                 .free_port(self.port_permit);

@@ -66,9 +66,9 @@ impl AsyncCommand for LoginCommand {
 async fn get_context(args: &LoginArgs, config: &Config) -> Result<AppContext> {
     let contexts = config.lock_context_manager()?;
     let default = &contexts.default_context_str().to_string();
-    let context_name = args.app_context().clone().unwrap_or(default);
+    let context_name = args.app_context().unwrap_or(default);
 
-    match contexts.get_context(&context_name) {
+    match contexts.get_context(context_name) {
         Some(ctx) => Ok(ctx),
         None => Err(format!("context {} was not found.", context_name).into()),
     }

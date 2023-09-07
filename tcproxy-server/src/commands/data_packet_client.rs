@@ -21,9 +21,9 @@ impl From<DataPacket> for DataPacketHandler {
     }
 }
 
-impl Into<Box<dyn NewFrameHandler>> for DataPacketHandler {
-    fn into(self) -> Box<dyn NewFrameHandler> {
-        Box::new(self)
+impl From<DataPacketHandler> for Box<dyn NewFrameHandler> {
+    fn from(val: DataPacketHandler) -> Self {
+        Box::new(val)
     }
 }
 
@@ -36,7 +36,7 @@ impl NewFrameHandler for DataPacketHandler {
     ) -> Result<Option<TcpFrame>> {
         let connection_id = self.0.connection_id();
         let connection_manager = state.get_connection_manager();
-        let (connection_sender, _) = match connection_manager.get_connection(&connection_id) {
+        let (connection_sender, _) = match connection_manager.get_connection(connection_id) {
             Some(sender) => sender,
             None => return Ok(None),
         };

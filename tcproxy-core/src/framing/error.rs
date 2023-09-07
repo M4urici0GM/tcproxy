@@ -7,7 +7,7 @@ use tracing::trace;
 use crate::framing::frame_types::ERROR;
 use crate::framing::utils::assert_connection_type;
 use crate::io::{get_buffer, get_u16, get_u32};
-use crate::{Frame, FrameDecodeError, TcpFrame};
+use crate::{Frame, FrameDecodeError};
 
 use super::error_types::{
     ALREADY_AUTHENTICATED, AUTHENTICATION_FAILED, CLIENT_UNABLE_TO_CONNECT, FAILED_TO_CREATE_PROXY,

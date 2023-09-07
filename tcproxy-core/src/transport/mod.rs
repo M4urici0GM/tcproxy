@@ -3,7 +3,7 @@ pub mod writer;
 
 use std::net::SocketAddr;
 use tokio::net::TcpStream as TokioTcpStream;
-use tokio_native_tls::native_tls::{Identity, TlsAcceptor, TlsConnector, TlsStream};
+use tokio_native_tls::native_tls::{TlsConnector};
 use tokio_native_tls::TlsConnector as TokioTlsConnector;
 use tracing::{debug, error};
 

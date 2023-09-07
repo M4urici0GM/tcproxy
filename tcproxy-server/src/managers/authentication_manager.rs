@@ -116,7 +116,7 @@ pub mod tests {
         let mut auth_manager = AuthenticationManager::new();
 
         // Act
-        auth_manager.set_authentication_details(user_details.clone());
+        auth_manager.set_authentication_details(user_details);
         auth_manager.revoke_authentication();
 
         // Assert

@@ -8,7 +8,7 @@ use tracing::{debug, info};
 
 use crate::managers::{
     AuthenticationManager, AuthenticationManagerGuard, DefaultAccountManager, FeatureManager,
-    IFeatureManager, NetworkPortPool, PortManager, UserManager,
+    IFeatureManager, NetworkPortPool, PortManager,
 };
 use tcproxy_core::tcp::{ISocketListener, SocketListener};
 

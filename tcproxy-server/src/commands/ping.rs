@@ -30,8 +30,8 @@ impl From<tcproxy_core::framing::Ping> for PingFrameHandler {
     }
 }
 
-impl Into<Box<dyn NewFrameHandler>> for PingFrameHandler {
-    fn into(self) -> Box<dyn NewFrameHandler> {
-        Box::new(self)
+impl From<PingFrameHandler> for Box<dyn NewFrameHandler> {
+    fn from(val: PingFrameHandler) -> Self {
+        Box::new(val)
     }
 }

@@ -2,8 +2,8 @@ use bcrypt::verify;
 use chrono::{Duration, Utc};
 use std::{str::FromStr, sync::Arc};
 use tcproxy_core::auth::User;
-use tokio::sync::mpsc::Sender;
-use tracing::{error, info};
+
+use tracing::info;
 use uuid::Uuid;
 
 use crate::managers::AccountManagerError;
@@ -11,23 +11,10 @@ use crate::proxy::DefaultTokenHandler;
 use crate::ClientState;
 use tcproxy_core::auth::token_handler::{AuthToken, Claims, TokenHandler, TokenHandlerError};
 use tcproxy_core::framing::{
-    Authenticate, AuthenticateAck, Error, GrantType, PasswordAuthArgs, Reason,
+    GrantType, PasswordAuthArgs,
     TokenAuthenticationArgs,
 };
-use tcproxy_core::{Result, TcpFrame};
 
-#[derive(Debug)]
-pub struct AuthenticateCommandArgs {
-    grant_type: GrantType,
-}
-
-impl From<Authenticate> for AuthenticateCommandArgs {
-    fn from(value: Authenticate) -> Self {
-        Self {
-            grant_type: value.grant_type().to_owned(),
-        }
-    }
-}
 
 pub enum AuthenticateCommandError {
     AuthenticationFailed,

@@ -15,9 +15,9 @@ impl From<SocketDisconnected> for SocketDisconnectedHandler {
     }
 }
 
-impl Into<Box<dyn NewFrameHandler>> for SocketDisconnectedHandler {
-    fn into(self) -> Box<dyn NewFrameHandler> {
-        Box::new(self)
+impl From<SocketDisconnectedHandler> for Box<dyn NewFrameHandler> {
+    fn from(val: SocketDisconnectedHandler) -> Self {
+        Box::new(val)
     }
 }
 
@@ -33,7 +33,7 @@ impl NewFrameHandler for SocketDisconnectedHandler {
 
         match state
             .get_connection_manager()
-            .remove_connection(&connection_id)
+            .remove_connection(connection_id)
         {
             Some((_, token)) => {
                 token.cancel();
