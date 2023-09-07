@@ -34,22 +34,31 @@ impl Command for ListContextsCommand {
                     false => acc,
                 };
 
-                lines.push((ctx_name, ctx.host().to_owned()));
+                lines.push((
+                    ctx_name,
+                    ctx.host().to_owned(),
+                    match ctx.tls() {
+                        true => "true",
+                        false => "false",
+                    },
+                ));
                 (name_len, lines)
             },
         );
 
         println!(
-            "{0: <width$}  {1: <width$}",
+            "{0: <width$}  {1: <width$} {2: <width$}",
             "Context Name",
             "Server Address",
+            "TLS",
             width = biggest_name
         );
-        for (ctx_name, host) in contexts {
+        for (ctx_name, host, tls) in contexts {
             println!(
-                "{0: <width$}  {1: <width$}",
+                "{0: <width$}  {1: <width$} {2: <width$}",
                 ctx_name,
                 host,
+                tls,
                 width = biggest_name
             );
         }

@@ -21,14 +21,14 @@ impl Frame for ClientConnected {
         Self: Sized,
     {
         assert_connection_type(&get_u16(buffer)?, &CLIENT_CONNECTED)?;
-        return Ok(Self);
+        Ok(Self)
     }
 
     fn encode(&self) -> Vec<u8> {
         let mut buffer = Vec::new();
         buffer.put_u16(CLIENT_CONNECTED);
 
-        return buffer;
+        buffer
     }
 }
 

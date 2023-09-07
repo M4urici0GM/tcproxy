@@ -8,19 +8,21 @@ pub struct AppContext {
     name: String,
     target_host: String,
     target_port: u16,
+    tls: bool,
 }
 
 impl AppContext {
-    pub fn new(name: &str, host: &str, port: &u16) -> Self {
+    pub fn new(name: &str, host: &str, port: &u16, use_ssl: bool) -> Self {
         Self {
             name: String::from(name),
             target_host: host.to_owned(),
             target_port: port.to_owned(),
+            tls: use_ssl,
         }
     }
 
-    pub fn from_addr(name: &str, addr: &ServerAddr) -> Self {
-        Self::new(name, addr.host(), addr.port())
+    pub fn from_addr(name: &str, addr: &ServerAddr, use_ssl: bool) -> Self {
+        Self::new(name, addr.host(), addr.port(), use_ssl)
     }
 
     pub fn host(&self) -> &str {
@@ -33,6 +35,10 @@ impl AppContext {
 
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn tls(&self) -> bool {
+        self.tls
     }
 }
 

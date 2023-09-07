@@ -4,7 +4,7 @@ use std::error::Error;
 use std::net::{AddrParseError, IpAddr, SocketAddr};
 use std::{fmt::Display, num::ParseIntError, str::FromStr};
 
-use crate::config::AppContext;
+
 
 lazy_static! {
     static ref IP_REGEX: Regex =
@@ -30,14 +30,6 @@ pub struct ServerAddr {
     host: String,
     port: u16,
     addr_type: ServerAddrType,
-}
-
-impl TryFrom<AppContext> for ServerAddr {
-    type Error = ServerAddrError;
-
-    fn try_from(value: AppContext) -> Result<Self, Self::Error> {
-        Self::new(value.host(), value.port())
-    }
 }
 
 // Used to represent a ServerAddr

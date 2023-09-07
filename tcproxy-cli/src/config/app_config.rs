@@ -183,13 +183,13 @@ mod tests {
         let empty_config = AppConfig::default();
         let yaml_config = serde_yaml::to_string(&empty_config).unwrap();
 
-        let _ = fs::write(&path, &yaml_config);
+        let _ = fs::write(path, yaml_config);
 
         empty_config
     }
 
     /// Util function for removing file after test.
     fn remove_file(file_name: &Path) {
-        std::fs::remove_file(&file_name).unwrap();
+        std::fs::remove_file(file_name).unwrap();
     }
 }

@@ -61,11 +61,9 @@ impl Error {
             AUTHENTICATION_FAILED => Ok(Reason::AuthenticationFailed),
             UNEXPECTED_ERROR => Ok(Reason::UnexpectedError),
             ALREADY_AUTHENTICATED => Ok(Reason::AlreadyAuthenticated),
-            actual => {
-                return Err(FrameDecodeError::Other(
-                    format!("invalid reason: {}", actual).into(),
-                ));
-            }
+            actual => Err(FrameDecodeError::Other(
+                format!("invalid reason: {}", actual).into(),
+            )),
         }
     }
 }
@@ -97,7 +95,7 @@ impl Frame for Error {
         buffer.put_u16(ERROR);
         buffer.put_u16(reason);
         buffer.put_u32(0);
-        buffer.put_slice(&vec![]);
+        buffer.put_slice(&[]);
 
         buffer
     }
@@ -106,12 +104,12 @@ impl Frame for Error {
 impl fmt::Display for Reason {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let msg = match self {
-            Reason::AlreadyAuthenticated => format!("already authenticated!"),
-            Reason::UnexpectedError => format!("encountered unexpected error!"),
-            Reason::AuthenticationFailed => format!("authentication failed!"),
-            Reason::FailedToCreateProxy => format!("Failed to create proxy"),
-            Reason::PortLimitReached => format!("port limit reached"),
-            Reason::ClientUnableToConnect => format!("target host unable to connect"),
+            Reason::AlreadyAuthenticated => "already authenticated!".to_string(),
+            Reason::UnexpectedError => "encountered unexpected error!".to_string(),
+            Reason::AuthenticationFailed => "authentication failed!".to_string(),
+            Reason::FailedToCreateProxy => "Failed to create proxy".to_string(),
+            Reason::PortLimitReached => "port limit reached".to_string(),
+            Reason::ClientUnableToConnect => "target host unable to connect".to_string(),
         };
 
         write!(f, "{}", format!("reason: {}", msg))

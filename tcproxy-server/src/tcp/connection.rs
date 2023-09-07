@@ -3,7 +3,7 @@ use tokio::sync::OwnedSemaphorePermit;
 use tracing::debug;
 
 use tcproxy_core::framing::SocketDisconnected;
-use tcproxy_core::tcp::{DefaultStreamReader, SocketConnection};
+use tcproxy_core::tcp::DefaultStreamReader;
 use tcproxy_core::Result;
 use tcproxy_core::TcpFrame;
 
@@ -24,12 +24,13 @@ impl RemoteConnection {
         }
     }
 
-    pub async fn start<T>(self, connection: T, receiver: Receiver<Vec<u8>>) -> Result<()>
-    where
-        T: SocketConnection,
-    {
-        let connection_addr = connection.addr();
-        let (reader, writer) = connection.split();
+    pub async fn start(
+        self,
+        connection: tcproxy_core::tcp::RemoteConnection,
+        receiver: Receiver<Vec<u8>>,
+    ) -> Result<()> {
+        let connection_addr = *connection.remote_addr();
+        let (reader, writer) = connection.stream.into_split();
 
         let stream_reader = DefaultStreamReader::new(1024 * 8, reader);
         let mut reader =

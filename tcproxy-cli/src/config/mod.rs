@@ -30,7 +30,7 @@ pub struct Config {
 impl AuthManager {
     pub fn new(token: Option<String>) -> Self {
         Self {
-            current_token: token.clone(),
+            current_token: token,
         }
     }
 
@@ -39,18 +39,12 @@ impl AuthManager {
     }
 
     pub fn set_current_token(&mut self, value: Option<AuthToken>) {
-        self.current_token = match value {
-            Some(t) => Some(t.get().to_string()),
-            None => None,
-        };
+        self.current_token = value.map(|t| t.get().to_string());
     }
 }
 
 impl Config {
-    pub fn new(
-        contexts: &ContextManager,
-        auth: &AuthManager,
-    ) -> Self {
+    pub fn new(contexts: &ContextManager, auth: &AuthManager) -> Self {
         Self {
             contexts: Arc::new(Mutex::new(contexts.clone())),
             auth: Arc::new(Mutex::new(auth.clone())),
@@ -83,13 +77,13 @@ pub fn save_to_disk(config: &Config, directory_resolver: &DirectoryResolver) -> 
 }
 
 pub fn load(directory_resolver: &DirectoryResolver) -> Result<Config> {
-    let config_file = app_config::load(&directory_resolver)?;
+    let config_file = app_config::load(directory_resolver)?;
 
     // initialize managers
     let context_manager =
         ContextManager::new(config_file.default_context(), config_file.contexts());
 
     let auth = AuthManager::new(config_file.user_token().clone());
-    let config = Config::new(&context_manager, &auth); 
+    let config = Config::new(&context_manager, &auth);
     Ok(config)
 }

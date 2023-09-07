@@ -112,7 +112,7 @@ impl UserManager for DefaultAccountManager {
 
         let user_details = match maybe_user {
             Ok(user) => {
-                if user.len() == 0 {
+                if user.is_empty() {
                     return Err(AccountManagerError::NotFound);
                 }
 

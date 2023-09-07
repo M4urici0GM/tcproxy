@@ -6,7 +6,9 @@ pub mod auth;
 pub mod config;
 pub mod framing;
 pub mod io;
+pub mod stream;
 pub mod tcp;
+pub mod tls;
 pub mod transport;
 
 use bytes::{Buf, BufMut};

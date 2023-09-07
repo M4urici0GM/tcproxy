@@ -53,6 +53,9 @@ pub struct CreateContextArgs {
 
     #[clap(value_parser = parse_server_addr)]
     host: ServerAddr,
+
+    #[clap(value_parser, long, default_value = "true")]
+    disable_tls: bool,
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -79,12 +82,12 @@ pub struct ListenArgs {
 }
 
 impl LoginArgs {
-    pub fn app_context(&self) -> &Option<String> {
-        &self.app_context
+    pub fn app_context(&self) -> Option<&String> {
+        self.app_context.as_ref()
     }
 
-    pub fn username(&self) -> &Option<String> {
-        &self.username
+    pub fn username(&self) -> Option<&String> {
+        self.username.as_ref()
     }
 }
 
@@ -111,6 +114,7 @@ impl CreateContextArgs {
         Self {
             name: String::from(name),
             host: host.clone(),
+            disable_tls: false,
         }
     }
 
@@ -120,6 +124,10 @@ impl CreateContextArgs {
 
     pub fn host(&self) -> &ServerAddr {
         &self.host
+    }
+
+    pub fn disable_tls(&self) -> bool {
+        self.disable_tls
     }
 }
 

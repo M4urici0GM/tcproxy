@@ -1,5 +1,4 @@
 use crate::config::{AppContext, AppContextError, Config};
-use crate::server_addr::ServerAddrType;
 use crate::CreateContextArgs;
 use tcproxy_core::Command;
 
@@ -22,15 +21,8 @@ impl Command for CreateContextCommand {
 
     fn handle(&mut self) -> Self::Output {
         let context_addr = self.args.host();
-        let context = AppContext::from_addr(self.args.name(), context_addr);
-
-        // temporary! need to implement a dns resolver
-        // TODO: implement dns resolving module.
-        if context_addr.addr_type() != ServerAddrType::IpAddr {
-            return Err(AppContextError::ValidationError(
-                "Cannot accept DNS hosts.".to_string(),
-            ));
-        }
+        let use_ssl = !self.args.disable_tls();
+        let context = AppContext::from_addr(self.args.name(), context_addr, use_ssl);
 
         push_context(&self.config, &context)?;
 
@@ -41,7 +33,7 @@ impl Command for CreateContextCommand {
 
 fn push_context(config: &Config, context: &AppContext) -> tcproxy_core::Result<()> {
     let mut context_manager = config.lock_context_manager()?;
-    context_manager.push_context(&context)?;
+    context_manager.push_context(context)?;
 
     Ok(())
 }

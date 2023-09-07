@@ -34,9 +34,9 @@ impl Frame for Pong {
         let timestamp_millis = get_i64(buffer)?;
         let naive_datetime = parse_naive_date_time(&timestamp_millis)?;
 
-        return Ok(Self {
+        Ok(Self {
             timestamp: DateTime::from_utc(naive_datetime, Utc),
-        });
+        })
     }
 
     fn encode(&self) -> Vec<u8> {
@@ -45,7 +45,7 @@ impl Frame for Pong {
         buffer.put_u16(PONG);
         buffer.put_i64(self.timestamp.timestamp_millis());
 
-        return buffer;
+        buffer
     }
 }
 

@@ -1,52 +1,41 @@
 use std::sync::Arc;
-use tcproxy_core::tcp::SocketConnection;
+use tcproxy_core::stream::Stream;
 use tcproxy_core::transport::TcpFrameTransport;
 use tcproxy_core::{Result, TcpFrame};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
-use crate::managers::{AuthenticationManagerGuard, PortManagerGuard, UserManager};
+use crate::managers::{AuthenticationManagerGuard, PortManager, UserManager};
 use crate::proxy::{ClientFrameReader, ClientFrameWriter};
-use crate::proxy::{DefaultFrameHandler, DefaultTokenHandler};
 use crate::{ClientState, ServerConfig};
 
 pub struct ClientConnection {
     state: Arc<ClientState>,
-    server_config: Arc<ServerConfig>,
 }
 
 impl ClientConnection {
     pub fn new(
-        port_guard: Arc<PortManagerGuard>,
+        port_guard: PortManager,
         auth_guard: Arc<AuthenticationManagerGuard>,
         server_config: &Arc<ServerConfig>,
-        account_manager: &Arc<Box<dyn UserManager + 'static>>,
+        account_manager: &Arc<impl UserManager + 'static>,
     ) -> Self {
         Self {
             state: ClientState::new(port_guard, auth_guard, server_config, account_manager),
-            server_config: server_config.clone(),
         }
     }
 
     /// Starts reading and writing to client.
-    pub async fn start_streaming<T>(
+    pub async fn start_streaming(
         &mut self,
-        tcp_stream: T,
+        stream: Stream,
         cancellation_token: CancellationToken,
-    ) -> Result<()>
-    where
-        T: SocketConnection,
-    {
+    ) -> Result<()> {
         let local_cancellation_token = CancellationToken::new();
-        let (transport_reader, transport_writer) = TcpFrameTransport::new(tcp_stream).split();
-
+        let (transport_reader, transport_writer) = TcpFrameTransport::new(stream).split();
         let (frame_tx, frame_rx) = mpsc::channel::<TcpFrame>(10000);
-
-        let token_handler = DefaultTokenHandler::new(&self.server_config);
-        let frame_handler = DefaultFrameHandler::new(&frame_tx, &self.state, token_handler);
-
-        let client_reader = ClientFrameReader::new(transport_reader, frame_handler);
+        let client_reader = ClientFrameReader::new(transport_reader, &self.state, &frame_tx);
         let proxy_writer =
             ClientFrameWriter::new(frame_rx, transport_writer, &local_cancellation_token);
 

@@ -3,12 +3,14 @@ pub mod writer;
 
 use std::net::SocketAddr;
 use tokio::net::TcpStream as TokioTcpStream;
+use tokio_native_tls::native_tls::{TlsConnector};
+use tokio_native_tls::TlsConnector as TokioTlsConnector;
 use tracing::{debug, error};
 
 pub use reader::*;
 pub use writer::*;
 
-use crate::tcp::{SocketConnection, TcpStream};
+use crate::stream::Stream;
 use crate::{Result, TcpFrame};
 
 /// represents TcpFrame buffer transport reader.
@@ -20,11 +22,8 @@ pub struct TcpFrameTransport {
 
 impl TcpFrameTransport {
     /// creates new instance of TcpFrameTransport.
-    pub fn new<T>(connection: T) -> Self
-    where
-        T: SocketConnection,
-    {
-        let (reader, writer) = connection.split();
+    pub fn new(connection: Stream) -> Self {
+        let (reader, writer) = connection.into_split();
         Self {
             writer: TransportWriter::new(writer),
             reader: TransportReader::new(reader, 1024 * 8),
@@ -46,12 +45,28 @@ impl TcpFrameTransport {
         (self.reader, self.writer)
     }
 
-    pub async fn connect(addr: SocketAddr) -> Result<TcpFrameTransport> {
+    pub async fn connect(addr: SocketAddr, tls: bool) -> Result<TcpFrameTransport> {
         match TokioTcpStream::connect(addr).await {
             Ok(stream) => {
                 debug!("Connected to server..");
-                let socket_addr = stream.peer_addr().unwrap();
-                let stream = TcpStream::new(stream, socket_addr);
+                let stream = match tls {
+                    false => Stream::new(stream),
+                    true => {
+                        let connector = match TlsConnector::builder().build() {
+                            Ok(c) => c,
+                            Err(err) => {
+                                tracing::error!("error when trying to create TlsAcceptor: {}", err);
+                                return Err(err.into());
+                            }
+                        };
+
+                        let connector = TokioTlsConnector::from(connector);
+                        let stream = connector.connect("127.0.0.1", stream).await?;
+                        tracing::debug!("successfully made TLS handshake! :rocket:");
+
+                        Stream::new(stream)
+                    }
+                };
 
                 Ok(Self::new(stream))
             }

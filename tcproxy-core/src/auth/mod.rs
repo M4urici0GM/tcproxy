@@ -31,7 +31,7 @@ impl User {
 impl User {
     pub fn new(id: &Uuid, name: &str, email: &str, password: &str) -> Self {
         Self {
-            id: id.clone(),
+            id: *id,
             name: String::from(name),
             email: String::from(email),
             password_hash: String::from(password),

@@ -31,7 +31,7 @@ impl ListenCommand {
         notify_shutdown: broadcast::Sender<()>,
     ) -> Self {
         Self {
-            config: config.clone(),
+            config,
             args: Arc::clone(&args),
             _notify_shutdown: notify_shutdown,
             _shutdown_complete_tx: shutdown_complete_tx,
@@ -100,7 +100,7 @@ fn get_token(config: &Arc<Config>) -> Result<String> {
         Ok(lock) => lock,
         Err(err) => {
             error!("error when trying to lock context_manager: {}", err);
-            return Err(err.into());
+            return Err(err);
         }
     };
 
@@ -109,18 +109,15 @@ fn get_token(config: &Arc<Config>) -> Result<String> {
         .clone()
         .unwrap_or(String::default());
 
-    Ok(token.to_owned())
+    Ok(token)
 }
 
 async fn get_transport(app_context: &AppContext) -> Result<TcpFrameTransport> {
     info!("Trying to connect...");
 
-    let addr = ServerAddr::try_from(app_context.clone())
-        .unwrap()
-        .to_socket_addr()?;
-    let transport = TcpFrameTransport::connect(addr).await?;
+    let addr = ServerAddr::new(app_context.host(), app_context.port())?.to_socket_addr()?;
 
-    Ok(transport)
+    TcpFrameTransport::connect(addr, app_context.tls()).await
 }
 
 fn get_context(args: &Arc<ListenArgs>, config: &Arc<Config>) -> Result<AppContext> {
@@ -128,7 +125,7 @@ fn get_context(args: &Arc<ListenArgs>, config: &Arc<Config>) -> Result<AppContex
         Ok(lock) => lock,
         Err(err) => {
             error!("error when trying to lock context_manager: {}", err);
-            return Err(err.into());
+            return Err(err);
         }
     };
     let fallback = contexts.default_context_str().to_string();

@@ -1,24 +1,24 @@
 use std::sync::Arc;
 
 use crate::managers::{
-    AuthenticationManagerGuard, ConnectionsManager, PortManagerGuard, UserManager,
+    AuthenticationManagerGuard, ConnectionsManager, PortManager, UserManager,
 };
 use crate::ServerConfig;
 
 pub struct ClientState {
     server_config: Arc<ServerConfig>,
-    port_manager: Arc<PortManagerGuard>,
+    port_manager: PortManager,
     auth_manager: Arc<AuthenticationManagerGuard>,
-    accounts_manager: Arc<Box<dyn UserManager + 'static>>,
+    accounts_manager: Arc<dyn UserManager + 'static>,
     connection_manager: Arc<ConnectionsManager>,
 }
 
 impl ClientState {
     pub fn new(
-        port_manager: Arc<PortManagerGuard>,
+        port_manager: PortManager,
         auth_manager: Arc<AuthenticationManagerGuard>,
         server_config: &Arc<ServerConfig>,
-        account_manager: &Arc<Box<dyn UserManager + 'static>>,
+        account_manager: &Arc<impl UserManager + 'static>,
     ) -> Arc<Self> {
         Arc::new(Self {
             auth_manager,
@@ -29,7 +29,7 @@ impl ClientState {
         })
     }
 
-    pub fn get_port_manager(&self) -> &Arc<PortManagerGuard> {
+    pub fn get_port_manager(&self) -> &PortManager {
         &self.port_manager
     }
 
@@ -37,7 +37,7 @@ impl ClientState {
         &self.connection_manager
     }
 
-    pub fn get_accounts_manager(&self) -> &Arc<Box<dyn UserManager + 'static>> {
+    pub fn get_accounts_manager(&self) -> &Arc<dyn UserManager + 'static> {
         &self.accounts_manager
     }
 

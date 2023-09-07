@@ -38,8 +38,8 @@ impl AsyncCommand for LoginCommand {
 
         // creates transport
         let app_context = get_context(&self.args, &self.config).await?;
-        let addr = ServerAddr::try_from(app_context)?.to_socket_addr()?;
-        let mut transport = TcpFrameTransport::connect(addr).await?;
+        let addr = ServerAddr::new(app_context.host(), app_context.port())?.to_socket_addr()?;
+        let mut transport = TcpFrameTransport::connect(addr, app_context.tls()).await?;
 
         match transport.send_frame(&authenticate_frame).await? {
             TcpFrame::AuthenticateAck(data) => {
@@ -65,12 +65,10 @@ impl AsyncCommand for LoginCommand {
 
 async fn get_context(args: &LoginArgs, config: &Config) -> Result<AppContext> {
     let contexts = config.lock_context_manager()?;
-    let context_name = args
-        .app_context()
-        .clone()
-        .unwrap_or(contexts.default_context_str().to_string());
+    let default = &contexts.default_context_str().to_string();
+    let context_name = args.app_context().unwrap_or(default);
 
-    match contexts.get_context(&context_name) {
+    match contexts.get_context(context_name) {
         Some(ctx) => Ok(ctx),
         None => Err(format!("context {} was not found.", context_name).into()),
     }
@@ -107,6 +105,6 @@ fn get_username(args: &LoginArgs) -> Result<String> {
 fn strip_newline(input: &str) -> &str {
     input
         .strip_suffix("\r\n")
-        .or(input.strip_suffix("\n"))
+        .or(input.strip_suffix('\n'))
         .unwrap_or(input)
 }

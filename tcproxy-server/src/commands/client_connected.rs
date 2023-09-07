@@ -1,37 +1,60 @@
+use std::net::SocketAddr;
+use std::sync::Arc;
+
 use async_trait::async_trait;
+use tcproxy_core::tcp::{SocketListener, TcpListener};
 use tokio::sync::mpsc::Sender;
-use tracing::debug;
+use tokio_util::sync::CancellationToken;
 
-use tcproxy_core::framing::ClientConnectedAck;
-use tcproxy_core::{AsyncCommand, Result, TcpFrame};
+use tcproxy_core::framing::{ClientConnected, ClientConnectedAck};
+use tcproxy_core::{Result, TcpFrame};
 
-pub struct ClientConnectedCommand {
-    client_sender: Sender<TcpFrame>,
+use super::NewFrameHandler;
+use crate::proxy::ProxyServer;
+use crate::ClientState;
+
+pub struct ClientConnectedHandler(ClientConnected);
+
+impl From<ClientConnected> for ClientConnectedHandler {
+    fn from(value: ClientConnected) -> Self {
+        Self(value)
+    }
 }
 
-impl ClientConnectedCommand {
-    pub fn new(sender: &Sender<TcpFrame>) -> Self {
-        Self {
-            client_sender: sender.clone(),
-        }
-    }
-
-    pub fn boxed_new(sender: &Sender<TcpFrame>) -> Box<Self> {
-        let local_self = ClientConnectedCommand::new(&sender);
-        Box::new(local_self)
+impl From<ClientConnectedHandler> for Box<dyn NewFrameHandler> {
+    fn from(val: ClientConnectedHandler) -> Self {
+        Box::new(val)
     }
 }
 
 #[async_trait]
-impl AsyncCommand for ClientConnectedCommand {
-    type Output = Result<()>;
+impl NewFrameHandler for ClientConnectedHandler {
+    async fn execute(
+        &self,
+        tx: &Sender<TcpFrame>,
+        state: &Arc<ClientState>,
+    ) -> Result<Option<TcpFrame>> {
+        tracing::debug!("received connection client command");
 
-    async fn handle(&mut self) -> Self::Output {
-        debug!("received connection client command");
-        self.client_sender
-            .send(TcpFrame::ClientConnectedAck(ClientConnectedAck::new()))
-            .await?;
+        let port_permit = state.get_port_manager().reserve_port(&1234, "")?;
+        let target_addr = state.get_server_config().get_listen_ip();
 
-        Ok(())
+        tracing::debug!("spawning new TcpListener at {}", &target_addr);
+
+        let target_socket = SocketAddr::new(target_addr, *port_permit.port());
+        let listener = TcpListener::bind(target_socket, None).await?;
+        let proxy_server = ProxyServer::new(port_permit, state, tx, listener);
+
+        tokio::spawn(async move {
+            let _ = proxy_server.spawn(CancellationToken::new());
+            tracing::info!("proxy listener stopped");
+            // TODO: send message to client when server shuts down for any reason.
+        });
+
+        tracing::info!("new TcpListener running at {}", &target_socket);
+
+        Ok(Some(TcpFrame::from(ClientConnectedAck::new(
+            &target_socket.port(),
+        ))))
     }
 }

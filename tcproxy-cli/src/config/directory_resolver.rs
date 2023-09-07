@@ -10,10 +10,10 @@ pub struct DirectoryResolver {
     file_name: String,
 }
 
-const ORGANIZATION_NAME: &'static str = "m4urici0gm";
-const APPLICATION_NAME: &'static str = "tcproxy";
-const QUALIFIER: &'static str = "";
-const FILE_NAME: &'static str = "config.yaml";
+const ORGANIZATION_NAME: &str = "m4urici0gm";
+const APPLICATION_NAME: &str = "tcproxy";
+const QUALIFIER: &str = "";
+const FILE_NAME: &str = "config.yaml";
 
 impl DirectoryResolver {
     pub fn new(path: &Path, name: &str) -> Self {
@@ -47,7 +47,7 @@ pub fn load() -> Result<DirectoryResolver> {
 }
 
 fn get_config_dir() -> Result<ProjectDirs> {
-    match ProjectDirs::from(&QUALIFIER, &ORGANIZATION_NAME, &APPLICATION_NAME) {
+    match ProjectDirs::from(QUALIFIER, ORGANIZATION_NAME, APPLICATION_NAME) {
         Some(dir) => Ok(dir),
         None => Err("Couldnt access config folder".into()),
     }
