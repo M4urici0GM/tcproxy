@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use std::sync::Arc;
-use tcproxy_core::{TcpFrame, framing::SocketDisconnected};
+use tcproxy_core::{framing::SocketDisconnected, TcpFrame};
 use tokio::sync::mpsc::Sender;
 
-use crate::{ClientState};
+use crate::ClientState;
 
 use super::NewFrameHandler;
 

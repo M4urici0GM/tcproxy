@@ -7,7 +7,7 @@ use tokio::sync::{mpsc, OwnedSemaphorePermit};
 use tokio_util::sync::CancellationToken;
 
 use tcproxy_core::framing::SocketConnected;
-use tcproxy_core::tcp::{SocketListener};
+use tcproxy_core::tcp::SocketListener;
 use tcproxy_core::Result;
 
 use crate::managers::PortPermit;
@@ -47,7 +47,9 @@ impl ProxyServer {
                 _ = token.cancelled() => {},
             };
 
-            self.proxy_state.get_port_manager().free_port(self.port_permit);
+            self.proxy_state
+                .get_port_manager()
+                .free_port(self.port_permit);
         });
     }
 

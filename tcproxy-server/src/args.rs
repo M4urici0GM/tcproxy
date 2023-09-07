@@ -25,7 +25,7 @@ impl AppArguments {
         ip: Option<IpAddr>,
         port_range: Option<Range<u16>>,
         max_connections_per_proxy: Option<u16>,
-       ) -> Self {
+    ) -> Self {
         Self {
             port,
             ip,

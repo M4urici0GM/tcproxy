@@ -16,7 +16,9 @@ use crate::ClientState;
 pub struct ClientConnectedHandler(ClientConnected);
 
 impl From<ClientConnected> for ClientConnectedHandler {
-    fn from(value: ClientConnected) -> Self { Self(value) }
+    fn from(value: ClientConnected) -> Self {
+        Self(value)
+    }
 }
 
 impl Into<Box<dyn NewFrameHandler>> for ClientConnectedHandler {

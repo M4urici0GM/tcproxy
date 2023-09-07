@@ -1,12 +1,12 @@
 use std::sync::Arc;
-use tcproxy_core::stream::{Stream};
+use tcproxy_core::stream::Stream;
 use tcproxy_core::transport::TcpFrameTransport;
 use tcproxy_core::{Result, TcpFrame};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
-use crate::managers::{AuthenticationManagerGuard, UserManager, PortManager};
+use crate::managers::{AuthenticationManagerGuard, PortManager, UserManager};
 use crate::proxy::{ClientFrameReader, ClientFrameWriter};
 use crate::{ClientState, ServerConfig};
 
@@ -14,7 +14,6 @@ pub struct ClientConnection {
     state: Arc<ClientState>,
     server_config: Arc<ServerConfig>,
 }
-
 
 impl ClientConnection {
     pub fn new(
@@ -34,13 +33,13 @@ impl ClientConnection {
         &mut self,
         stream: Stream,
         cancellation_token: CancellationToken,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         let local_cancellation_token = CancellationToken::new();
         let (transport_reader, transport_writer) = TcpFrameTransport::new(stream).split();
         let (frame_tx, frame_rx) = mpsc::channel::<TcpFrame>(10000);
         let client_reader = ClientFrameReader::new(transport_reader, &self.state, &frame_tx);
-        let proxy_writer = ClientFrameWriter::new(frame_rx, transport_writer, &local_cancellation_token);
+        let proxy_writer =
+            ClientFrameWriter::new(frame_rx, transport_writer, &local_cancellation_token);
 
         tokio::select! {
             res = proxy_writer.spawn() => {

@@ -79,15 +79,9 @@ impl Display for TcpFrame {
             TcpFrame::ClientConnected(_) => "ClientConnected".to_string(),
             TcpFrame::Ping(_) => "Ping".to_string(),
             TcpFrame::Pong(_) => "Pong".to_string(),
-            TcpFrame::Authenticate(_) => {
-                "Authenticate".to_string()
-            }
-            TcpFrame::AuthenticateAck(_) => {
-                "AuthenticateAck".to_string()
-            }
-            TcpFrame::ClientConnectedAck(_) => {
-                "ClientConnectedACK".to_string()
-            }
+            TcpFrame::Authenticate(_) => "Authenticate".to_string(),
+            TcpFrame::AuthenticateAck(_) => "AuthenticateAck".to_string(),
+            TcpFrame::ClientConnectedAck(_) => "ClientConnectedACK".to_string(),
             TcpFrame::SocketConnected(data) => {
                 format!("IncomingSocket ({})", data.connection_id())
             }

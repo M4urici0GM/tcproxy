@@ -34,7 +34,14 @@ impl Command for ListContextsCommand {
                     false => acc,
                 };
 
-                lines.push((ctx_name, ctx.host().to_owned(), match ctx.tls() { true => "true", false => "false" } ));
+                lines.push((
+                    ctx_name,
+                    ctx.host().to_owned(),
+                    match ctx.tls() {
+                        true => "true",
+                        false => "false",
+                    },
+                ));
                 (name_len, lines)
             },
         );
@@ -51,7 +58,7 @@ impl Command for ListContextsCommand {
                 "{0: <width$}  {1: <width$} {2: <width$}",
                 ctx_name,
                 host,
-                tls, 
+                tls,
                 width = biggest_name
             );
         }

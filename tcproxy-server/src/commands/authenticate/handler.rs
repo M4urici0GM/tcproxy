@@ -1,11 +1,17 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tcproxy_core::{framing::{Authenticate, Reason, Error, AuthenticateAck}, TcpFrame};
+use tcproxy_core::{
+    framing::{Authenticate, AuthenticateAck, Error, Reason},
+    TcpFrame,
+};
 use tokio::sync::mpsc::Sender;
 
-use crate::{commands::{NewFrameHandler, authenticate::authenticate::AuthenticateCommandError}, ClientState};
 use super::authenticate;
+use crate::{
+    commands::{authenticate::authenticate::AuthenticateCommandError, NewFrameHandler},
+    ClientState,
+};
 
 pub struct AuthenticateFrameHandler(tcproxy_core::framing::Authenticate);
 
@@ -30,13 +36,19 @@ impl NewFrameHandler for AuthenticateFrameHandler {
     ) -> tcproxy_core::Result<Option<TcpFrame>> {
         let auth_manager = state.get_auth_manager();
         if auth_manager.is_authenticated() {
-            return Ok(Some(TcpFrame::Error(Error::new(&Reason::AuthenticationFailed, &[]))));
+            return Ok(Some(TcpFrame::Error(Error::new(
+                &Reason::AuthenticationFailed,
+                &[],
+            ))));
         }
 
         let (user, token) = match authenticate::challenge(self.0.grant_type(), state).await {
             Ok(acc_details) => acc_details,
             Err(AuthenticateCommandError::AuthenticationFailed) => {
-                return Ok(Some(TcpFrame::Error(Error::new(&Reason::AuthenticationFailed, &[]))));
+                return Ok(Some(TcpFrame::Error(Error::new(
+                    &Reason::AuthenticationFailed,
+                    &[],
+                ))));
             }
             Err(AuthenticateCommandError::Other(err)) => {
                 tracing::error!("failed when trying to fetch account details: {}", err);
@@ -51,8 +63,10 @@ impl NewFrameHandler for AuthenticateFrameHandler {
         tracing::info!("successfully authenticated, sending AuthenticateAck frame back");
         auth_manager.set_authentication_details(&user);
 
-        Ok(Some(TcpFrame::AuthenticateAck(AuthenticateAck::new(&user.id().to_string(), user.email(), token))))
+        Ok(Some(TcpFrame::AuthenticateAck(AuthenticateAck::new(
+            &user.id().to_string(),
+            user.email(),
+            token,
+        ))))
     }
 }
-
-

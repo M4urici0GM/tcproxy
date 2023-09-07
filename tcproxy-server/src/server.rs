@@ -1,14 +1,14 @@
 use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tcproxy_core::{Result, tcp::RemoteConnection};
+use tcproxy_core::{tcp::RemoteConnection, Result};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
 
 use crate::managers::{
     AuthenticationManager, AuthenticationManagerGuard, DefaultAccountManager, FeatureManager,
-    IFeatureManager, NetworkPortPool, UserManager, PortManager,
+    IFeatureManager, NetworkPortPool, PortManager, UserManager,
 };
 use tcproxy_core::tcp::{ISocketListener, SocketListener};
 
@@ -71,8 +71,7 @@ impl Server {
         &self,
         socket: RemoteConnection,
         cancellation_token: CancellationToken,
-    ) -> JoinHandle<Result<()>>
-    {
+    ) -> JoinHandle<Result<()>> {
         let server_config = self.feature_manager.get_config();
         let auth_manager = AuthenticationManager::new();
         let network_port_pool = NetworkPortPool::new(server_config.get_port_range());
@@ -80,7 +79,8 @@ impl Server {
 
         let account_manager = Arc::new(DefaultAccountManager::new());
         let auth_guard = Arc::new(AuthenticationManagerGuard::new(auth_manager));
-        let mut proxy_client = ClientConnection::new(port_manager, auth_guard, &server_config, &account_manager);
+        let mut proxy_client =
+            ClientConnection::new(port_manager, auth_guard, &server_config, &account_manager);
 
         tokio::spawn(async move {
             let socket_addr = *socket.remote_addr();

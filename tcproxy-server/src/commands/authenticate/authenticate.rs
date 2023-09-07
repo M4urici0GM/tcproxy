@@ -141,4 +141,3 @@ async fn authenticate_with_token(
     info!("successfully found user with id {}", account_id);
     Ok(user_details)
 }
-

@@ -8,12 +8,12 @@ use tracing::{debug, info};
 use tcproxy_core::transport::TransportReader;
 use tcproxy_core::{Result, TcpFrame};
 
-use crate::ClientState;
 use crate::commands::authenticate::AuthenticateFrameHandler;
 use crate::commands::{
     ClientConnectedHandler, DataPacketHandler, NewFrameHandler, PingFrameHandler,
     SocketDisconnectedHandler,
 };
+use crate::ClientState;
 
 /// Responsible for reading commands / frames from client and processing them.
 pub struct ClientFrameReader {
@@ -23,7 +23,6 @@ pub struct ClientFrameReader {
 }
 
 impl ClientFrameReader {
-
     pub fn new(reader: TransportReader, state: &Arc<ClientState>, tx: &Sender<TcpFrame>) -> Self {
         Self {
             reader,
@@ -31,7 +30,7 @@ impl ClientFrameReader {
             sender: tx.clone(),
         }
     }
-    
+
     pub fn spawn(self, cancellation_token: CancellationToken) -> JoinHandle<Result<()>> {
         tokio::spawn(async move {
             let _ = self.start(cancellation_token.child_token()).await;
@@ -59,7 +58,11 @@ impl ClientFrameReader {
     }
 }
 
-async fn handle_frame(frame: TcpFrame, sender: &Sender<TcpFrame>, state: &Arc<ClientState>) -> Result<()> {
+async fn handle_frame(
+    frame: TcpFrame,
+    sender: &Sender<TcpFrame>,
+    state: &Arc<ClientState>,
+) -> Result<()> {
     use TcpFrame as F;
     let command_handler: Box<dyn NewFrameHandler> = match frame {
         F::Ping(data) => PingFrameHandler::from(data).into(),

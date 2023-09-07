@@ -11,16 +11,15 @@ use crate::stream::Stream;
 use crate::tcp::SocketListener;
 use crate::Result;
 
-
 #[derive(Debug)]
 pub struct TcpListener {
     inner: TokioTcpListener,
     acceptor: Option<Arc<TokioTlsAcceptor>>,
 }
 
-pub struct RemoteConnection{
+pub struct RemoteConnection {
     pub stream: Stream,
-    remote_addr: SocketAddr
+    remote_addr: SocketAddr,
 }
 
 impl RemoteConnection {
@@ -30,7 +29,7 @@ impl RemoteConnection {
             remote_addr,
         }
     }
-    
+
     pub fn remote_addr(&self) -> &SocketAddr {
         &self.remote_addr
     }
@@ -64,7 +63,10 @@ impl SocketListener for TcpListener {
                         Some(acceptor) => Stream::new(acceptor.accept(stream).await?),
                     };
 
-                    return Ok(RemoteConnection { stream: result, remote_addr: addr });
+                    return Ok(RemoteConnection {
+                        stream: result,
+                        remote_addr: addr,
+                    });
                 }
                 Err(err) => {
                     error!(

@@ -3,14 +3,14 @@ pub mod writer;
 
 use std::net::SocketAddr;
 use tokio::net::TcpStream as TokioTcpStream;
+use tokio_native_tls::native_tls::{Identity, TlsAcceptor, TlsConnector, TlsStream};
 use tokio_native_tls::TlsConnector as TokioTlsConnector;
-use tokio_native_tls::native_tls::{Identity, TlsAcceptor, TlsStream, TlsConnector};
 use tracing::{debug, error};
 
 pub use reader::*;
 pub use writer::*;
 
-use crate::stream::{Stream};
+use crate::stream::Stream;
 use crate::{Result, TcpFrame};
 
 /// represents TcpFrame buffer transport reader.
@@ -22,8 +22,7 @@ pub struct TcpFrameTransport {
 
 impl TcpFrameTransport {
     /// creates new instance of TcpFrameTransport.
-    pub fn new(connection: Stream) -> Self
-    {
+    pub fn new(connection: Stream) -> Self {
         let (reader, writer) = connection.into_split();
         Self {
             writer: TransportWriter::new(writer),
@@ -64,7 +63,7 @@ impl TcpFrameTransport {
                         let connector = TokioTlsConnector::from(connector);
                         let stream = connector.connect("127.0.0.1", stream).await?;
                         tracing::debug!("successfully made TLS handshake! :rocket:");
-                        
+
                         Stream::new(stream)
                     }
                 };
@@ -92,4 +91,3 @@ impl TcpFrameTransport {
         }
     }
 }
-    

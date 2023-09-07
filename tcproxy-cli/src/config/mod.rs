@@ -44,10 +44,7 @@ impl AuthManager {
 }
 
 impl Config {
-    pub fn new(
-        contexts: &ContextManager,
-        auth: &AuthManager,
-    ) -> Self {
+    pub fn new(contexts: &ContextManager, auth: &AuthManager) -> Self {
         Self {
             contexts: Arc::new(Mutex::new(contexts.clone())),
             auth: Arc::new(Mutex::new(auth.clone())),
@@ -87,6 +84,6 @@ pub fn load(directory_resolver: &DirectoryResolver) -> Result<Config> {
         ContextManager::new(config_file.default_context(), config_file.contexts());
 
     let auth = AuthManager::new(config_file.user_token().clone());
-    let config = Config::new(&context_manager, &auth); 
+    let config = Config::new(&context_manager, &auth);
     Ok(config)
 }

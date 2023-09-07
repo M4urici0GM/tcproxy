@@ -17,7 +17,6 @@ use crate::ClientState;
 
 pub mod authenticate;
 
-
 #[async_trait]
 pub trait NewFrameHandler: Send + Sync {
     async fn execute(
@@ -26,4 +25,3 @@ pub trait NewFrameHandler: Send + Sync {
         state: &Arc<ClientState>,
     ) -> tcproxy_core::Result<Option<TcpFrame>>;
 }
-

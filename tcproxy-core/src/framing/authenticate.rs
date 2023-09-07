@@ -166,11 +166,4 @@ impl From<TokenAuthenticationArgs> for GrantType {
 }
 
 #[cfg(test)]
-pub mod tests {
-    
-    
-    
-    
-    
-    
-}
+pub mod tests {}
