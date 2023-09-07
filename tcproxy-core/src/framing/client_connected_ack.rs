@@ -1,7 +1,7 @@
 use crate::framing::frame_types::CLIENT_CONNECTED_ACK;
 use crate::framing::utils::assert_connection_type;
 use crate::io::get_u16;
-use crate::{Frame, FrameDecodeError};
+use crate::{Frame, FrameDecodeError, TcpFrame};
 use bytes::BufMut;
 use std::io::Cursor;
 
@@ -16,6 +16,10 @@ impl ClientConnectedAck {
             listening_port: *port
         }
     }
+}
+
+impl From<ClientConnectedAck> for TcpFrame {
+    fn from(value: ClientConnectedAck) -> Self { TcpFrame::ClientConnectedAck(value) }
 }
 
 impl Frame for ClientConnectedAck {

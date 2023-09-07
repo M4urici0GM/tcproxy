@@ -82,12 +82,12 @@ pub struct ListenArgs {
 }
 
 impl LoginArgs {
-    pub fn app_context(&self) -> &Option<String> {
-        &self.app_context
+    pub fn app_context(&self) -> Option<&String> {
+        self.app_context.as_ref()
     }
 
-    pub fn username(&self) -> &Option<String> {
-        &self.username
+    pub fn username(&self) -> Option<&String> {
+        self.username.as_ref()
     }
 }
 

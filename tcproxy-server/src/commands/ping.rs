@@ -1,27 +1,37 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use tcproxy_core::framing::Pong;
-use tcproxy_core::{AsyncCommand, Result, TcpFrame};
+use tcproxy_core::TcpFrame;
 use tokio::sync::mpsc::Sender;
 
-pub struct PingCommand {
-    sender: Sender<TcpFrame>,
-}
+use crate::ClientState;
 
-impl PingCommand {
-    pub fn new(sender: &Sender<TcpFrame>) -> Self {
-        Self {
-            sender: sender.clone(),
-        }
+use super::NewFrameHandler;
+
+pub struct PingFrameHandler(tcproxy_core::framing::Ping);
+
+#[async_trait]
+impl NewFrameHandler for PingFrameHandler {
+    async fn execute(
+        &self,
+        tx: &Sender<TcpFrame>,
+        _state: &Arc<ClientState>,
+    ) -> tcproxy_core::Result<Option<TcpFrame>> {
+        tx.send(TcpFrame::Pong(Pong::new())).await?;
+
+        Ok(None)
     }
 }
 
-#[async_trait]
-impl AsyncCommand for PingCommand {
-    type Output = Result<()>;
+impl From<tcproxy_core::framing::Ping> for PingFrameHandler {
+    fn from(value: tcproxy_core::framing::Ping) -> Self {
+        Self(value)
+    }
+}
 
-    async fn handle(&mut self) -> Self::Output {
-        self.sender.send(TcpFrame::Pong(Pong::new())).await?;
-
-        Ok(())
+impl Into<Box<dyn NewFrameHandler>> for PingFrameHandler {
+    fn into(self) -> Box<dyn NewFrameHandler> {
+        Box::new(self)
     }
 }

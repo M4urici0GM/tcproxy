@@ -78,13 +78,9 @@ impl Server {
         let network_port_pool = NetworkPortPool::new(server_config.get_port_range());
         let port_manager = PortManager::from(network_port_pool);
 
-        let account_manager: Arc<Box<dyn UserManager + 'static>> =
-            Arc::new(Box::new(DefaultAccountManager::new()));
-
+        let account_manager = Arc::new(DefaultAccountManager::new());
         let auth_guard = Arc::new(AuthenticationManagerGuard::new(auth_manager));
-
-        let mut proxy_client =
-            ClientConnection::new(port_manager, auth_guard, &server_config, &account_manager);
+        let mut proxy_client = ClientConnection::new(port_manager, auth_guard, &server_config, &account_manager);
 
         tokio::spawn(async move {
             let socket_addr = *socket.remote_addr();

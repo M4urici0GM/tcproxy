@@ -65,10 +65,11 @@ impl AsyncCommand for LoginCommand {
 
 async fn get_context(args: &LoginArgs, config: &Config) -> Result<AppContext> {
     let contexts = config.lock_context_manager()?;
+    let default = &contexts.default_context_str().to_string();
     let context_name = args
         .app_context()
         .clone()
-        .unwrap_or(contexts.default_context_str().to_string());
+        .unwrap_or(default);
 
     match contexts.get_context(&context_name) {
         Some(ctx) => Ok(ctx),
